@@ -1,10 +1,18 @@
 ### HRF Boardgames App
 
 #### Building
+In **scala-js-dom-reduced** dir
+```
+sbt publishLocal
+```
 
-Run "sbt fastOptJS" to generate the javascript
+In **haunt-roll-fail** dir
+```
+sbt fastOptJS
+```
 
-Copy graphical assets from http://van.im:777/hrf/assets.zip
-
-Open index.html
-
+In **haunt-roll-fail** dir
+```
+sbt "run create ../good-game-database ../haunt-roll-fail http://localhost:7070 http://localhost:7070/hrf/ 7070"
+sbt "run run ../good-game-database ../haunt-roll-fail http://localhost:7070 http://localhost:7070/hrf/ 7070"
+```
