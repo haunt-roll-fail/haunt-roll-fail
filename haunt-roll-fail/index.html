@@ -1,0 +1,493 @@
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <!-- { | BASE HREF | { -->
+        <base href="" />
+        <!-- } | BASE HREF | } -->
+
+        <!-- { | SETTINGS | { -->
+        <title id="settings" data-scroll="true" data-online="true" data-delay="1" data-server="" data-static="" data-user="" data-secret="" data-meta="" data-quick="" data-lobby="" >HRF</title>
+        <!-- } | SETTINGS | } -->
+
+        <style>
+            html {
+                height: 100%;
+            }
+
+            body {
+                font-family: Consolas, Menlo, Monaco, Lucida Console, Inconsolata, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, sans-serif;
+                font-size: 20px;
+                font-size: 2.0vh;
+                color: #707070;
+                background-color: black;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                background-image: url(omen.png);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: contain;
+            }
+
+            img {
+                transform: translateZ(1px);
+                image-rendering: -webkit-optimize-contrast;
+            }
+
+            .italic {
+                font-style: italic;
+            }
+
+            .system-ui {
+                font-family: system-ui, Fira Sans, sans-serif;
+                font-size: 20px;
+                font-size: 2.0vh;
+            }
+
+            .font-size-inherit {
+                font-size: inherit !important;
+            }
+
+            .consolas {
+                font-family: Consolas, Menlo, Monaco, Lucida Console, Inconsolata, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, sans-serif;
+                font-size: 21px;
+                font-size: 2.1vh;
+            }
+
+            @font-face {
+                font-family: "Luminari";
+                src:              
+                                  url("/hrf/fonts/luminari.woff2") format("woff2"),
+                                  url("/hrf/fonts/luminari.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/luminari.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/luminari.woff")  format("woff");
+            }
+
+            .luminari {
+                font-family: "Luminari", serif;
+                font-size: 20px;
+                font-size: 2.0vh;
+            }
+
+            @font-face {
+                font-family: "Ethnocentric";
+                src:              
+                                  url("/hrf/fonts/ethnocentric.woff2") format("woff2"),
+                                  url("/hrf/fonts/ethnocentric.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/ethnocentric.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/ethnocentric.woff")  format("woff");
+            }
+
+            .ethnocentric {
+                font-family: "Ethnocentric", sans-serif;
+                font-size: 16px;
+                font-size: 1.6vh;
+            }
+
+            @font-face {
+                font-family: "Present Bold";
+                src:              
+                                  url("/hrf/fonts/present-bold.woff2") format("woff2"),
+                                  url("/hrf/fonts/present-bold.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/present-bold.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/present-bold.woff")  format("woff");
+            }
+
+            .present-bold {
+                font-family: "Present Bold", serif;
+                font-size: 19px;
+                font-size: 1.9vh;
+            }
+
+            @font-face {
+                font-family: "Eskapade Fraktur Black";
+                src:              
+                                  url("/hrf/fonts/eskapade-fraktur-black.woff2") format("woff2"),
+                                  url("/hrf/fonts/eskapade-fraktur-black.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/eskapade-fraktur-black.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/eskapade-fraktur-black.woff")  format("woff");
+            }
+
+            .eskapade-fraktur-black {
+                font-family: "Eskapade Fraktur Black", serif;
+                font-size: 22px;
+                font-size: 2.2vh;
+                --line-height: 1.2;
+            }
+
+            @font-face {
+                font-family: "Caslo Antique";
+                src:              
+                                  url("/hrf/fonts/caslo-antique.woff2") format("woff2"),
+                                  url("/hrf/fonts/caslo-antique.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/caslo-antique.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/caslo-antique.woff")  format("woff");
+            }
+
+            .caslo-antique {
+                font-family: "Caslo Antique", serif;
+                font-size: 24px;
+                font-size: 2.4vh;
+            }
+
+            @font-face {
+                font-family: "Tico";
+                src:              
+                                  url("/hrf/fonts/tico.woff2") format("woff2"),
+                                  url("/hrf/fonts/tico.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/tico.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/tico.woff")  format("woff");
+            }
+
+            .tico {
+                font-family: "Tico", serif;
+                font-size: 22px;
+                font-size: 2.2vh;
+            }
+
+            @font-face {
+                font-family: "Bohemian Typewriter";
+                src:              
+                                  url("/hrf/fonts/bohemian-typewriter.woff2") format("woff2"),
+                                  url("/hrf/fonts/bohemian-typewriter.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/bohemian-typewriter.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/bohemian-typewriter.woff")  format("woff");
+            }
+
+            .bohemian-typewriter {
+                font-family: "Bohemian Typewriter", san-serif;
+                font-size: 22px;
+                font-size: 2.2vh;
+            }
+
+            @font-face {
+                font-family: "Dwarven Axe BB";
+                src:              
+                                  url("/hrf/fonts/dwarven-axe-bb.woff2") format("woff2"),
+                                  url("/hrf/fonts/dwarven-axe-bb.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/dwarven-axe-bb.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/dwarven-axe-bb.woff")  format("woff");
+            }
+
+            .dwarven-axe-bb {
+                font-family: "Dwarven Axe BB", san-serif;
+                font-size: 26px;
+                font-size: 2.6vh;
+            }
+
+            @font-face {
+                font-family: "Neue Kabel";
+                src:              
+                                  url("/hrf/fonts/neue-kabel.woff2") format("woff2"),
+                                  url("/hrf/fonts/neue-kabel.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/neue-kabel.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/neue-kabel.woff")  format("woff");
+            }
+
+            .neue-kabel {
+                font-family: "Neue Kabel", san-serif;
+                font-size: 22px;
+                font-size: 2.2vh;
+            }
+
+            @font-face {
+                font-family: "FMBolyarPro-900";
+                src:              
+                                  url("/hrf/fonts/fm-bolyar-pro-900.woff2") format("woff2"),
+                                  url("/hrf/fonts/fm-bolyar-pro-900.woff")  format("woff"),
+                    url("https://hrf.im/hrf/fonts/fm-bolyar-pro-900.woff2") format("woff2"),
+                    url("https://hrf.im/hrf/fonts/fm-bolyar-pro-900.woff")  format("woff");
+            }
+
+            .fm-bolyar-pro-900 {
+                font-family: "FMBolyarPro-900", san-serif;
+                font-size: 22px;
+                font-size: 2.2vh;
+            }
+
+            * {
+                scrollbar-width: thin;
+                scrollbar-color: gray transparent;
+            }
+
+            *::-webkit-scrollbar {
+                width: 7px;
+                width: 0.7vmin;
+            }
+
+            *::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            *::-webkit-scrollbar-thumb {
+                background-color: gray;
+                border-radius: 14px;
+                border-radius: 1.4vmin;
+                border: 2px solid black;
+                border: 0.2vmin solid black;
+            }
+
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+
+            input[type=text] {
+                color: white;
+                border: 0px;
+                margin: 0px;
+                padding: 0px;
+                text-align: center;
+                font-family: inherit;
+                box-sizing: border-box;
+                width: 100%;
+                outline: none;
+            }
+
+            input[type=text]:focus {
+                outline: none;
+            }
+
+            ::placeholder {
+               color: #333333;
+            }
+
+            .unselectable {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+
+            .thumargin {
+                margin-top: 0.8ex !important;
+                margin-bottom: 0.8ex !important;
+            }
+
+            .logblur {
+                height: 100%;
+                overflow-x: hidden;
+                overflow-y: overlay;
+                mask-image:                 linear-gradient(to bottom, transparent 0%, #fff 0.5ex, #fff calc(100% - 0.5ex), transparent 100%);
+                -moz-mask-image:       -moz-linear-gradient(to bottom, transparent 0%, #fff 0.5ex, #fff calc(100% - 0.5ex), transparent 100%);
+                -moz-mask-image:            linear-gradient(to bottom, transparent 0%, #fff 0.5ex, #fff calc(100% - 0.5ex), transparent 100%);
+                -webkit-mask-image: -webkit-linear-gradient(to bottom, transparent 0%, #fff 0.5ex, #fff calc(100% - 0.5ex), transparent 100%);
+                -webkit-mask-image:         linear-gradient(to bottom, transparent 0%, #fff 0.5ex, #fff calc(100% - 0.5ex), transparent 100%);
+            }
+
+            .logblurhor {
+                mask-image:                 linear-gradient(to right, transparent 0%, #fff 1.0ex, #fff calc(100% - 1.0ex), transparent 100%);
+                -moz-mask-image:       -moz-linear-gradient(to right, transparent 0%, #fff 1.0ex, #fff calc(100% - 1.0ex), transparent 100%);
+                -moz-mask-image:            linear-gradient(to right, transparent 0%, #fff 1.0ex, #fff calc(100% - 1.0ex), transparent 100%);
+                -webkit-mask-image: -webkit-linear-gradient(to right, transparent 0%, #fff 1.0ex, #fff calc(100% - 1.0ex), transparent 100%);
+                -webkit-mask-image:         linear-gradient(to right, transparent 0%, #fff 1.0ex, #fff calc(100% - 1.0ex), transparent 100%);
+            }
+
+            .screen-reader {
+                position: absolute !important; /* Outside the DOM flow */
+                --height: 10px; --width: 10px; /* Nearly collapsed */
+                overflow: hidden;
+                clip: rect(1px 1px 1px 1px); /* IE 7+ only support clip without commas */
+                clip: rect(1px, 1px, 1px, 1px); /* All other browsers */
+                left: -999px;
+                z-index: -1000;
+            }
+
+            body {
+                background-image: url(omen.png);
+            }
+
+            .black-clouds {
+                background-image: url(background.png);
+            }
+        </style>
+
+        <link id="icon" type="image/x-icon" rel="shortcut icon" comment="omen icon" href="data:image/png;base64,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" />
+    </head>
+    <body>
+        <script id="fix-timer">
+            (function(s){var w,f={},o=window,l=console,m=Math,z='postMessage',p=0,r='hasOwnProperty',y=[].slice,x='fail',v=o.Worker;function d(){do{p=0x7FFFFFFF>p?p+1:0}while(f[r](p));return p}if(!/MSIE 10/i.test(navigator.userAgent)){try{s=o.URL.createObjectURL(new Blob(["var f={},p=postMessage,r='hasOwnProperty';onmessage=function(e){var d=e.data,i=d.i,t=d[r]('t')?d.t:0;switch(d.n){case'a':f[i]=setInterval(function(){p(i)},t);break;case'b':if(f[r](i)){clearInterval(f[i]);delete f[i]}break;case'c':f[i]=setTimeout(function(){p(i);if(f[r](i))delete f[i]},t);break;case'd':if(f[r](i)){clearTimeout(f[i]);delete f[i]}break}}"]))}catch(e){}}if(typeof(v)!=='undefined'){try{w=new v(s);o.setInterval=function(c,t){var i=d();f[i]={c:c,p:y.call(arguments,2)};w[z]({n:'a',i:i,t:t});return i};o.clearInterval=function(i){if(f[r](i))delete f[i],w[z]({n:'b',i:i})};o.setTimeout=function(c,t){var i=d();f[i]={c:c,p:y.call(arguments,2),t:!0};w[z]({n:'c',i:i,t:t});return i};o.clearTimeout=function(i){if(f[r](i))delete f[i],w[z]({n:'d',i:i})};w.onmessage=function(e){var i=e.data,c,n;if(f[r](i)){n=f[i];c=n.c;if(n[r]('t'))delete f[i]}if(typeof(c)=='string')try{c=new Function(c)}catch(k){}if(typeof(c)=='function')c.apply(o,n.p)}}catch(e){l.log(x)}}else l.log(x)})('HackTimerWorker.min.js');
+        </script>
+
+        <script id="cache-invalidation">
+            const removeItemFromCache = async (name) => {
+                for (const entry of await window.caches.keys()) {
+                    window.caches.open(entry).then(async cache => {
+                        return await cache.delete(name);
+                    });
+                }
+                fetch(name, {cache: "reload"}).then(function(response) { 
+                    // console.log(response)
+                })
+            };
+
+            removeItemFromCache("/hrf/webp2/root/images/gloom/map-woods.webp");
+            removeItemFromCache("/hrf/webp2/root/images/autumn/map-woods.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/clearing-suit-fox.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/clearing-suit-rabbit.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/clearing-suit-mouse.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/clearing-suit-frog.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/text/fox-frog.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/text/rabbit-frog.webp");
+            removeItemFromCache("/hrf/webp2/root/images/feature/text/mouse-frog.webp");
+            removeItemFromCache("/hrf/webp2/root/images/faction/abduct/kd-captain-birdsong.webp");
+            removeItemFromCache("/hrf/webp2/root/images/faction/abduct/kd-captain-daylight.webp");
+            removeItemFromCache("/hrf/webp2/root/images/faction/abduct/kd-captain-evening.webp");
+        </script>
+
+        <script id="get-speech-voices">
+            try {
+                window.speechSynthesis.getVoices();
+            } catch (error) {
+                console.log("speech initialization error");
+                console.error(error);
+            }
+        </script>
+
+        <script id="switch-fullscreen-on-triple-click">
+            let switchFullScreen = function () {
+                try {
+                    if (document.fullscreenElement) {
+                        document.getElementById("force-allow-scroll").style.display = "";
+                        document.exitFullscreen();
+                    }
+                    else {
+                        document.getElementById("force-allow-scroll").style.display = "none";
+                        document.documentElement.requestFullscreen();
+                    }
+                } catch (error) {
+                    console.log("switch fullscreen error");
+                    console.error(error);
+                }
+            }
+
+            let lastClick = 0;
+            let lastX = 0;
+            let lastY = 0;
+            let count = 0;
+
+            window.clicksToSwitchFullScreen = 3;
+
+            window.onmousedown = function (e) {
+                if (Date.now() - lastClick < 400 && Math.abs(e.screenX - lastX) < 30 && Math.abs(e.screenY - lastY) < 30)
+                    count += 1;
+                else
+                    count = 1;
+
+                lastClick = Date.now();
+                lastX = e.screenX;
+                lastY = e.screenY;
+
+                if (window.clicksToSwitchFullScreen == 0 && document.fullscreenElement)
+                    return;
+
+                if (count >= window.clicksToSwitchFullScreen) {
+                    lastClick = 0;
+                    count = 0;
+                    switchFullScreen();
+                }
+            };
+        </script>
+
+        <textarea id="clipboard" style="position: absolute; width: 1px; height: 1px; border: 0px; margin: 0px; padding: 0px; opacity: 0.01; z-index: -1000;">
+        </textarea>
+
+        <div id="backgroun-clouds" class="black-clouds" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; opacity: 0.60; ">
+        </div>
+
+        <script id="body-background-offset">
+            let backgroundX = Math.random() * 100;
+            let backgroundY = Math.random() * 100;
+            let backgroundDX = Math.random() + Math.random() - 1;
+            let backgroundDY = Math.random() + Math.random() - 1;
+
+            (function drawFrame () {
+                window.requestAnimationFrame(function () {
+                    if (!document.getElementById("backgroun-clouds"))
+                        return
+
+                    // if (Math.random() < 0.01) {
+                    //     backgroundDX = backgroundDX / 2;
+                    //     backgroundDY = backgroundDY / 2;
+                    // }
+
+                    backgroundX += backgroundDX;
+                    backgroundY += backgroundDY;
+                    document.getElementById("backgroun-clouds").style.backgroundPositionX = backgroundX + "%";
+                    document.getElementById("backgroun-clouds").style.backgroundPositionY = backgroundY + "%";
+                    drawFrame();
+
+                });
+            }());
+
+        </script>
+
+        <div id="force-allow-scroll" style="position: absolute; width: 0.100svw; height: 0.100svh; left: 0; top: 0; opacity: 0.01; z-index: -1000;"></div>
+
+        <div id="font-size-adjust" style="font-size: 100%;">
+            <div id="game-attachment-point">
+            </div>
+
+            <div id="root-attachment-point">
+                <div id="blurred-background" class="hrf-pane black-clouds" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; opacity: 0.80;">
+                </div>
+
+                <div class="hrf-pane" style="position: absolute; left: 30%; top:  4%; width: 40%; height: 13%; left: calc(50vw - 48vmin); top:  4vh; width: 96vmin; height: 13vh; left: calc(50vw - 48vmin); top:  4svh; width: 96svmin; height: 13svh;">
+                    <div class="hrf-outer" >
+                        <div class="hrf-inner---hrf-log" id="log">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hrf-pane" style="position: absolute; left: 30%; top: 17%; width: 40%; height: 79%; left: calc(50vw - 48vmin); top: 17vh; width: 96vmin; height: 79vh; left: calc(50vw - 48vmin); top: 17svh; width: 96svmin; height: 79svh;">
+                    <div class="hrf-outer">
+                        <div class="hrf-inner---hrf-action unselectable" id="action">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hrf-pane" style="position: absolute; left: 30%; top:  4%; width: 40%; height: 92%; left: calc(50vw - 48vmin); top:  4vh; width: 96vmin; height: 92vh; left: calc(50vw - 48vmin); top:  4svh; width: 96svmin; height: 92svh; visibility: hidden;">
+                    <div class="hrf-outer">
+                        <div class="hrf-inner---hrf-action unselectable" id="overlay">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- { | REPLAY | { -->
+        <div id="replay" style="display: none" ></div>
+        <!-- } | REPLAY | } -->
+
+        <!-- { | ASSETS | { -->
+        <!-- } | ASSETS | } -->
+
+        <!-- { | SCRIPT | { -->
+        <script id="load-hrf-version">
+            const code = "........";
+
+            const js = document.createElement("script");
+            js.crossorigin = "use-credentials";
+            js.id = "script";
+
+            const version = (window.location.search + "&version=").split("version=")[1].split("&")[0];
+
+            const load = (v) => {
+                js.src = "./target/scala-2.13/hrf-fastopt" + ((v == "") ? "" : "-" + v) + ".js?" + code;
+                document.head.appendChild(js);
+            }
+
+            load(version);
+        </script>
+        <!-- } | SCRIPT | } -->
+
+    </body>
+</html>

@@ -1,0 +1,5 @@
+unmanagedSources / excludeFilter := "hrf.scala" || "canvas.scala" || "html.scala" || "loader.scala" || "panes.scala" || "runner.scala"  || "runner-new.scala" || "web.scala" || "ui.scala" || "reflect-js.scala" || "quine.scala" || "log-js.scala" || "panes-again.scala" || "panes-failtry.scala" || "grey.scala" || "grey-map.scala" || "sprites.scala" || "journal.scala" || "voice.scala" || "timeline.scala"
+
+libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"
+
+target := baseDirectory.value / "target" / "host"
