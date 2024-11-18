@@ -211,7 +211,7 @@ object DeckCards {
 }
 
 
-trait Effect
+trait Effect extends Record
 
 trait CourtCard extends Effect with Record with Elementary {
     def id : String
@@ -293,8 +293,13 @@ object CourtCards {
 }
 
 
-case object Attuned extends Effect
-case object Cryptic extends Effect
+trait LeaderEffect extends Effect with Elementary {
+    def name = toString
+    def elem = name.styled(styles.title).hl
+}
+
+case object Attuned extends LeaderEffect
+case object Cryptic extends LeaderEffect
 
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
@@ -338,7 +343,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    def working = $(Mystic, FuelDrinker, Upstart, Rebel, Noble)
+    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble)
 }
 
 
@@ -362,7 +367,7 @@ object Lores {
         WarlordsCruelty  ,
     )
 
-    def working = $(MirrorPlating, HiddenHarbors, LivingStructures, SurvivalOverrides, WarlordsCruelty)
+    def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, SurvivalOverrides, WarlordsCruelty)
 }
 
 
@@ -386,12 +391,14 @@ case object Crescent extends Symbol
 case object Hex extends Symbol
 
 case class System(cluster : Int, symbol : Symbol) extends Region with Elementary with Record {
-    def elem = (symbol.name + " " + cluster + "" + symbol @@ {
+    def name = (symbol.name + " " + cluster + "" + symbol @@ {
         case Gate => 0x2726.toChar.toString
         case Arrow => 0x2B9D.toChar.toString
         case Crescent => 0x263E.toChar.toString
         case Hex => 0x2B22.toChar.toString
-    }).hlb
+    })
+
+    def elem = name.hlb
 }
 
 
@@ -414,7 +421,7 @@ trait Board {
     }).toMap).toMap
 }
 
-trait BaseBoard extends Board {
+trait BaseBoard extends Board with Record {
     val clusters : $[Int]
 
     def nextCluster(g : Int) : Int = {
@@ -486,7 +493,7 @@ trait BaseBoard extends Board {
     }
 }
 
-object Board4Mixup1 extends BaseBoard {
+case object Board4Mixup1 extends BaseBoard {
     val name = "4 Players / Mix Up 1"
     val clusters = $(1, 2, 4, 5, 6)
 
@@ -495,6 +502,18 @@ object Board4Mixup1 extends BaseBoard {
         (System(4, Hex), System(5, Hex), $(System(6, Gate))),
         (System(5, Arrow), System(1, Hex), $(System(4, Gate))),
         (System(6, Arrow), System(1, Arrow), $(System(5, Gate))),
+    )
+
+}
+
+case object Board3Frontiers extends BaseBoard {
+    val name = "3 Players / Frontiers"
+    val clusters = $(1, 4, 5, 6)
+
+    val starting : $[(System, System, $[System])] = $(
+        (System(1, Hex), System(4, Hex), $(System(6, Gate))),
+        (System(5, Hex), System(1, Arrow), $(System(5, Gate))),
+        (System(4, Crescent), System(6, Arrow), $(System(1, Gate))),
     )
 
 }
@@ -571,7 +590,7 @@ case class ShuffleCourtDeckAction(then : ForcedAction) extends ForcedAction
 case class ShuffledCourtDeckAction(shuffled : $[CourtCard], then : ForcedAction) extends ShuffledAction[CourtCard]
 case class ReplenishMarketAction(then : ForcedAction) extends ForcedAction
 case object FactionsSetupAction extends ForcedAction
-case class LeadersLoresShuffled(shuffled1 : $[Leader], shuffled2 : $[Lore]) extends Shuffled2Action[Leader, Lore]
+case class LeadersLoresShuffledAction(shuffled1 : $[Leader], shuffled2 : $[Lore]) extends Shuffled2Action[Leader, Lore]
 case class DraftNextAction(f : Faction) extends ForcedAction
 case class AssignLeaderAction(f : Faction, l : Leader, then : ForcedAction) extends ForcedAction
 case class AssignLoreAction(f : Faction, l : Lore, then : ForcedAction) extends ForcedAction
@@ -861,7 +880,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     implicit val courtiers = new IdentityTracker[CourtLocation, CourtCard]
     implicit val figures = new IdentityTracker[Region, Figure]
 
-    val deck = cards.register(Deck, content = DeckCards.deck)
+    val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
     val court = courtiers.register(CourtDeck, content = CourtCards.deck)
     val market = courtiers.register(CourtMarket)
     val discourt = courtiers.register(CourtDiscard)
@@ -880,7 +899,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var ambitionable : $[AmbitionMarker] = $
     var declared : Map[Ambition, $[AmbitionMarker]] = Map()
 
-    val board : BaseBoard = Board4Mixup1
+    val board : BaseBoard = factions.num @@ {
+        case 4 => Board4Mixup1
+        case 3 => Board3Frontiers
+    }
+
     val systems = board.systems
 
     def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum
@@ -1001,7 +1024,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
             case _ => Nil
         }
 
-        println("< " + c)
+        // println("< " + c)
 
         c
     }
@@ -1072,12 +1095,12 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 then
 
             case FactionsSetupAction =>
-                if (options.has(LeadersAndLoreOnePlusOne))
-                    Shuffle2[Leader, Lore](Leaders.working, Lores.working, (l1, l2) => LeadersLoresShuffled(l1, l2))
+                if (options.has(LeadersAndLorePreset1))
+                    Shuffle2[Leader, Lore](Leaders.preset1, Lores.preset1, (l1, l2) => LeadersLoresShuffledAction(l1, l2))
                 else
                     BaseFactionsSetupAction
 
-            case LeadersLoresShuffled(l1, l2) =>
+            case LeadersLoresShuffledAction(l1, l2) =>
                 leaders = l1.take(factions.num + 1)
                 lores = l2.take(factions.num + 1)
 
@@ -1661,13 +1684,13 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
             case MoveFromAction(f, r, l, cascade, x, alt, then) =>
                 Ask(f).group("Move from", r, "to")
-                    .each(board.connected(r))(d => MoveToAction(f, r, d, l, cascade && factions.but(f).exists(_.rules(d)).not, x, then).as(d))
+                    .each(board.connected(r))(d => MoveToAction(f, r, d, l, cascade && d.symbol == Gate && factions.but(f).exists(_.rules(d)).not, x, then).as(d))
                     .add(alt)
 
             case MoveToAction(f, r, d, l, cascade, x, then) =>
                 val n = l.num
                 val (damaged, fresh) = l.partition(f.damaged.has)
-                val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(damaged.num)./(i => fresh.take(k - i) ++ damaged.take(i)))
+                val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
 
                 implicit val convert = (u : Figure, k : Int) => {
                     val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) + k
@@ -2543,6 +2566,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     EndChapterAction
 
             case EndChapterAction =>
+                factions.foreach { f =>
+                    f.hand --> deck
+                }
+
                 $(Tycoon, Tyrant, Warlord, Keeper, Empath).foreach { ambition =>
                     if (declared.contains(ambition)) {
                         val l = declared(ambition)

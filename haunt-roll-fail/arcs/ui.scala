@@ -52,12 +52,25 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                     val c = game.market.$(i)
 
                     cards.add(Sprite($(ImageRect(new RawImage(img(c.id)), Rectangle(0, 0, 744, 1039), 1.0)), $))(744*i + d*i, 1039*0)
+                }
+            }
+
+            0.until(4).foreach { i =>
+                if (i < game.market.num) {
+                    val c = game.market.$(i)
 
                     val l = game.figures.get(Influence(c))
 
+                    val scale = 2.6
+                    val shadow = 3
                     l.foreach { u =>
                         val w = (l.num < 7).?(112).|(744 / l.num)
-                        cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*2.6, 68*2.6), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u), 400)
+                    }
+
+                    l.foreach { u =>
+                        val w = (l.num < 7).?(112).|(744 / l.num)
+                        cards.add(Sprite($(ImageRect(new RawImage(img("agent-background")), Rectangle(0, 0, (42+shadow+shadow)*scale, (68+shadow+shadow)*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u) - shadow*scale, 400 - shadow*scale)
+                        cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*scale, 68*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u), 400)
                     }
                 }
             }
@@ -217,7 +230,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             val mo = img("map-out-" + i)
 
             outOfPlay.add(Sprite($(ImageRect(new RawImage(mo), Rectangle(0, 0, mo.width, mo.height), 1.0)), $))(0, 0)
+        }
 
+        1.to(6).diff(game.board.clusters).intersect($(3)).$.first.foreach { i =>
             val am = img("map-ambitions-" + i)
 
             outOfPlay.add(Sprite($(ImageRect(new RawImage(am), Rectangle(0, 0, am.width, am.height), 1.0)), $))(0, 0)
@@ -703,7 +718,54 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         case "discourt" =>
             showOverlay(overlayScrollX(Div("Court Cards Discard Pile") ~
-                game.discourt./(c => OnClick(c, Div(Image(c.id, styles.courtCard), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge).onClick, onClick)
+                game.discourt./(c => OnClick(c, Div(Image(c.id, styles.courtCard), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+            ).onClick, onClick)
+
+        case "readout" =>
+            showOverlay(overlayScrollX((
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                game.board.systems./~(s =>
+                    $(
+                    game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.hlb).larger.styled(xstyles.bold),
+                    HGap,
+                    game.desc((s.symbol != Gate).?(game.board.resource(s).use(r => ResourceRef(r, None)))).div,
+                    HGap
+                    ) ++
+                    game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.ship3x))))./(game.desc(_).div(styles.figureLine)) ++
+                    $(
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap
+                    )
+                )
+            ).div(xlo.flexvcenter)(styles.infoStatus)), onClick)
+
+        case "readout" =>
+            showOverlay(overlayScrollX((
+                game.board.systems./(s =>
+                    s.elem.div ~
+                    HGap ~
+                    HGap ~
+                    (game.at(s)./(u => Image(u.faction.short + "-" + u.piece.name + "-damaged", (u.piece == Ship).?(styles.ship3x).|(styles.ship3x)))).merge.div ~
+                    HGap ~
+                    HGap ~
+                    HGap ~
+                    HGap ~
+                    HGap ~
+                    HGap
+                ).merge ~
+                "".hl.div.div(xstyles.choice)(xstyles.xx)(xstyles.chm)(xstyles.chp)(xstyles.thu)(xlo.fullwidth)(new CustomStyle(rules.width("60ex"))(new StylePrefix("test")){}).pointer.onClick
+            ).div(xlo.flexvcenter)(styles.infoStatus)), onClick)
 
         case action : Action if lastThen != null =>
             clearOverlay()
@@ -745,6 +807,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
             $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
+            $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
                 ZBasic(Break ~ Break ~ Break, "Save Replay As File".hh, () => {
                     showOverlay(overlayScrollX("Saving Replay...".hl.div).onClick, null)

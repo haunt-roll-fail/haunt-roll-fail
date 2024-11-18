@@ -24,9 +24,9 @@ case class BadInitiativeTransferChapter(n : Int) extends GameOption with ToggleO
     val valueOn = "Chapter " ~ n.hlb
 }
 
-case object LeadersAndLoreOnePlusOne extends GameOption with ToggleOption {
+case object LeadersAndLorePreset1 extends GameOption with ToggleOption {
     val group = "Leaders and Lore".hh
-    val valueOn = "1".hlb ~ "/" ~ "1".hlb
+    val valueOn = "Preset".hh ~ " " ~ "#1".hlb
 }
 
 object Meta extends MetaGame { mmm =>
@@ -41,14 +41,12 @@ object Meta extends MetaGame { mmm =>
 
     val factions = $(Red, Yellow, White, Blue)
 
-    val minPlayers = 4
-
-    override val quickFactions = factions.take(4)
+    val minPlayers = 3
 
     override val hiddenOptions =
         1.to(5)./(BadInitiativeTransferChapter)
 
-    val options = $(LeadersAndLoreOnePlusOne) ++ hiddenOptions
+    val options = $(LeadersAndLorePreset1) ++ hiddenOptions
 
     override val gradualFactions : Boolean = true
 
@@ -56,14 +54,14 @@ object Meta extends MetaGame { mmm =>
     val quickMax = 4
 
     def randomGameName() = {
-        val n = $("Magic", "Octarine", "Death", "Fate", "Music", "Power").shuffle
+        val n = $("Space", "Politics", "Betrayal", "Explosion", "Conquest", "Warp", "Renegade", "Sway", "Diplomacy", "Conflict").shuffle
         val c = $("for", "against", "versus", "through", "and", "of", "in", "as").shuffle
         n.head + " " + c.head + " " + n.last
     }
 
     def validateFactionCombination(factions : $[Faction]) = None ||
-        (factions.num < 4).?(ErrorResult("Select at least four factions")) ||
-        (factions.num < 2).?(ErrorResult("Select at least two factions")) ||
+        (factions.num < 3).?(ErrorResult("Minimum three factions")) ||
+        (factions.num < 2).?(ErrorResult("Minimum two factions")) ||
         (factions.num > 4).?(ErrorResult("Max four factions")) |
         InfoResult("Arcs")
 
@@ -78,13 +76,13 @@ object Meta extends MetaGame { mmm =>
 
     def createGame(factions : $[Faction], options : $[O]) = new Game(factions, options)
 
-    def getBots(f : Faction) = $("Normal")
+    def getBots(f : Faction) = $("Easy")
 
     def getBot(f : Faction, b : String) = (f, b) match {
-        case (f : Faction, "Normal") => new BotXX(f)
+        case (f : Faction, "Easy") => new BotXX(f)
     }
 
-    def defaultBots : $[String] = $("Normal")
+    def defaultBots : $[String] = $("Easy")
 
     def writeFaction(f : Faction) = f.short
     def parseFaction(s : String) : Option[Faction] = factions.%(_.short == s).single
@@ -105,15 +103,17 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("map") ::
         ImageAsset("map-regions").makeLossless ::
         ImageAsset("map-regions-select").makeLossless ::
-        // ImageAsset("map-out-1") ::
-        // ImageAsset("map-out-2") ::
-        ImageAsset("map-out-3") ::
-        ImageAsset("map-ambitions-3") ::
 
-        ImageAsset("ambitions").scaled(50) ::
+        // ImageAsset("map-out-1") ::
+        ImageAsset("map-out-2") ::
+        ImageAsset("map-out-3") ::
         // ImageAsset("map-out-4") ::
         // ImageAsset("map-out-5") ::
         // ImageAsset("map-out-6") ::
+
+        ImageAsset("map-ambitions-3") ::
+
+        ImageAsset("ambitions").scaled(50) ::
     $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "icon")(
         ImageAsset("material").scaled(40) ::
@@ -145,6 +145,8 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("y-glyph") ::
 
         ImageAsset("raid-key") ::
+
+        ImageAsset("agent-background") ::
 
         ImageAsset("assault-die-1") ::
         ImageAsset("assault-die-2") ::

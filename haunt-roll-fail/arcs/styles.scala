@@ -70,6 +70,7 @@ package object elem {
         object hexagon extends CustomStyle(clip.path("polygon(50% 5%, 90% 27%, 90% 70%, 50% 90%, 10% 70%, 10% 27%)"))
 
         object fund extends CustomStyle(height("2.6ex"), vertical.align("middle"), margin("0.2ex"))
+        object figureLine extends CustomStyle(margin.left("1ex"), margin.right("1ex"))
 
         object pile extends CustomStyle(height("3.3ex"), vertical.align("middle"), padding.left("0.5ex"), padding.right("0.5ex"))
 
