@@ -300,6 +300,8 @@ trait LeaderEffect extends Effect with Elementary {
 
 case object Attuned extends LeaderEffect
 case object Cryptic extends LeaderEffect
+case object Bold extends LeaderEffect
+case object Paranoid extends LeaderEffect
 
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
@@ -313,7 +315,7 @@ case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psi
 case object Rebel         extends Leader("leader05", "Rebel",         $(), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Warrior       extends Leader("leader06", "Warrior",       $, $, $, $, $)
 case object Feastbringer  extends Leader("leader07", "Feastbringer",  $, $, $, $, $)
-case object Demagogue     extends Leader("leader08", "Demagogue",     $, $, $, $, $)
+case object Demagogue     extends Leader("leader08", "Demagogue",     $(Bold, Paranoid), $(Psionic, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Archivist     extends Leader("leader09", "Archivist",     $, $, $, $, $)
 case object Overseer      extends Leader("leader10", "Overseer",      $, $, $, $, $)
 case object Corsair       extends Leader("leader11", "Corsair",       $, $, $, $, $)
@@ -343,7 +345,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble)
+    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
 }
 
 
@@ -612,6 +614,7 @@ case class PivotAction(self : Faction, d : DeckCard) extends ForcedAction
 case class CheckSeizeAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class SeizeAction(self : Faction, d : DeckCard, then : ForcedAction) extends ForcedAction
 case class DeclareAmbitionAction(self : Faction, ambition : Ambition, zero : Boolean, then : ForcedAction) extends ForcedAction
+case class AmbitionDeclaredAction(self : Faction, ambition : Ambition, used : $[Effect], then : ForcedAction) extends ForcedAction with Soft
 case class PreludeActionAction(self : Faction, suit : Suit, pips : Int) extends ForcedAction
 
 case class AdjustResourcesAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
@@ -732,6 +735,7 @@ case class FreeCitySeazeAction(self : Faction, then : ForcedAction) extends Forc
 
 case class OutrageSpreadsAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 
+case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 
 case class GainCourtCardAction(self : Faction, c : CourtCard, from : |[Faction], then : ForcedAction) extends ForcedAction
 case class DiscardCourtCardAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
@@ -2047,7 +2051,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
             case SecureMainAction(f, x, then) =>
                 Ask(f).group("Secure".hl)
-                    .each(market)(c => SecureAction(f, x, c, then).as(c).!(Influence(c).$.use(l => l.%(_.faction == f).num <= factions.but(f)./(e => l.%(_.faction == e).num).max)))
+                    .each(market)(c => SecureAction(f, x, c, then).as(c)
+                        .!(Influence(c).$.use(l => l.%(_.faction == f).num <= factions.but(f)./(e => l.%(_.faction == e).num).max))
+                        .!(f.can(Paranoid) && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
+                    )
                     .cancel
 
             case SecureAction(f, x, c, then) =>
@@ -2237,11 +2244,27 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 if (zero)
                     zeroed = true
 
-                if (f.loyal.has(Farseers))
-                    Ask(f).group(Farseers)
-                        .each(factions.but(f))(e => FarseersMainAction(f, e, then).as(e))
-                else
-                    NoAsk(f)(then)
+                AmbitionDeclaredAction(f, a, $, then)
+
+            case AmbitionDeclaredAction(f, a, used, then) =>
+                var ask = Ask(f)
+
+                if (f.can(Farseers) && used.has(Farseers).not)
+                    ask = ask.each(factions.but(f))(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
+
+                if (f.can(Bold) && used.has(Bold).not)
+                    ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold))
+
+                ask.add(then.as("Done"))
+
+            case BoldMainAction(f, influenced, then) =>
+                Ask(f).group("Influence".hl)
+                    .each(market)(c => InfluenceAction(f, NoCost, c, BoldMainAction(f, influenced :+ c, then)).as(c)
+                        .!(influenced.has(c), "influenced")
+                        .!(f.pooled(Agent) <= f.outraged.num, "no agents")
+                    )
+                    .cancelIf(influenced.none)
+                    .done(influenced.any.?(then))
 
             case FollowAction(f) =>
                 YYSelectObjectsAction(f, f.hand)
