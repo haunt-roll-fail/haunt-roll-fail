@@ -86,7 +86,7 @@ object HRF {
         yarg.Meta -> yarg.UI ::
     $
 
-    val metas = metaUIs.lefts.%(_.path != "root" || HRF.param("lobby").any || HRF.flag("qqqbbb") || offline)
+    val metas = metaUIs.lefts.%(_.path != "root" || HRF.param("lobby").any || offline)
 
     val html = dom.window.location.origin + "/play/"
     val script = dom.document.getElementById("script").asInstanceOf[dom.html.Script].src
