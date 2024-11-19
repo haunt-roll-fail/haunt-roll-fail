@@ -347,7 +347,8 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
+    // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
+    def preset1 = $(Mystic, FuelDrinker, Elder)
 }
 
 
@@ -1907,7 +1908,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 destroyed --> f.trophies
 
-                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), RansackMainAction(f, e, q)))
+                destroyed.%(_.piece == City && !f.can(Beloved)).foldLeft(then)((q, p) => RansackMainAction(f, e, q))
+                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), then))
+
+                then
 
             case OutrageAction(f, r, then) =>
                 if (f.outraged.has(r).not) {
@@ -1937,12 +1941,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 then
 
             case RansackMainAction(f, e, then) =>
-                Ask(f).group("Ransack".hl)
-                    .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c)
-                    .!(f.can(Beloved), "Beloved"))
+                Ask(f)
+                    .group("Ransack".hl)
+                    .each(market.%(c => Influence(c).exists(_.faction == e))) { c => RansackAction(f, c, then).as(c) }
                     .needOk
                     .bail(then)
-
             case RansackAction(f, c, then) =>
                 market --> c --> f.loyal
 
