@@ -731,13 +731,21 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                 HGap ~
                 game.board.systems./~(s =>
                     $(
-                    game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.hlb).larger.styled(xstyles.bold),
+                    game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.txt).larger.styled(xstyles.bold),
                     HGap,
                     game.desc((s.symbol != Gate).?(game.board.resource(s).use(r => ResourceRef(r, None)))).div,
                     HGap
                     ) ++
-                    game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.ship3x))))./(game.desc(_).div(styles.figureLine)) ++
+                    game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_.sortBy(_.piece.is[Building].not)./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.token3x))))./(game.desc(_).div(styles.figureLine)) ++
+                    $(game.desc(game.freeSlots(s).times(Image("starport-empty", styles.token3x))).div(styles.figureLine)) ++
                     $(
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
+                    HGap,
                     HGap,
                     HGap,
                     HGap,

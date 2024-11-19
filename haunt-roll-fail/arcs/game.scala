@@ -242,7 +242,7 @@ case object LoyalMarines      extends GuildCard("bc15", "Loyal Marines",      We
 case object LatticeSpies      extends GuildCard("bc16", "Lattice Spies",      Psionic,  2)
 case object Farseers          extends GuildCard("bc17", "Farseers",           Psionic,  2)
 case object SecretOrder       extends GuildCard("bc18", "Secret Order",       Psionic,  2)
-case object LoyalEmpaths      extends GuildCard("bc19", "Loyal Empaths",      Psionic,  2) with LoyalGuild
+case object LoyalEmpaths      extends GuildCard("bc19", "Loyal Empaths",      Psionic,  3) with LoyalGuild
 case object SilverTongues     extends GuildCard("bc20", "Silver Tongues",     Psionic,  2)
 case object LoyalKeepers      extends GuildCard("bc21", "Loyal Keepers",      Relic,    3) with LoyalGuild
 case object SwornGuardians    extends GuildCard("bc22", "Sworn Guardians",    Relic,    1)

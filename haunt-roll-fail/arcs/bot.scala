@@ -28,13 +28,25 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
         if (game.states.contains(self).not)
             return $
 
-        def appraise(x : Cost) {
+        import game._
+
+        def ambition(a : Ambition) : Int = {
+            declared.get(a).|(Nil)./(_.high).sum + ambitionable./(_.high).maxOr(0)
+        }
+
+        def appraise(x : Cost) : Int = {
             x @@ {
-                case Pip =>
-                case NoCost =>
-                case AlreadyPaid =>
+                case Pip => 0
+                case NoCost => -100
+                case AlreadyPaid => -100
                 case PayResource(resource, |(lock)) =>
-                    true |=> -lock*100 -> "lock"
+                    lock * 100 + resource @@ {
+                        case Material | Fuel => max(60, ambition(Tycoon) * 50)
+                        case Relic => max(70, ambition(Keeper) * 100)
+                        case Psionic => max(90, ambition(Empath) * 100)
+                        case Weapon => 80
+                        case Nothingness => 0
+                    }
             }
         }
 
@@ -43,12 +55,68 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
                 true |=> -1000 -> "dont skip actions"
 
             case BattleDiceAction(f, cost, s, e, n1, n2, n3, _) =>
+                true |=> -appraise(cost) -> "cost"
+
                 val k = f.at(s).ships.num
                 true |=> k * (n1 + n2 + n3) * 100 -> "battle"
 
             case SecureAction(f, cost, c, _) =>
-                true |=> Influence(c).$.%(_.faction == f).num * 10 -> "return agents"
-                true |=> Influence(c).$.%(_.faction != f).num * 100 -> "capture agents"
+                true |=> -appraise(cost) -> "cost"
+
+                val own = Influence(c).$.%(_.faction == f).num
+                val enemy = Influence(c).$.%(_.faction != f).num
+
+                true |=> own * 10 -> "return agents"
+                true |=> enemy * 100 -> "capture agents"
+
+            case InfluenceAction(f, cost, c, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+                val own = Influence(c).$.%(_.faction == f).num
+                val enemy = factions.but(f)./(e => Influence(c).$.%(_.faction == e).num).max
+
+                enemy - own ==  1 |=> 100 -> "even out"
+                enemy - own ==  0 |=> 150 -> "break out"
+                enemy - own == -1 |=> 50 -> "out do"
+
+            case BuildCityAction(f, cost, s, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case BuildStarportAction(f, cost, s, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case BuildShipAction(f, cost, s, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case RepairAction(f, cost, s, u, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case TaxLoyalAction(f, cost, s, u, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case TaxRivalAction(f, cost, s, e, u, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case MoveListAction(f, s, dest, l, cascade, cost, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case AddBattleOptionAction(f, cost, _) =>
+                true |=> -appraise(cost) -> "cost"
+
+            case PassAction(f) =>
+                true |=> -100 -> "dont pass"
+
+            case SurpassAction(f, DeckCard(suit, str, pips)) =>
+                true |=> pips * 100 -> "actions"
+
+            case CopyAction(f, DeckCard(suit, str, pips)) =>
+                true |=> (2 * str + pips) * -100 -> "lost card"
+
+            case PivotAction(f, DeckCard(suit, str, pips)) =>
+                true |=> (2 * str + pips) * -100 -> "lost card"
+
+            case SeizeAction(f, DeckCard(suit, str, pips), _) =>
+                true |=> (2 * str + pips) * -100 -> "lost card"
 
             case _ =>
         }
