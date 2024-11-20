@@ -1739,7 +1739,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
             case BattleFactionAction(f, x, r, e, then) =>
                 val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2))
                 val canRaid = e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not
-                val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ < 6)./((_, assault, raid)))))
+                val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
                 Ask(f).group(f, "battles", e, "in", r, x)
                     .each(combinations){ case (skirmish, assault, raid) => BattleDiceAction(f, x, r, e, skirmish, assault, raid, then).as(skirmish.times(Image("skirmish-die", styles.token)), assault.times(Image("assault-die", styles.token)), raid.times(Image("raid-die", styles.token))) }
