@@ -1480,7 +1480,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 XXSelectObjectsAction(f, f.hand)
                     .withGroup(Farseers, "discard cards to redraw")
                     .withThen(l => FarseersRedrawAction(f, l, then))(l => ("Discard to draw", (l.num + 1).cards))
-                    .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Skip"), CancelAction)
+                    .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "to draw", 1.cards), CancelAction)
 
             case FarseersRedrawAction(f, l, then) =>
                 f.hand --> l --> deck
