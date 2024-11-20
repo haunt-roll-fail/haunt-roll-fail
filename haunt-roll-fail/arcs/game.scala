@@ -1908,10 +1908,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 destroyed --> f.trophies
 
-                destroyed.%(_.piece == City && !f.can(Beloved)).foldLeft(then)((q, p) => RansackMainAction(f, e, q))
-                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), then))
-
-                then
+                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), if (e.can(Beloved)) q else RansackMainAction(f, e, q)))
 
             case OutrageAction(f, r, then) =>
                 if (f.outraged.has(r).not) {
