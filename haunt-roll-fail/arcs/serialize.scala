@@ -44,7 +44,10 @@ object Serialize extends Serializer {
     }
 
     override def parseAction(s : String) = {
-        val r = super.parseAction(s)
+        val r = super.parseAction(s
+            // 0.8.106 --> 0.8.108
+            .replace("UsedCourtCardAction", "UsedEffectCardAction")
+        )
 
         r
     }

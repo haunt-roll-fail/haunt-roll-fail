@@ -1770,7 +1770,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     val rerollable = 1.to(min(limit, misses)).reverse./(_.times(miss)) ++ 1.to(min(limit, hits))./(_.times(hit))
 
                     Ask(f).group(Skirmishers)
-                        .each(rerollable)(q => SkirmishersAction(f, r, e, (l1.diff(q) ++ l2 ++ l3).flatten, q, then).as(Skirmishers))
+                        .each(rerollable)(q => SkirmishersAction(f, r, e, (l1.diff(q) ++ l2 ++ l3).flatten, q, then).as("Reroll", q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
                         .skip(next)
                 }
                 else
@@ -2464,7 +2464,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     + GainResourcesAction(f, $(Material, Fuel, Weapon), DiscardCourtCardAction(f, ElderBroker, repeat)).as("Gain", ResourceRef(Material, None), ResourceRef(Fuel, None), ResourceRef(Weapon, None))(ElderBroker)
                 }
 
-                + EndPreludeAction(f, s, 0, p).as("Done")
+                + EndPreludeAction(f, s, 0, p).as("End Prelude")(" ")
 
                 ask(f)
 

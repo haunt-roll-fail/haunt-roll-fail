@@ -847,6 +847,22 @@ trait Gaming extends Timelines {
             if (validate(continue, a, true, false))
                 return true
 
+            // 0.8.106 --> 0.8.108
+            a.unwrap.as[arcs.MoveListAction].foreach { a =>
+                val b = a.copy(cascade = a.cascade.not).asInstanceOf[Action]
+
+                if (validate(continue, b, true, false))
+                    return true
+            }
+
+            // 0.8.106 --> 0.8.108
+            a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
+                val b = a.copy(then = arcs.ContinueMultiAdjustResourcesAction(arcs.CheckWinAction)).asInstanceOf[Action]
+
+                if (validate(continue, b, true, false))
+                    return true
+            }
+
             if (validate(continue, a, true, true).not)
                 return false
 
