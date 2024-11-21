@@ -298,6 +298,8 @@ trait LeaderEffect extends Effect with Elementary {
     def elem = name.styled(styles.title).hl
 }
 
+case object Beloved extends LeaderEffect
+case object Just extends LeaderEffect
 case object Attuned extends LeaderEffect
 case object Cryptic extends LeaderEffect
 case object Bold extends LeaderEffect
@@ -308,7 +310,7 @@ abstract class Leader(val id : String, val name : String, val effects : $[Effect
     def elem = name.styled(styles.title).hl
 }
 
-case object Elder         extends Leader("leader01", "Elder",         $, $, $, $, $)
+case object Elder         extends Leader("leader01", "Elder",         $(Beloved, Just), $(Relic, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Mystic        extends Leader("leader02", "Mystic",        $(Attuned, Cryptic), $(Psionic, Relic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
@@ -345,7 +347,8 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
+    // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
+    def preset1 = $(Mystic, FuelDrinker, Elder)
 }
 
 
@@ -1905,7 +1908,12 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 destroyed --> f.trophies
 
-                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), RansackMainAction(f, e, q)))
+                if (destroyed.any && e.can(Beloved))
+                    Ask(e).group("Influence".hl)
+                    .each(market)(c => InfluenceAction(e, NoCost, c, then).as(c))
+                    .done(then)
+
+                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), if (e.can(Beloved)) q else RansackMainAction(f, e, q)))
 
             case OutrageAction(f, r, then) =>
                 if (f.outraged.has(r).not) {
@@ -1935,11 +1943,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 then
 
             case RansackMainAction(f, e, then) =>
-                Ask(f).group("Ransack".hl)
-                    .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c))
+                Ask(f)
+                    .group("Ransack".hl)
+                    .each(market.%(c => Influence(c).exists(_.faction == e))) { c => RansackAction(f, c, then).as(c) }
                     .needOk
                     .bail(then)
-
             case RansackAction(f, c, then) =>
                 market --> c --> f.loyal
 
@@ -2625,14 +2633,18 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                             val second = (ff.num == 1).?(ss.single.$).|(ff)
 
                             first.foreach { f =>
-                                val p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
+                                var p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
+                                if (f.can(Just) && ambition == Tyrant)
+                                    p = low
                                 f.power += p
                                 f.log("scored first place", ambition, "for", p.power)
                             }
 
                             if (low > 0)
                             second.foreach { f =>
-                                val p = low
+                                var p = low
+                                if (f.can(Just) && ambition == Tyrant)
+                                    p = 0
                                 f.power += p
                                 f.log("scored second place", ambition, "for", p.power)
                             }
