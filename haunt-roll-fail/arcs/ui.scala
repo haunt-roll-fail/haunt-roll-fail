@@ -721,7 +721,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         case "disaction" =>
             showOverlay(overlayScrollX(Div("Action Cards Discard Pile") ~
-                game.disaction./(c => OnClick(c.imgid, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+                game.disdeck./(c => OnClick(c.imgid, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
         case "readout" =>
