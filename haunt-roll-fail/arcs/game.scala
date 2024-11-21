@@ -162,6 +162,7 @@ case class Hand(faction : Faction) extends DeckCardLocation
 case class Played(faction : Faction) extends DeckCardLocation
 case class Blind(faction : Faction) extends DeckCardLocation
 case object Deck extends DeckCardLocation
+case object DeckDiscard extends DeckCardLocation
 
 trait CourtLocation
 case object CourtDeck extends CourtLocation
@@ -885,6 +886,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     implicit val figures = new IdentityTracker[Region, Figure]
 
     val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
+    val disdeck = cards.register(DeckDiscard)
     val court = courtiers.register(CourtDeck, content = CourtCards.deck)
     val market = courtiers.register(CourtMarket)
     val discourt = courtiers.register(CourtDiscard)
@@ -2585,7 +2587,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions = factions.dropWhile(_ != current) ++ factions.takeWhile(_ != current)
 
                 factions.foreach { f =>
-                    f.played --> deck
+                    f.played --> disdeck
                     f.blind --> deck
                 }
 
@@ -2602,6 +2604,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions.foreach { f =>
                     f.hand --> deck
                 }
+                disdeck --> deck
 
                 $(Tycoon, Tyrant, Warlord, Keeper, Empath).foreach { ambition =>
                     if (declared.contains(ambition)) {
