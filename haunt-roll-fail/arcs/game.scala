@@ -1908,6 +1908,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 destroyed --> f.trophies
 
+                if (destroyed.any && e.can(Beloved))
+                    Ask(e).group("Influence".hl)
+                    .each(market)(c => InfluenceAction(e, NoCost, c, then).as(c))
+                    .done(then)
+
                 destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), if (e.can(Beloved)) q else RansackMainAction(f, e, q)))
 
             case OutrageAction(f, r, then) =>
@@ -2629,7 +2634,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                             first.foreach { f =>
                                 var p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
-                                if (f.can(Just) && ambition == Tycoon)
+                                if (f.can(Just) && ambition == Tyrant)
                                     p = low
                                 f.power += p
                                 f.log("scored first place", ambition, "for", p.power)
@@ -2638,7 +2643,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                             if (low > 0)
                             second.foreach { f =>
                                 var p = low
-                                if (f.can(Just) && ambition == Tycoon)
+                                if (f.can(Just) && ambition == Tyrant)
                                     p = 0
                                 f.power += p
                                 f.log("scored second place", ambition, "for", p.power)
