@@ -1485,7 +1485,14 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "to draw", 1.cards), CancelAction)
 
             case FarseersRedrawAction(f, l, then) =>
+                val d = deck.num
+
                 f.hand --> l --> deck
+
+                if (l.num + 1 > d) {
+                    disdeck --> deck
+                    // shuffle deck here after combinind with discard
+                }
 
                 deck.take(l.num + 1) --> f.hand
 
