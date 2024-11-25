@@ -1489,10 +1489,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 f.hand --> l --> deck
 
-                if (l.num + 1 > d) {
-                    disdeck --> deck
-                    // shuffle deck here after combinind with discard
+                if (l.num + 1 > d && disdeck.any) {
+                    Shuffle[DeckCard](deck.$ ++ disdeck.$, ShuffleDeckCardsAction(_, FarseersRedrawAction(f, l, then)))
                 }
+
 
                 deck.take(l.num + 1) --> f.hand
 
