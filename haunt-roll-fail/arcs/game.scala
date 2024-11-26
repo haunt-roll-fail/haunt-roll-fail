@@ -887,6 +887,8 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
     val disdeck = cards.register(DeckDiscard)
+    var shown : $[DeckCard] = $
+
     val court = courtiers.register(CourtDeck, content = CourtCards.deck)
     val market = courtiers.register(CourtMarket)
     val discourt = courtiers.register(CourtDiscard)
@@ -2235,6 +2237,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("led with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.lead = true
 
@@ -2301,6 +2304,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("surpassed with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.surpass = true
 
@@ -2329,6 +2333,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("pivoted with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.pivot = true
 
@@ -2594,6 +2599,8 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions = factions.dropWhile(_ != current) ++ factions.takeWhile(_ != current)
 
                 factions.foreach { f =>
+// aaa
+                    // f.played --> if options.has(SplitDischardPile) disdeck else deck
                     f.played --> disdeck
                     f.blind --> deck
                 }
@@ -2612,6 +2619,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     f.hand --> deck
                 }
                 disdeck --> deck
+                shown = $
 
                 $(Tycoon, Tyrant, Warlord, Keeper, Empath).foreach { ambition =>
                     if (declared.contains(ambition)) {

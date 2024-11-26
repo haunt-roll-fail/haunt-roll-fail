@@ -29,6 +29,11 @@ case object LeadersAndLorePreset1 extends GameOption with ToggleOption {
     val valueOn = "Preset".hh ~ " " ~ "#1".hlb
 }
 
+case object SplitDiscardPile extends GameOption with ToggleOption {
+    val group = "Other Options".hh
+    val valueOn = "Split Discard Pile".hh
+}
+
 object Meta extends MetaGame { mmm =>
     val gaming = arcs.gaming
 
@@ -46,7 +51,7 @@ object Meta extends MetaGame { mmm =>
     override val hiddenOptions =
         1.to(5)./(BadInitiativeTransferChapter)
 
-    val options = $(LeadersAndLorePreset1) ++ hiddenOptions
+    val options = $(LeadersAndLorePreset1, SplitDiscardPile) ++ hiddenOptions
 
     override val gradualFactions : Boolean = true
 
