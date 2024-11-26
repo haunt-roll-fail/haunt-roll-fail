@@ -2599,9 +2599,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions = factions.dropWhile(_ != current) ++ factions.takeWhile(_ != current)
 
                 factions.foreach { f =>
-// aaa
-                    // f.played --> if options.has(SplitDischardPile) disdeck else deck
-                    f.played --> disdeck
+                    f.played --> (if (options.has(SplitDiscardPile)) disdeck else deck)
                     f.blind --> deck
                 }
 
