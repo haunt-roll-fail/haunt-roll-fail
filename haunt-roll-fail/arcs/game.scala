@@ -1487,7 +1487,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "to draw", 1.cards), CancelAction)
 
             case FarseersRedrawAction(f, l, then) =>
-                f.hand --> l --> deck
+                l.foreach { d =>
+                    if (f.hand.has(d))
+                        d --> deck
+                }
 
                 if (l.num + 1 > deck.num && disdeck.any) {
                     log("No blind cards left in the deck, reshuffling the whole deck")
