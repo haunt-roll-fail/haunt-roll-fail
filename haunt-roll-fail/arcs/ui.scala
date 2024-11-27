@@ -721,6 +721,16 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                 game.discourt./(c => OnClick(c, Div(Image(c.id, styles.courtCard), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
+        case "disdeck" =>
+            showOverlay(overlayScrollX(Div("Action Cards Discard Pile") ~
+                game.disdeck./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+            ).onClick, onClick)
+
+        case "showndeck" =>
+            showOverlay(overlayScrollX(Div("Played Cards Pile") ~
+                game.shown./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+            ).onClick, onClick)
+
         case "readout" =>
             showOverlay(overlayScrollX((
                 HGap ~
@@ -814,6 +824,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     override def info(self : |[Faction], aa : $[UserAction]) = {
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
+            (currentGame.options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("disdeck") }).copy(clear = false)) ++
+            (currentGame.options.has(SplitDiscardPile).not).$(ZBasic(Break ~ Break, "Played Cards Pile".hh, () => { onClick("showndeck") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
