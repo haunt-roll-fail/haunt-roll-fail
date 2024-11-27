@@ -1490,15 +1490,16 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.hand --> l --> deck
 
                 if (l.num + 1 > deck.num && disdeck.any) {
+                    log("No blind cards left in the deck, reshuffling the whole deck")
+
                     Shuffle[DeckCard](deck.$ ++ disdeck.$, ShuffleDeckCardsAction(_, FarseersRedrawAction(f, l, then)))
+                } else {
+                    deck.take(l.num + 1) --> f.hand
+
+                    f.log("discarded", l.num.cards, "and drew", (l.num + 1).cards)
+
+                    then
                 }
-
-
-                deck.take(l.num + 1) --> f.hand
-
-                f.log("discarded", l.num.cards, "and drew", (l.num + 1).cards)
-
-                then
 
             case FenceResourceAction(f, r, x, then) =>
                 f.pay(x)
