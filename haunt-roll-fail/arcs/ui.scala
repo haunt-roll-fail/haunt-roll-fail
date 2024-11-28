@@ -40,8 +40,6 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     val statuses = 1.to(arity)./(i => newPane("status-" + i, Content, styles.status, styles.fstatus, ExternalStyle("hide-scrollbar")))
 
     val court : CanvasPane = newCanvasPane("court", 2) { bitmap =>
-        println("draw court")
-
         val d = 12
 
         val cards = new OrderedLayer

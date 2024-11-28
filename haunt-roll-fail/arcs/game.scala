@@ -299,6 +299,8 @@ trait LeaderEffect extends Effect with Elementary {
     def elem = name.styled(styles.title).hl
 }
 
+case object Beloved extends LeaderEffect
+case object Just extends LeaderEffect
 case object Attuned extends LeaderEffect
 case object Cryptic extends LeaderEffect
 case object Bold extends LeaderEffect
@@ -309,7 +311,7 @@ abstract class Leader(val id : String, val name : String, val effects : $[Effect
     def elem = name.styled(styles.title).hl
 }
 
-case object Elder         extends Leader("leader01", "Elder",         $, $, $, $, $)
+case object Elder         extends Leader("leader01", "Elder",         $(Beloved, Just), $(Relic, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Mystic        extends Leader("leader02", "Mystic",        $(Attuned, Cryptic), $(Psionic, Relic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
@@ -346,7 +348,8 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
+    // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
+    def preset1 = $(Mystic, FuelDrinker, Elder)
 }
 
 
@@ -737,6 +740,7 @@ case class FreeCitySeazeAction(self : Faction, then : ForcedAction) extends Forc
 case class OutrageSpreadsAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
+case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
 
 case class GainCourtCardAction(self : Faction, c : CourtCard, from : |[Faction], then : ForcedAction) extends ForcedAction
 case class DiscardCourtCardAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
@@ -1916,15 +1920,22 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 e.damaged ++= damaged
 
-                destroyed --> f.trophies
-
                 var next = then
+
+                if (destroyed.any && e.can(Beloved)) {
+                    log(e, "triggered", Beloved)
+                    next = BelovedAction(e, next)
+                }
+
+                destroyed --> f.trophies
 
                 if (k > 0 && f.at(r).ships.any)
                     next = BattleRaidAction(f, r, e, k, next)
 
                 destroyed.cities.foreach { u =>
-                    next = RansackMainAction(f, e, next)
+                    if (e.can(Beloved).not)
+                        next = RansackMainAction(f, e, next)
+
                     next = OutrageAction(f, board.resource(r), next)
                 }
 
@@ -2056,6 +2067,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("repaired", u, "in", r, x.elemLog)
 
                 then
+
+            case BelovedAction(f, then) =>
+                Ask(f).group("Influence".hl)
+                    .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
+                    .add(then.as("Skip"))
 
             // INFLUENCE
             case InfluenceMainAction(f, x, then) =>
@@ -2653,14 +2669,18 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                             val second = (ff.num == 1).?(ss.single.$).|(ff)
 
                             first.foreach { f =>
-                                val p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
+                                var p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
+                                if (f.can(Just) && ambition == Tyrant)
+                                    p = low
                                 f.power += p
                                 f.log("scored first place", ambition, "for", p.power)
                             }
 
                             if (low > 0)
                             second.foreach { f =>
-                                val p = low
+                                var p = low
+                                if (f.can(Just) && ambition == Tyrant)
+                                    p = 0
                                 f.power += p
                                 f.log("scored second place", ambition, "for", p.power)
                             }
