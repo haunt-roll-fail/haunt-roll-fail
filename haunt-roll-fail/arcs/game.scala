@@ -162,6 +162,7 @@ case class Hand(faction : Faction) extends DeckCardLocation
 case class Played(faction : Faction) extends DeckCardLocation
 case class Blind(faction : Faction) extends DeckCardLocation
 case object Deck extends DeckCardLocation
+case object DeckDiscard extends DeckCardLocation
 
 trait CourtLocation
 case object CourtDeck extends CourtLocation
@@ -347,7 +348,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
+    // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
     def preset1 = $(Mystic, FuelDrinker, Elder)
 }
 
@@ -664,8 +665,8 @@ case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, k
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
 
 
-case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, then : ForcedAction) extends ForcedAction
-case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], then : ForcedAction) extends ForcedAction
+case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction
+case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], raid : Int, then : ForcedAction) extends ForcedAction
 case class OutrageAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 case class RansackMainAction(self : Faction, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class RansackAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
@@ -739,6 +740,7 @@ case class FreeCitySeazeAction(self : Faction, then : ForcedAction) extends Forc
 case class OutrageSpreadsAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
+case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
 
 case class GainCourtCardAction(self : Faction, c : CourtCard, from : |[Faction], then : ForcedAction) extends ForcedAction
 case class DiscardCourtCardAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
@@ -888,6 +890,9 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     implicit val figures = new IdentityTracker[Region, Figure]
 
     val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
+    val disdeck = cards.register(DeckDiscard)
+    var shown : $[DeckCard] = $
+
     val court = courtiers.register(CourtDeck, content = CourtCards.deck)
     val market = courtiers.register(CourtMarket)
     val discourt = courtiers.register(CourtDiscard)
@@ -1486,13 +1491,22 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "to draw", 1.cards), CancelAction)
 
             case FarseersRedrawAction(f, l, then) =>
-                f.hand --> l --> deck
+                l.foreach { d =>
+                    if (f.hand.has(d))
+                        d --> deck
+                }
 
-                deck.take(l.num + 1) --> f.hand
+                if (l.num + 1 > deck.num && disdeck.any) {
+                    log("No blind cards left in the deck, reshuffling the whole deck")
 
-                f.log("discarded", l.num.cards, "and drew", (l.num + 1).cards)
+                    Shuffle[DeckCard](deck.$ ++ disdeck.$, ShuffleDeckCardsAction(_, FarseersRedrawAction(f, l, then)))
+                } else {
+                    deck.take(l.num + 1) --> f.hand
 
-                then
+                    f.log("discarded", l.num.cards, "and drew", (l.num + 1).cards)
+
+                    then
+                }
 
             case FenceResourceAction(f, r, x, then) =>
                 f.pay(x)
@@ -1813,7 +1827,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 if (rd > 0)
                     f.log("raided with", rd.hl, "keys")
 
-                AssignHitsAction(f, r, e, f, f.at(r).ships, sd + ic, 0, AssignHitsAction(f, r, f, e, e.at(r), hs, bb, BattleRaidAction(f, r, e, rd, then)))
+                AssignHitsAction(f, r, e, f, f.at(r).ships, sd + ic, 0, 0, AssignHitsAction(f, r, f, e, e.at(r), hs, bb, rd, then))
 
             case BattleRaidAction(f, r, e, raid, then) =>
                 if (f.at(r).ships.any && raid > 0)
@@ -1851,7 +1865,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 GainCourtCardAction(f, c, |(e), then)
 
-            case AssignHitsAction(self, r, f, e, l, hits, bombardments, then) =>
+            case AssignHitsAction(self, r, f, e, l, hits, bombardments, raid, then) =>
                 implicit val convert = (u : Figure, k : Int) => {
                     val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) + k
 
@@ -1885,12 +1899,12 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                             $(convert(Figure(e, City, 0), 1), convert(Figure(e, Starport, 0), 1), convert(Figure(e, Ship, 0), 1), convert(Figure(e, City, 0), 2), convert(Figure(e, Starport, 0), 2), convert(Figure(e, Ship, 0), 2)).merge.div(xstyles.displayNone))
                         .withRule(_.num(h + b).all(d => d.ships.num <= h && d.buildings.num <= b))
                         .withMultipleSelects(u => 2 - e.damaged.has(u).??(1))
-                        .withThen(d => DealHitsAction(self, r, f, e, d, then))(_ => "Damage".hl)
+                        .withThen(d => DealHitsAction(self, r, f, e, d, raid, then))(_ => "Damage".hl)
                         .ask
                 else
                     NoAsk(self)(then)
 
-            case DealHitsAction(self, r, f, e, l, then) =>
+            case DealHitsAction(self, r, f, e, l, k, then) =>
                 val dd = e.damaged ++ l
                 val destroyed = dd.diff(dd.distinct)
 
@@ -1906,14 +1920,26 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
                 e.damaged ++= damaged
 
+                var next = then
+
+                if (destroyed.any && e.can(Beloved)) {
+                    log(e, "triggered", Beloved)
+                    next = BelovedAction(e, next)
+                }
+
                 destroyed --> f.trophies
 
-                if (destroyed.any && e.can(Beloved))
-                    Ask(e).group("Influence".hl)
-                    .each(market)(c => InfluenceAction(e, NoCost, c, then).as(c))
-                    .done(then)
+                if (k > 0 && f.at(r).ships.any)
+                    next = BattleRaidAction(f, r, e, k, next)
 
-                destroyed.%(_.piece == City).foldLeft(then)((q, p) => OutrageAction(f, board.resource(r), if (e.can(Beloved)) q else RansackMainAction(f, e, q)))
+                destroyed.cities.foreach { u =>
+                    if (e.can(Beloved).not)
+                        next = RansackMainAction(f, e, next)
+
+                    next = OutrageAction(f, board.resource(r), next)
+                }
+
+                next
 
             case OutrageAction(f, r, then) =>
                 if (f.outraged.has(r).not) {
@@ -1943,11 +1969,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 then
 
             case RansackMainAction(f, e, then) =>
-                Ask(f)
-                    .group("Ransack".hl)
-                    .each(market.%(c => Influence(c).exists(_.faction == e))) { c => RansackAction(f, c, then).as(c) }
+                Ask(f).group("Ransack".hl)
+                    .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c))
                     .needOk
                     .bail(then)
+
             case RansackAction(f, c, then) =>
                 market --> c --> f.loyal
 
@@ -2041,6 +2067,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("repaired", u, "in", r, x.elemLog)
 
                 then
+
+            case BelovedAction(f, then) =>
+                Ask(f).group("Influence".hl)
+                    .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
+                    .add(then.as("Skip"))
 
             // INFLUENCE
             case InfluenceMainAction(f, x, then) =>
@@ -2224,6 +2255,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("led with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.lead = true
 
@@ -2290,6 +2322,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("surpassed with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.surpass = true
 
@@ -2318,6 +2351,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 f.log("pivoted with", d)
 
                 f.hand --> d --> f.played
+                shown :+= d
 
                 f.pivot = true
 
@@ -2583,7 +2617,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions = factions.dropWhile(_ != current) ++ factions.takeWhile(_ != current)
 
                 factions.foreach { f =>
-                    f.played --> deck
+                    f.played --> (if (options.has(SplitDiscardPile)) disdeck else deck)
                     f.blind --> deck
                 }
 
@@ -2600,6 +2634,8 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 factions.foreach { f =>
                     f.hand --> deck
                 }
+                disdeck --> deck
+                shown = $
 
                 $(Tycoon, Tyrant, Warlord, Keeper, Empath).foreach { ambition =>
                     if (declared.contains(ambition)) {
