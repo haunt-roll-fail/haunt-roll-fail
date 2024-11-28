@@ -1973,6 +1973,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c))
                     .needOk
                     .bail(then)
+
             case RansackAction(f, c, then) =>
                 market --> c --> f.loyal
 
