@@ -349,7 +349,7 @@ object Leaders {
     )
 
     // def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
-    def preset1 = $(Mystic, FuelDrinker, Elder)
+    def preset1 = $(Demagogue, Rebel, Elder, FuelDriker)
 }
 
 
