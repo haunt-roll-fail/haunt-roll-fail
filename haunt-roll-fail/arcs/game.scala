@@ -619,6 +619,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var pivot : Boolean = false
 
     var adjust : Boolean = false
+    var pip: Boolean = false
 
     def can(e : Effect) = (loyal.contains(e) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
 
@@ -738,9 +739,9 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     def available(r : Resource) = availableNum(r) > 0
 
-    def at(c : System) = figures.get(c)
+    def at(s : System) = figures.get(s)
 
-    def freeSlots(c : System) = board.slots(c) - figures.get(c).%(_.piece.is[Building]).num
+    def freeSlots(s : System) = board.slots(s) - figures.get(s).%(_.piece.is[Building]).num
 
     var current : Faction = null
 

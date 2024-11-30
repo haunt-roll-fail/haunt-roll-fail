@@ -72,6 +72,7 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class TaxLoyalAction(self : Faction, cost : Cost, r : System, c : Figure, then : ForcedAction) extends ForcedAction
 case class TaxRivalAction(self : Faction, cost : Cost, r : System, e : Faction, c : Figure, then : ForcedAction) extends ForcedAction
+case class TaxBonusAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -741,8 +742,8 @@ object CommonExpansion extends Expansion {
             val g = "Tax".hl
 
             Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxLoyalAction(f, x, s, c, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxRivalAction(f, x, s, e, c, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
+                .some(systems)(s => f.at(s).cities./(c => TaxLoyalAction(f, x, s, c, TaxBonusAction(f, then)).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
+                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxRivalAction(f, x, s, e, c, TaxBonusAction(f, then)).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
                 .cancel
 
         case TaxLoyalAction(f, x, r, c, then) =>
@@ -780,6 +781,28 @@ object CommonExpansion extends Expansion {
             }
             else
                 then
+
+        case TaxBonusAction(f, then) =>
+            var next = then
+
+            if (f.pip && (f.copy || f.pivot)) {
+                if (f.can(Attuned) && f.add(Psionic)) {
+                    f.log("gained", Psionic, "from", Attuned)
+                    next = AdjustResourcesAction(f, next)
+                }
+
+                if (f.can(Insatiable) && f.add(Fuel)) {
+                    f.log("gained", Fuel, "from", Insatiable)
+                    next = AdjustResourcesAction(f, next)
+                }
+
+                if (f.can(Firebrand) && f.add(Weapon)) {
+                    f.log("gained", Weapon, "from", Firebrand)
+                    next = AdjustResourcesAction(f, next)
+                }
+            }
+
+            next
 
         // MOVE
         case MoveMainAction(f, x, then) =>
@@ -1599,6 +1622,7 @@ object CommonExpansion extends Expansion {
 
         case EndPreludeAction(f, s, i, n) =>
             f.spent = $
+            f.pip = true
 
             log(DottedLine)
 
@@ -1643,6 +1667,7 @@ object CommonExpansion extends Expansion {
             f.built = $
             f.used = $
             f.anyBattle = false
+            f.pip = false
 
             val next = factions.dropWhile(_ != f).drop(1).%(_.hand.any).starting
 

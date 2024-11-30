@@ -143,6 +143,10 @@ object colmat {
         def intersperse[U >: T](s : U) : List[U] = l.take(1) ++ l.drop(1)./~(List(s, _))
         def first = l.head
         def starting = l.headOption
+        def ending = l.lastOption
+        def dropFirst = l.drop(1)
+        def dropLast = l.dropRight(1)
+        def dropEnd(n : Int) = l.dropRight(n)
 
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
@@ -182,6 +186,10 @@ object colmat {
         def intersperse[U >: T](s : U) : List[U] = l.take(1) ++ l.drop(1)./~($(s, _))
         def first = l.head
         def starting = l.headOption
+        def ending = l.lastOption
+        def dropFirst = l.drop(1)
+        def dropLast = l.dropRight(1)
+        def dropEnd(n : Int) = l.dropRight(n)
 
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)

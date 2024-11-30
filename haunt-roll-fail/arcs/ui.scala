@@ -175,15 +175,15 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             System(2, Crescent) -> $(XY(2300, 618)),
             System(2, Hex) -> $(XY(2116, 880), XY(2221, 936)),
             System(3, Arrow) -> $(XY(2186, 1127)),
-            System(3, Crescent) -> $(XY(1846, 1249), XY(0, 0)),
+            System(3, Crescent) -> $(XY(1846, 1249)),
             System(3, Hex) -> $(XY(1929, 1534), XY(1830, 1610)),
             System(4, Arrow) -> $(XY(1529, 1573), XY(1430, 1497)),
             System(4, Crescent) -> $(XY(1060, 1584), XY(1159, 1660)),
-            System(4, Hex) -> $(XY(776, 1505), XY(0, 0)),
-            System(5, Arrow) -> $(XY(255, 1458), XY(0, 0)),
-            System(5, Crescent) -> $(XY(434, 1101), XY(0, 0)),
+            System(4, Hex) -> $(XY(776, 1505)),
+            System(5, Arrow) -> $(XY(255, 1458)),
+            System(5, Crescent) -> $(XY(434, 1101)),
             System(5, Hex) -> $(XY(223, 876), XY(125, 952)),
-            System(6, Arrow) -> $(XY(431, 683), XY(0, 0)),
+            System(6, Arrow) -> $(XY(431, 683)),
             System(6, Crescent) -> $(XY(397, 313), XY(299, 389)),
             System(6, Hex) -> $(XY(678, 228)),
         )
@@ -282,15 +282,17 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         pieces.flush()
 
-        systems.reverse.foreach { r =>
-            val figures = game.at(r)
-            var gates = regions.gates.get(r).|(Nil).sortBy(_.y)
+        systems.reverse.foreach { s =>
+            val figures = game.at(s)
+            var gates = regions.gates.get(s).|(Nil).sortBy(_.y)
+
+            println(s + " -> " + gates)
 
             val extra : $[Figure] = $
 
             import hrf.ui.sprites._
 
-            (extra ++ figures ++ 1.to(game.freeSlots(r))./(i => Figure(Free, Slot, systems.indexOf(r) * 10 + i))).foreach { p =>
+            (extra ++ figures ++ 1.to(game.freeSlots(s))./(i => Figure(Free, Slot, systems.indexOf(s) * 10 + i))).foreach { p =>
                 def prefix = p.faction.as[Faction]./(_.short.toLowerCase + "-").|((p.faction == Empire).?("imperial-").|(""))
 
                 val target = false
@@ -308,8 +310,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 }
 
                 var q = p.piece match {
-                    case Slot | City | Starport => Sprite(a, $(Rectangle(-60, 21, 120, 28), Rectangle(-46, -7, 92, 28), Rectangle(-32, -35, 64, 28), Rectangle(-18, -54, 36, 19)), |((r, p)))
-                    case Ship => Sprite(a, $(Rectangle(-70, -10, 135, 20), Rectangle(-97, -30, 194, 20), Rectangle(5, -50, 75, 20), Rectangle(35, -70, 35, 20)), |((r, p)))
+                    case Slot | City | Starport => Sprite(a, $(Rectangle(-60, 21, 120, 28), Rectangle(-46, -7, 92, 28), Rectangle(-32, -35, 64, 28), Rectangle(-18, -54, 36, 19)), |((s, p)))
+                    case Ship => Sprite(a, $(Rectangle(-70, -10, 135, 20), Rectangle(-97, -30, 194, 20), Rectangle(5, -50, 75, 20), Rectangle(35, -70, 35, 20)), |((s, p)))
                     case _ => Sprite(a, $(a.head.rect))
                 }
 
@@ -320,24 +322,24 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
                 if (extra.has(p)) {
                     q = q.copy(images = q.images./(i => i.copy(alpha = 0.7)), hitboxes = $)
-                    pieces.addFixed(r, p, z + 8)(q)(highlightCoordinates.get.x, highlightCoordinates.get.y)
+                    pieces.addFixed(s, p, z + 8)(q)(highlightCoordinates.get.x, highlightCoordinates.get.y)
                 }
                 else
                 if (p.piece == Starport && gates.any) {
                     gates.starting.foreach { g =>
-                        pieces.addFixed(r, p, z)(q)(g.x, g.y)
+                        pieces.addFixed(s, p, z)(q)(g.x, g.y)
                     }
-                    gates = gates.drop(1)
+                    gates = gates.dropFirst
                 }
                 else
                 if (p.piece.is[Building] && gates.any) {
-                    gates.lastOption.foreach { g =>
-                        pieces.addFixed(r, p, z)(q)(g.x, g.y)
+                    gates.ending.foreach { g =>
+                        pieces.addFixed(s, p, z)(q)(g.x, g.y)
                     }
-                    gates = gates.dropRight(1)
+                    gates = gates.dropLast
                 }
                 else {
-                    val xy = pieces.addFloat(r, p, z)(q)
+                    val xy = pieces.addFloat(s, p, z)(q)
                 }
             }
         }
