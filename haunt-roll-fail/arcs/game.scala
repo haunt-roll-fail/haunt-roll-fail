@@ -299,6 +299,9 @@ trait LeaderEffect extends Effect with Elementary {
     def elem = name.styled(styles.title).hl
 }
 
+
+case object Committed extends LeaderEffect
+case object Disorganized extends LeaderEffect
 case object Attuned extends LeaderEffect
 case object Cryptic extends LeaderEffect
 case object Bold extends LeaderEffect
@@ -313,7 +316,7 @@ case object Elder         extends Leader("leader01", "Elder",         $, $, $, $
 case object Mystic        extends Leader("leader02", "Mystic",        $(Attuned, Cryptic), $(Psionic, Relic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
-case object Rebel         extends Leader("leader05", "Rebel",         $(), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
+case object Rebel         extends Leader("leader05", "Rebel",         $(Committed, Disorganized), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Warrior       extends Leader("leader06", "Warrior",       $, $, $, $, $)
 case object Feastbringer  extends Leader("leader07", "Feastbringer",  $, $, $, $, $)
 case object Demagogue     extends Leader("leader08", "Demagogue",     $(Bold, Paranoid), $(Psionic, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
@@ -346,7 +349,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue)
+    def preset1 = $(Rebel, Mystic, Demagogue)
 }
 
 
@@ -1705,7 +1708,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .add(alt)
 
             case MoveToAction(f, r, d, l, cascade, x, then) =>
-                val n = l.num
+                val n = if (f.can(Disorganized)) min(2, l.num) else l.num
                 val (damaged, fresh) = l.partition(f.damaged.has)
                 val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
 
@@ -1750,7 +1753,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                     .cancel
 
             case BattleFactionAction(f, x, r, e, then) =>
-                val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2))
+                val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
                 val canRaid = e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not
                 val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
