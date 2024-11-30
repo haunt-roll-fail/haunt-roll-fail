@@ -4571,7 +4571,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
             case CollapseTileAction(f, p, then, fail) if setup.of[Knight.type].exists(_.position == p) =>
                 implicit val ask = builder
 
-                val t = setup.of[Knight.type].%(_.position == p).first.get
+                val t = setup.of[Knight.type].%(_.position == p).first
 
                 val others = factions.but(t)./~(_.positions)
 
@@ -4593,7 +4593,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
             case CollapseTileAction(f, p, then, fail) if setup.of[Dragon.type].exists(_.position.has(p)) =>
                 implicit val ask = builder
 
-                val t = setup.of[Dragon.type].%(_.position.has(p)).first.get
+                val t = setup.of[Dragon.type].%(_.position.has(p)).first
 
                 val others = factions.but(t)./~(_.positions)
 
@@ -4612,9 +4612,9 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
                 }
 
             case CollapseTileAction(f, p, then, fail) if setup.of[Goblins.type].exists(_.positions.has(p)) =>
-                val t = setup.of[Goblins.type].%(_.positions.has(p)).first.get
+                val t = setup.of[Goblins.type].%(_.positions.has(p)).first
 
-                val tt = t.tribes.%(_.position.has(p)).first.get
+                val tt = t.tribes.%(_.position.has(p)).first
 
                 ScatterTribeAction(t, tt.tribe, CollapseTileAction(f, p, then, fail))
 

@@ -176,7 +176,7 @@ object InvasiveDDDExpansion extends FactionExpansion[InvasiveDDD] {
             f.reserve --> f.warrior --> c
             f.reserve --> f.warrior --> c
 
-            val t = f.latent(s).first.get
+            val t = f.latent(s).first
             f.latent += s -> f.latent(s).drop(1)
 
             f.reserve --> t --> c
@@ -221,7 +221,7 @@ object InvasiveDDDExpansion extends FactionExpansion[InvasiveDDD] {
 
         case ForcedRemoveProcessAction(f : InvasiveDDD, then) =>
             if (f.militate.any) {
-                val e = f.militate.first.get
+                val e = f.militate.first
                 f.militate = f.militate.drop(1)
 
                 val q = InvasiveDDDDiscardOneFrogCardAction(e, ForcedRemoveProcessAction(f, then))
@@ -570,9 +570,9 @@ object InvasiveDDDExpansion extends FactionExpansion[InvasiveDDD] {
                         ++
                         (rm./~(c => FoxRabbitMouse.%(s => f.at(c).has(MilitantDDD(s)))./(s => InvasiveDDDSootheAction(f, None, c, s).as("Soothe", MilitantDDD(s).of(f), s, MilitantDDD(s).imgd(f), "in", c))))
                         ++
-                        d./~(d => un.%(_.cost.matched(d.suit))./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveDDDSettleAction(f, |(d), c, s).as("Settle", f.latent(s).first./(_.of(f)), s, f.latent(s).first./(_.imgd(f)), "in", c, "with", d))))
+                        d./~(d => un.%(_.cost.matched(d.suit))./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveDDDSettleAction(f, |(d), c, s).as("Settle", f.latent(s).starting./(_.of(f)), s, f.latent(s).starting./(_.imgd(f)), "in", c, "with", d))))
                         ++
-                        (rn./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveDDDSettleAction(f, None, c, s).as("Settle", f.latent(s).first./(_.of(f)), s, f.latent(s).first./(_.imgd(f)), "in", c))))
+                        (rn./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveDDDSettleAction(f, None, c, s).as("Settle", f.latent(s).starting./(_.of(f)), s, f.latent(s).starting./(_.imgd(f)), "in", c))))
                     )
                     .withExtra($(NoHand, Next.as("Done")))
                     .ask
@@ -601,7 +601,7 @@ object InvasiveDDDExpansion extends FactionExpansion[InvasiveDDD] {
 
             f.log("settled in", c, d.any.?("with"), d)
 
-            f.reserve --> f.latent(s).first.get --> c
+            f.reserve --> f.latent(s).first --> c
 
             f.latent += s -> f.latent(s).drop(1)
 

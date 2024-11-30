@@ -665,7 +665,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
                     val journal =
                         if (HRF.flag("replay"))
-                            new ReplayPhantomJournal[meta.gaming.ExternalAction](meta, getElem("replay").textContent, s => meta.parseActionExternal(s))
+                            new ReplayPhantomJournal[meta.gaming.ExternalAction](meta, getElem("replay").textContent, s => meta.parseActionExternal(s), HRF.paramInt("at") | 999999)
                         else
                             new ServerJournal[meta.gaming.ExternalAction](meta, HRF.param("server").get, HRF.param("user").get, HRF.param("secret").get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
 
@@ -786,7 +786,11 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 ZBasic(title, "Hotseat".hh, () => goHotseat()) ::
                 ZBasic(title, "Online".hh, HRF.param("server").any.??(() => goOnline()))
             ) ++
-            meta.intLinks./((t, l) => ZOption(Div("Other"), Link.internal(l + HRF.versionOverride./("?version=" + _).|(""), Div(t), ZBasic.choice ++ $(xstyles.hiddenLink)))) ++
+            meta.intLinks./((t, l) => ZBasic("Other", t, () => {
+                HRF.metas.%(_.name == l).single./{ m =>
+                    new HRFMetaUI(ui, m, 800).withMeta()
+                }.|(throw new Error("meta not found " + l))
+            })) ++
             meta.extLinks./((t, l) => ZOption(Div("External Links"), Link(l, t.div(xstyles.divint) ~ Image("external-link")(xstyles.explain)(xstyles.clickThrough), ZBasic.infoch ++ $(xstyles.link)))) ++
             $(ZBasic(" ", Div("Settings"), () => miscellaneous()))
         )
@@ -1245,6 +1249,8 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     AskHuman
                 else
                 setup.difficulty(faction) match {
+                    case _ if journal.is[ServerPhantomJournal[_]] =>
+                        AskHuman
                     case Human if journal.is[ServerJournal[_]].not =>
                         AskHuman
                     case Human if self.contains(faction) =>
@@ -1252,13 +1258,19 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     case Human =>
                         WaitRemote
                     case BotDebug(botname) =>
-                        DebugBot((actions : $[UserAction]) => {
-                            val aa = game.explode(actions, false, None)
-                            val bot = meta.getBot(faction, botname)
-                            bot.eval(aa)(game).sortWith(bot.compare)
-                        })
+                        val bot = meta.getBot(faction, botname)
+                        if (bot.is[EvalBot]) {
+                            val ebot = bot.as[EvalBot].get
+                            DebugBot((actions : $[UserAction]) => {
+                                val aa = game.explode(actions, false, None)
+                                ebot.eval(aa)(game).sortWith(ebot.compare)
+                            })
+                        }
+                        else
+                            AskBot((actions : $[UserAction]) => meta.getBot(faction, botname).ask(actions, 0)(game))
+
                     case Bot(botname) =>
-                        AskBot((actions : $[UserAction]) => meta.getBot(faction, botname).ask(game, actions, 0.01))
+                        AskBot((actions : $[UserAction]) => meta.getBot(faction, botname).ask(actions, 0.01)(game))
                 }
             }
 

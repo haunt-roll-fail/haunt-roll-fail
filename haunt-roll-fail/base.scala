@@ -167,7 +167,7 @@ trait Gaming extends Timelines {
 
     trait SkipValidate { self : Action => }
 
-    case class ForceInvalidAction(action : ExternalAction) extends ExternalAction with ActionClass[ForceInvalidAction] with SkipValidate
+    case class ForceInvalidAction(action : Action) extends ExternalAction with ActionClass[ForceInvalidAction] with SkipValidate
 
     case class CantParseAction(action : String) extends ExternalAction with ActionClass[CantParseAction] with SkipValidate
 
@@ -664,8 +664,8 @@ trait Gaming extends Timelines {
 
                     if (valid.not) {
                         if (hrf.HRF.flag("valid-ignore").not) {
-                            val e = "perform validation failed\n" + a + "\n on \n" + continue @@ {
-                                case Ask(f, l) => "Ask(" + f + "\n  " + l.mkString("\n  ") + "\n)\nExplode:\n  " + explode(l, true, None).mkString("\n  ")
+                            val e = "perform validation failed\n" + a + "\n on \n" + continue.unwrap @@ {
+                                case Ask(f, l) => "Ask(" + f + "\n  " + l.mkString("\n  ") + "\n)\nExplode:\n  " + explode(l, true, None).mkString("\n  ") + "\nRe-Explode:\n  " + explode(l, false, None).mkString("\n  ")
                                 case Roll(l, x, _) => a @@ {
                                     case a : RolledAction[_] => "expecting " + x(a.rolled)
                                     case _ => "(not a roll)"
@@ -762,7 +762,6 @@ trait Gaming extends Timelines {
                     case c => c
                 }
 
-
                 val result = mapForceLog(continue)
 
                 // WARN IF NO LOG
@@ -842,16 +841,16 @@ trait Gaming extends Timelines {
             val action = a.unwrap
 
             if (action.isSoft)
-                return validate(continue, a, true, true)
+                return validate(continue, a, true)
 
-            if (validate(continue, a, true, false))
+            if (validate(continue, a, false))
                 return true
 
             // 0.8.106 --> 0.8.108
             a.unwrap.as[arcs.MoveListAction].foreach { a =>
                 val b = a.copy(cascade = a.cascade.not).asInstanceOf[Action]
 
-                if (validate(continue, b, true, false))
+                if (validate(continue, b, false))
                     return true
             }
 
@@ -859,11 +858,23 @@ trait Gaming extends Timelines {
             a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
                 val b = a.copy(then = arcs.ContinueMultiAdjustResourcesAction(arcs.CheckWinAction)).asInstanceOf[Action]
 
-                if (validate(continue, b, true, false))
+                if (validate(continue, b, false))
                     return true
             }
 
-            if (validate(continue, a, true, true).not)
+            // 0.8.108 --> 0.8.109
+            a.unwrap.as[arcs.ShuffledCourtDeckAction].foreach { a =>
+                val l = a.shuffled.of[arcs.VoxCard]
+
+                l.toSet.subsets().foreach { s =>
+                    val b = a.copy(shuffled = a.shuffled.diff(s.$)).asInstanceOf[Action]
+
+                    if (validate(continue, b, false))
+                        return true
+                }
+            }
+
+            if (validate(continue, a, true).not)
                 return false
 
             warn("validate failed with expansion filtering")
@@ -873,21 +884,21 @@ trait Gaming extends Timelines {
             true
         }
 
-        protected def validate(c : Continue, action : Action, exploding : true, expandAll : Boolean) : Boolean = c @@ {
+        protected def validate(c : Continue, action : Action, expandAll : Boolean) : Boolean = c @@ {
             case StartContinue if action.is[StartGameAction] => true
             case _ if action.unwrap.is[SkipValidate] => true
             case _ if action.unwrap.is[OutOfTurn] => true
             case Force(x) if action == x => true
             case Milestone(_, x) if action == x || action.unwrap == x.unwrap => true
-            case DelayedContinue(_, c) => validate(c, action, exploding, expandAll)
-            case Log(_, _, c) => validate(c, action, exploding, expandAll)
-            case MultiAsk(l) => l.exists(ask => validate(ask, action, exploding, expandAll))
+            case DelayedContinue(_, c) => validate(c, action, expandAll)
+            case Log(_, _, c) => validate(c, action, expandAll)
+            case MultiAsk(l) => l.exists(ask => validate(ask, action, expandAll))
             case Ask(f, l) if l.contains(action) => true
             case Ask(f, l) if {
                 val aa = action.unwrap
                 l.exists(_.unwrap == aa)
             } => true
-            case ask @ Ask(f, l : $[UserAction]) if exploding && {
+            case ask @ Ask(f, l : $[UserAction]) if {
                 val aa = action.unwrap
                 val ll = expandAll.?(l).|(l.%(_.canExpandTo(aa)))
 
@@ -1017,6 +1028,17 @@ trait Gaming extends Timelines {
 
         def !(b : Boolean, reason : String = "") = a @@ {
             case a : Choice => b.not.?(a).|(UnavailableReasonAction(a, reason))
+            case _ => a
+        }
+
+        def !!!(implicit g : G) = a @@ {
+            case a : Choice if a.isSoft.not => throw new Error("!!! on non-soft action")
+            case a : Choice if a.isSoft =>
+                g.explode($(a), false, None).%{
+                    case i : Info => false
+                    case i : Hidden => false
+                    case _ => true
+                }.any.?(a).|(UnavailableReasonAction(a, "that's like, not possible, man"))
             case _ => a
         }
     }

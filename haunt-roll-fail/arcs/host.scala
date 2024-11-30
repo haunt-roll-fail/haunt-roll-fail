@@ -14,8 +14,9 @@ import scala.collection.parallel.CollectionConverters._
 
 object Host extends hrf.host.BaseHost {
     val gaming = arcs.gaming
+    val path = "arcs"
 
-    def askBot(g : G, f : F, actions: $[UserAction]) = new BotXX(f).ask(g, actions, 0)
+    def askBot(g : G, f : F, actions: $[UserAction]) = new BotXX(f).ask(actions, 0)(g)
 
     def factions = $(Red, White, Blue, Yellow)
 

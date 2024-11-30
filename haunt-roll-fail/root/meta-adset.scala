@@ -199,7 +199,7 @@ object MetaAdset extends MetaGame {
 
     override val path = "root"
 
-    override val intLinks = $(("Root: Standard Setup".spn -> "/play/root"), ("Root: Mirror".spn -> "/play/root-mirror"))
+    override val intLinks = $(("Root: Standard Setup".spn -> "root"), ("Root: Mirror".spn -> "root-mirror"))
 
     override val extLinks = Meta.extLinks
 

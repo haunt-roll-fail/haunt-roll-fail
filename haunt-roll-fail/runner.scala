@@ -929,7 +929,7 @@ object Runner {
 
                     case class EvalActionWrapper(ae : ActionEval) extends Choice {
                         def question(implicit g : G) = ae.action.question(g) ~ Comment(ae.action.toString)
-                        def option(implicit g : G) = ae.action.option(game) ~ " (" ~ ae.evaluations.first./(_.weight)./(v => Span(Text(v), (v > 0).?(evscore.good).|(evscore.bad))).|(Text(0)) ~ ")" ~ HorizontalBreak ~
+                        def option(implicit g : G) = ae.action.option(game) ~ " (" ~ ae.evaluations.starting./(_.weight)./(v => Span(Text(v), (v > 0).?(evscore.good).|(evscore.bad))).|(Text(0)) ~ ")" ~ HorizontalBreak ~
                         ae.action.unwrap.toString.spn(evscore.action) ~ HorizontalBreak ~
                         ae.evaluations./(e => Span(
                             "(" ~ Span(Text(e.weight), (e.weight > 0).?(evscore.good).|(evscore.bad)) ~ " -> " ~ e.desc ~ ")", evscore.explain

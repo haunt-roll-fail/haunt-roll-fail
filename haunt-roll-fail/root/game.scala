@@ -144,6 +144,7 @@ case class RedirectRegion(redirect : Figure => (Faction, Region)) extends Specia
 
 
 trait Board {
+    val id : String
     val name : String
     def clearings : $[Clearing]
     def forests : $[Forest]
@@ -1334,7 +1335,7 @@ trait GameImplicits {
         def -->(dest : QuietDiscard.type) {
             val lsr = (factions.drop(1) ++ factions.take(1)).of[Fanatic].%(_.has(LostSouls))
 
-            lsr.first @@ {
+            lsr.starting @@ {
                 case Some(l) => source --> d --> l.lost
                 case _ => source --> d --> discard.direct
             }
@@ -1514,7 +1515,7 @@ class Game(val players : $[Player], val candidates : $[Faction], val options : $
         var ordered = rest.take(0)
 
         while (rest.any) {
-            rest.%(_.after.intersect(rest).none).%(e => rest.%(_.before.has(e)).none).first @@ {
+            rest.%(_.after.intersect(rest).none).%(e => rest.%(_.before.has(e)).none).starting @@ {
                 case None =>
                     warn("rest", rest)
                     warn("ordered", ordered)

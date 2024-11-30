@@ -28,10 +28,8 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
         if (game.states.contains(self).not)
             return $
 
-        import game._
-
         def ambition(a : Ambition) : Int = {
-            declared.get(a).|(Nil)./(_.high).sum + ambitionable./(_.high).maxOr(0)
+            game.declared.get(a).|(Nil)./(_.high).sum + game.ambitionable./(_.high).maxOr(0)
         }
 
         def appraise(x : Cost) : Int = {

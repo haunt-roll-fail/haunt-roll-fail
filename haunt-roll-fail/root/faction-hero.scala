@@ -227,23 +227,23 @@ object Quest {
     )
 
     val revised = $(
-        Quest(Fox, "Fundraising", "fundraising-fox", Hammer, Coins),
-        Quest(Fox, "Errand", "errand-fox", Boots, Boots),
-        Quest(Fox, "Logistic Help", "logistic-help-fox", Boots, Bag),
-        Quest(Fox, "Escort", "escort-fox", Boots, Sword),
-        Quest(Fox, "Give a Speech", "give-a-speech-fox", Torch, Teapot),
+        Quest(Fox, "Fundraising", "revised-fundraising-fox", Hammer, Coins),
+        Quest(Fox, "Errand", "revised-errand-fox", Boots, Boots),
+        Quest(Fox, "Logistic Help", "revised-logistic-help-fox", Boots, Bag),
+        Quest(Fox, "Escort", "revised-escort-fox", Boots, Sword),
+        Quest(Fox, "Give a Speech", "revised-give-a-speech-fox", Torch, Teapot),
 
-        Quest(Rabbit, "Guard Duty", "guard-duty-rabbit", Torch, Sword),
-        Quest(Rabbit, "Errand", "errand-rabbit", Boots, Boots),
-        Quest(Rabbit, "Give a Speech", "give-a-speech-rabbit", Torch, Teapot),
-        Quest(Rabbit, "Repair a Shed", "repair-a-shed-rabbit", Bag, Hammer),
-        Quest(Rabbit, "Expel Bandits", "expel-bandits-rabbit", Sword, Sword),
+        Quest(Rabbit, "Guard Duty", "revised-guard-duty-rabbit", Torch, Sword),
+        Quest(Rabbit, "Errand", "revised-errand-rabbit", Boots, Boots),
+        Quest(Rabbit, "Give a Speech", "revised-give-a-speech-rabbit", Torch, Teapot),
+        Quest(Rabbit, "Repair a Shed", "revised-repair-a-shed-rabbit", Bag, Hammer),
+        Quest(Rabbit, "Expel Bandits", "revised-expel-bandits-rabbit", Sword, Sword),
 
-        Quest(Mouse, "Expel Bandits", "expel-bandits-mouse", Sword, Sword),
-        Quest(Mouse, "Guard Duty", "guard-duty-mouse", Torch, Sword),
-        Quest(Mouse, "Fend off a Bear", "fend-off-a-bear-mouse", Torch, Crossbow),
-        Quest(Mouse, "Escort", "escort-mouse", Boots, Sword),
-        Quest(Mouse, "Logistic Help", "logistic-help-mouse", Boots, Bag)
+        Quest(Mouse, "Expel Bandits", "revised-expel-bandits-mouse", Sword, Sword),
+        Quest(Mouse, "Guard Duty", "revised-guard-duty-mouse", Torch, Sword),
+        Quest(Mouse, "Fend off a Bear", "revised-fend-off-a-bear-mouse", Torch, Crossbow),
+        Quest(Mouse, "Escort", "revised-escort-mouse", Boots, Sword),
+        Quest(Mouse, "Logistic Help", "revised-logistic-help-mouse", Boots, Bag)
     )
 
     val all = default ++ revised

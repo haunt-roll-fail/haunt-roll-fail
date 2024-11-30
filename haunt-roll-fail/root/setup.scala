@@ -484,7 +484,7 @@ object SetupExpansion extends MandatoryExpansion {
         case InitDoneAction =>
             game.expansions = game.expansionsFor(factions)
 
-            StartPlayerTurnAction(factions.first.get)
+            StartPlayerTurnAction(factions.first)
 
         case FactionInitAction(f) =>
             game.factions :+= f
@@ -512,7 +512,7 @@ object SetupExpansion extends MandatoryExpansion {
         case AfterSetupAction(f : Horde, then) if options.has(SeparateItemsInRuins) =>
             AddRuinItemsAction(then)
 
-        case AfterSetupAction(f : Horde, then) if factions.of[Hero].none && factions.of[Horde].first.has(f) =>
+        case AfterSetupAction(f : Horde, then) if factions.of[Hero].none && factions.of[Horde].starting.has(f) =>
             AddRuinItemsAction(then)
 
         case AfterSetupAction(f : RF.type, then) if options.has(MixedDeck) && deck.$.of[CraftEffectCard].exists(_.effect == BoatBuilders) =>

@@ -33,7 +33,7 @@ class BotOT(f : Faction, b : Faction => Bot) extends EvalBot {
 
             while (vp(c).none) {
                 c = c match {
-                    case Ask(o, actions) => game.performContinue(None, bots(o.as[Faction].get).ask(game, actions, 0), false).continue
+                    case Ask(o, actions) => game.performContinue(None, bots(o.as[Faction].get).ask(actions, 0), false).continue
                     case DelayedContinue(_, c) => c
                     case Roll(dice, roll, _) => game.performContinue(None, roll(dice./(_.roll())), false).continue
                 }

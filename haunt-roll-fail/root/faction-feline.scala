@@ -602,6 +602,9 @@ object FelineExpansion extends FactionExpansion[Feline] {
             val t = f.pooled(Wood)
             val r = f.all(Sawmill).%(f.canPlace)
 
+            if (t == 0)
+                Ask(f).done(Next).birdsong(f)
+            else
             if (t >= r.num)
                 Ask(f)(ProduceMultiWoodAction(f, r))
             else

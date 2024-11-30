@@ -55,7 +55,7 @@ class BotTT(faction : Faction, look : Int, universes : Int, breadth : Int, b : F
         var aa = actions.take(0)
 
         while (aa.num < breadth && aa.num < actions.num) {
-            aa :+= bots(faction).ask(game, actions.diff(aa), 0)
+            aa :+= bots(faction).ask(actions.diff(aa), 0)
         }
 
         aa./(a => ActionEval(a, ${
@@ -76,7 +76,7 @@ class BotTT(faction : Faction, look : Int, universes : Int, breadth : Int, b : F
 
                 while (vp(c).none) {
                     c = c match {
-                        case Ask(o, actions) => g.performContinue(None, bots(o.asInstanceOf[Faction]).ask(g, actions, 0), false).continue
+                        case Ask(o, actions) => g.performContinue(None, bots(o.asInstanceOf[Faction]).ask(actions, 0)(g), false).continue
                         case DelayedContinue(_, c) => c
                         case Roll(dice, roll, _) => g.performContinue(None, roll(dice./(_.roll())), false).continue
                         case Shuffle(l, s, _) => g.performContinue(None, s(l.shuffle), false).continue

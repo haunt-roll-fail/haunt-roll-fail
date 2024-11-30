@@ -103,6 +103,7 @@ trait MetaBase {
 
     val indistinguishableFactions : Boolean = false
     val gradualFactions : Boolean = false
+    val insignificantSeating : Boolean = false
 
     def randomGameName() : String
 
@@ -201,7 +202,7 @@ trait MetaBots extends MetaBase {
     import gaming._
 
     def getBots(g : F) : $[String]
-    def getBot(g : F, bot : String) : gaming.EvalBot
+    def getBot(g : F, bot : String) : gaming.Bot
     def defaultBots : $[String]
 }
 

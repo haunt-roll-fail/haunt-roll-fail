@@ -15,6 +15,8 @@ import scala.collection.parallel.CollectionConverters._
 trait BaseHost {
     val gaming : hrf.base.Gaming
 
+    val path : String
+
     import gaming._
 
     case class HostGameOverAction(winners : $[F]) extends ForcedAction
@@ -70,6 +72,9 @@ trait BaseHost {
             case Ask(_, List(action)) =>
                 action
 
+            case MultiAsk(l) =>
+                askFaction(g, l.shuffle.last)
+
             case Ask(f : F, actions) =>
                 askBot(g, f, actions)
 
@@ -95,7 +100,7 @@ trait BaseHost {
         var results : $[$[F]] = $
 
         1.to(times).foreach { i =>
-            results = results ++ batch.map { g =>
+            results = results ++ batch/*.par*/.map { g =>
                 var log : $[String] = Nil
                 def writeLog(s : String) {
                     log = s :: log
@@ -176,7 +181,7 @@ trait BaseHost {
                             case _ =>
                         }
 
-                        if (n > 2000)
+                        if (n > 3000)
                             throw null
 
                         continue = game.performContinue(|(continue), a, true).continue
@@ -197,7 +202,7 @@ trait BaseHost {
                         import java.nio.file.{Paths, Files}
                         import java.nio.charset.StandardCharsets
 
-                        Files.write(Paths.get("arcs/game-error-" + java.lang.System.currentTimeMillis + ".txt"), (
+                        Files.write(Paths.get(path + "/game-error-" + java.lang.System.currentTimeMillis + ".txt"), (
                             aa./(_.unwrap)./(serializer.write).mkString("\n") + "\n\n" +
                             aa./(serializer.write).mkString("\n") + "\n\n" +
                             (e.getMessage + "\n" + e.getStackTrace.mkString("\n")) + "\n\n" +

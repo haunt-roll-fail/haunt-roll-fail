@@ -20,19 +20,57 @@ case class UnknownOption(o : String) extends GameOption {
 }
 
 case class BadInitiativeTransferChapter(n : Int) extends GameOption with ToggleOption {
-    val group = "Incorrect Initiative Transfer".hh
-    val valueOn = "Chapter " ~ n.hlb
+    val group = "Old Incorrect Behaviour"
+    val valueOn = "Incorrect Initiative Transfer in Chapter " ~ n.hlb
 }
 
-case object LeadersAndLorePreset1 extends GameOption with ToggleOption {
+case object BadGuildStruggle extends GameOption with ToggleOption {
+    val group = "Old Incorrect Behaviour"
+    val valueOn = "Guild Struggle Shuffles Vox Cards"
+}
+
+trait LeadersAndLoreOption extends GameOption with ToggleOption with ImportantOption {
     val group = "Leaders and Lore".hh
+    override def blocked(all : $[BaseOption]) = all.of[CampaignOption]./($(_))
+}
+
+case object LeadersAndLorePreset1 extends LeadersAndLoreOption {
     val valueOn = "Preset".hh ~ " " ~ "#1".hlb
+}
+
+trait CampaignOption extends GameOption with ImportantOption {
+    val group = "Campaign Mode".hh
+    override def blocked(all : $[BaseOption]) = all.of[LeadersAndLoreOption]./($(_))
+}
+
+case object NoFate extends CampaignOption with ToggleOption {
+    val valueOn = "No Fate".hlb
+}
+
+
+case object RandomPlayerOrder extends GameOption with ToggleOption {
+    val group = "Other Options".hh
+    val valueOn = "Random Player Order".hh
 }
 
 case object SplitDiscardPile extends GameOption with ToggleOption {
     val group = "Other Options".hh
-    val valueOn = "Split Discard Pile".hh
+    val valueOn = "Split Discard Piles".hh
 }
+
+
+trait StarportsOption extends hrf.Setting with OneOfGroup {
+    val group = "Starports Shape"
+}
+
+case object StarStarports extends StarportsOption {
+    val valueOn = "Star".hlb
+}
+
+case object TriangleStarports extends StarportsOption {
+    val valueOn = "Triangle".hlb
+}
+
 
 object Meta extends MetaGame { mmm =>
     val gaming = arcs.gaming
@@ -49,9 +87,10 @@ object Meta extends MetaGame { mmm =>
     val minPlayers = 3
 
     override val hiddenOptions =
-        1.to(5)./(BadInitiativeTransferChapter)
+        1.to(5)./(BadInitiativeTransferChapter) ++
+        $(BadGuildStruggle)
 
-    val options = $(LeadersAndLorePreset1, SplitDiscardPile) ++ hiddenOptions
+    val options = $(NoFate) ++ $(LeadersAndLorePreset1) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
 
     override val gradualFactions : Boolean = true
 
@@ -85,12 +124,13 @@ object Meta extends MetaGame { mmm =>
 
     def getBot(f : Faction, b : String) = (f, b) match {
         case (f : Faction, "Easy") => new BotXX(f)
+        case (f : Faction, _) => new BotXX(f)
     }
 
     def defaultBots : $[String] = $("Easy")
 
     def writeFaction(f : Faction) = f.short
-    def parseFaction(s : String) : Option[Faction] = factions.%(_.short == s).single
+    def parseFaction(s : String) : |[Faction] = factions.%(_.short == s).single
 
     def writeOption(o : O) = Serialize.write(o)
     def parseOption(s : String) = $(options.find(o => writeOption(o) == s) || options.find(o => o.toString == s) | (UnknownOption(s)))
@@ -103,9 +143,12 @@ object Meta extends MetaGame { mmm =>
     override def bodyFont = Some("neue-kabel")
     override def titleFont = Some("fm-bolyar-pro-900")
 
+    override def settingsList = super.settingsList ++ $(StarStarports, TriangleStarports)
+    override def settingsDefaults = super.settingsDefaults ++ $(StarStarports)
+
     val assets =
     ConditionalAssetsList((factions : $[F], options : $[O]) => true)(
-        ImageAsset("map") ::
+        ImageAsset("map-no-slots") ::
         ImageAsset("map-regions").makeLossless ::
         ImageAsset("map-regions-select").makeLossless ::
 
@@ -269,7 +312,7 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("zeroed") ::
         ImageAsset("hidden") ::
     $) ::
-    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "court", ext = "webp")(
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "court")(
         ImageAsset("bc01") ::
         ImageAsset("bc02") ::
         ImageAsset("bc03") ::
@@ -301,8 +344,23 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("bc29") ::
         ImageAsset("bc30") ::
         ImageAsset("bc31") ::
+        ImageAsset("cc01") ::
+        ImageAsset("cc02") ::
+        ImageAsset("cc03") ::
+        ImageAsset("cc04") ::
+        ImageAsset("cc05") ::
+        ImageAsset("cc06") ::
+        ImageAsset("cc07") ::
+        ImageAsset("cc08") ::
+        ImageAsset("cc09") ::
+        ImageAsset("cc10") ::
+        ImageAsset("cc11") ::
+        ImageAsset("cc12") ::
+        ImageAsset("cc13") ::
+        ImageAsset("cc14") ::
+        ImageAsset("cc15") ::
     $) ::
-    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "leader", ext = "webp")(
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "leader")(
         ImageAsset("leader01") ::
         ImageAsset("leader02") ::
         ImageAsset("leader03") ::
@@ -320,7 +378,7 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("leader15") ::
         ImageAsset("leader16") ::
     $) ::
-    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "lore", ext = "webp")(
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "lore")(
         ImageAsset("lore01") ::
         ImageAsset("lore02") ::
         ImageAsset("lore03") ::
@@ -350,6 +408,58 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("lore27") ::
         ImageAsset("lore28") ::
     $) ::
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "fate")(
+        ImageAsset("no-fate") ::
+        ImageAsset("fate01") ::
+        ImageAsset("fate02") ::
+        ImageAsset("fate03") ::
+        ImageAsset("fate04") ::
+        ImageAsset("fate05") ::
+        ImageAsset("fate06") ::
+        ImageAsset("fate07") ::
+        ImageAsset("fate08") ::
+        ImageAsset("fate09") ::
+        ImageAsset("fate10") ::
+        ImageAsset("fate11") ::
+        ImageAsset("fate12") ::
+        ImageAsset("fate13") ::
+        ImageAsset("fate14") ::
+        ImageAsset("fate15") ::
+        ImageAsset("fate16") ::
+        ImageAsset("fate17") ::
+        ImageAsset("fate18") ::
+    $) ::
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "fate/01")(
+        ImageAsset("f01-01a") ::
+        ImageAsset("f01-01b") ::
+        ImageAsset("f01-02") ::
+        ImageAsset("f01-03") ::
+        ImageAsset("f01-04") ::
+        ImageAsset("f01-05") ::
+        ImageAsset("f01-06") ::
+        ImageAsset("f01-07") ::
+        ImageAsset("f01-08") ::
+        ImageAsset("f01-09") ::
+        ImageAsset("f01-10") ::
+        ImageAsset("f01-11") ::
+        ImageAsset("f01-12a") ::
+        ImageAsset("f01-12b") ::
+        ImageAsset("f01-13") ::
+        ImageAsset("f01-14") ::
+        ImageAsset("f01-15") ::
+        ImageAsset("f01-16") ::
+        ImageAsset("f01-17") ::
+        ImageAsset("f01-18") ::
+        ImageAsset("f01-19") ::
+        ImageAsset("f01-20") ::
+        ImageAsset("f01-21") ::
+        ImageAsset("f01-22a") ::
+        ImageAsset("f01-22b") ::
+        ImageAsset("f01-23") ::
+        ImageAsset("f01-24") ::
+        ImageAsset("f01-25") ::
+        ImageAsset("f01-26") ::
+    $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "ambition", scale = 41.4)(
         ImageAsset("ambition-values-6-3") ::
         ImageAsset("ambition-values-9-4") ::
@@ -368,6 +478,10 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("w-ship-damaged") ::
         ImageAsset("y-ship") ::
         ImageAsset("y-ship-damaged") ::
+        ImageAsset("imperial-ship") ::
+        ImageAsset("imperial-ship-damaged") ::
+        ImageAsset("blight") ::
+        ImageAsset("blight-damaged") ::
     $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "figure", scale = 11)(
         ImageAsset("agent-empty") ::
@@ -389,22 +503,37 @@ object Meta extends MetaGame { mmm =>
 
         ImageAsset("city-empty",     "building-empty") ::
         ImageAsset("starport-empty", "building-empty") ::
+        ImageAsset("starport-alt-empty") ::
         ImageAsset("b-city") ::
         ImageAsset("b-city-damaged") ::
         ImageAsset("b-starport") ::
         ImageAsset("b-starport-damaged") ::
+        ImageAsset("b-starport-alt") ::
+        ImageAsset("b-starport-alt-damaged") ::
         ImageAsset("r-city") ::
         ImageAsset("r-city-damaged") ::
         ImageAsset("r-starport") ::
         ImageAsset("r-starport-damaged") ::
+        ImageAsset("r-starport-alt") ::
+        ImageAsset("r-starport-alt-damaged") ::
         ImageAsset("w-city") ::
         ImageAsset("w-city-damaged") ::
         ImageAsset("w-starport") ::
         ImageAsset("w-starport-damaged") ::
+        ImageAsset("w-starport-alt") ::
+        ImageAsset("w-starport-alt-damaged") ::
         ImageAsset("y-city") ::
         ImageAsset("y-city-damaged") ::
         ImageAsset("y-starport") ::
         ImageAsset("y-starport-damaged") ::
+        ImageAsset("y-starport-alt") ::
+        ImageAsset("y-starport-alt-damaged") ::
+        ImageAsset("free-city") ::
+        ImageAsset("free-city-damaged") ::
+        ImageAsset("free-starport") ::
+        ImageAsset("free-starport-damaged") ::
+        ImageAsset("free-starport-alt") ::
+        ImageAsset("free-starport-alt-damaged") ::
     $) ::
     $
 

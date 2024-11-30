@@ -17,11 +17,11 @@ trait BotGaming extends Gaming {
     case class ActionEval(action : UserAction, evaluations : $[Evaluation])
 
     trait Bot {
-        def ask(game : G, actions : $[UserAction], deviation : Double) : UserAction
+        def ask(actions : $[UserAction], deviation : Double = 0.0)(implicit game : G) : UserAction
     }
 
     trait EvalBot extends Bot {
-        def ask(game : G, actions : $[UserAction], deviation : Double) : UserAction = {
+        def ask(actions : $[UserAction], deviation : Double = 0.0)(implicit game : G) : UserAction = {
             if (actions.none)
                 throw new Error("empty actions ***")
 
@@ -29,11 +29,47 @@ trait BotGaming extends Gaming {
                 game.explode(actions, false, None).notOf[Hidden]
             }
             catch {
-                case e : Exception => Nil
+                case e : Exception =>
+                    error(e)
+
+                    warn("error on explode")
+
+                    actions.foreach(a => +++(a))
+
+                    ---
+                    ---
+                    ---
+                    ---
+
+                    actions.foreach {
+                        case a : Cancel => Nil
+                        case a : Info => Nil
+                        case a : Soft =>
+                            +++("soft", a)
+                            game.explode($(a), false, None)
+                        case _ =>
+                    }
+
+                    Nil
             }
 
-            if (aa.none)
-                throw new Error("empty actions !!!")
+            if (aa.none) {
+                var l : $[String] = $
+                l :+= ""
+                l :+= ""
+                l :+= ""
+                actions.foreach { a =>
+                    l :+= a.toString
+                    l :+= ""
+                    l :+= (game.explode($(a), false, None)).toString
+                    l :+= ""
+                    l :+= (game.explode($(a), false, None).notOf[Hidden]).toString
+                }
+                l :+= ""
+                l :+= ""
+                l :+= ""
+                throw new Error("empty actions !!!\n" + actions./(_.toString).mkString("\n") + l.mkString("\n"))
+            }
 
             askE(game, aa, deviation)
         }

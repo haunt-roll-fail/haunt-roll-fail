@@ -132,7 +132,7 @@ class HordePlayer(val faction : Horde)(implicit val game : Game) extends Faction
 
     override def transient = $(mood)
 
-    val warlord = reserve.$.first.get
+    val warlord = reserve.$.first
 
     var advancing = false
     var skipped = false

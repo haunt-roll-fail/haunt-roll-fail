@@ -57,10 +57,10 @@ object Host {
                 action
 
             case Ask(f : Dragon.type, actions) =>
-                new BotDragon(f).ask(g, actions, 0)
+                new BotDragon(f).ask(actions, 0)(g)
 
             case Ask(f : Faction, actions) =>
-                new BotXX(f).ask(g, actions, 0)
+                new BotXX(f).ask(actions, 0)(g)
         }
     }
 

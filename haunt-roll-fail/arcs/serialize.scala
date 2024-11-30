@@ -43,10 +43,104 @@ object Serialize extends Serializer {
         case _ => super.parseExpr(e)
     }
 
-    override def parseAction(s : String) = {
+    override def parseAction(s : String) : Action = {
+        // 0.8.108 --> 0.8.109
+        // if (s.startsWith("AssignHitsAction"))
+        //     return CommentAction(s)
+
         val r = super.parseAction(s
             // 0.8.106 --> 0.8.108
             .replace("UsedCourtCardAction", "UsedEffectCardAction")
+            // 0.8.108 --> 0.8.109
+            .use { s =>
+                if (s.startsWith("AssignHitsAction"))
+                    "ForceInvalidAction(DoAction(" + s + "))"
+                else
+                    s
+            }
+            // 0.8.108 --> 0.8.109
+            .use { s =>
+                val deal = "DealHitsAction"
+                val assign = "AssignHitsAction"
+                val battle = "BattleRaidAction"
+                val main = "MainTurnAction"
+                val prelude = "PreludeActionAction"
+
+                var r = s
+
+                if (r.contains(main) && r.contains(battle)) {
+                    if (r.contains(deal) && r.contains(assign).not) {
+                        val $(a, b) = r.splt(battle)
+                        val $(c, d) = b.splt(main)
+
+                        val $(_, _, _, _, raid, _) = c.splt(",")
+
+                        r = a + raid + ", " + main + d.dropRight(1)
+                    }
+
+                    if (r.contains(deal) && r.contains(assign)) {
+                        val $(a, b) = r.splt(assign)
+
+                        r = a + "0, " + assign + b
+                    }
+
+                    if (r.contains(assign)) {
+                        val $(a, b) = r.splt(assign)
+                        val $(c, d) = b.splt(battle)
+                        val $(e, f) = d.splt(main)
+                        val $(_, _, _, _, raid, _) = e.splt(",")
+
+                        r = a + assign + c.dropRight(1) + raid + ", " + main + f.dropRight(1)
+                    }
+
+                    if (r.contains(battle)) {
+                        val $(a, b) = r.splt(battle)
+                        val $(c, d) = b.splt(main)
+
+                        val $(_, _, _, _, raid, _) = c.splt(",")
+
+                        if (raid == " 0")
+                            r = a + main + d.dropRight(1)
+                    }
+                }
+
+                if (r.contains(prelude) && r.contains(battle)) {
+                    if (r.contains(deal) && r.contains(assign).not) {
+                        val $(a, b) = r.splt(battle)
+                        val $(c, d) = b.splt(prelude)
+
+                        val $(_, _, _, _, raid, _) = c.splt(",")
+
+                        r = a + raid + ", " + prelude + d.dropRight(1)
+                    }
+
+                    if (r.contains(deal) && r.contains(assign)) {
+                        val $(a, b) = r.splt(assign)
+
+                        r = a + "0, " + assign + b
+                    }
+
+                    if (r.contains(assign)) {
+                        val $(a, b) = r.splt(assign)
+                        val $(c, d) = b.splt(battle)
+                        val $(e, f) = d.splt(prelude)
+                        val $(_, _, _, _, raid, _) = e.splt(",")
+
+                        r = a + assign + c.dropRight(1) + raid + ", " + prelude + f.dropRight(1)
+                    }
+
+                    if (r.contains(battle)) {
+                        val $(a, b) = r.splt(battle)
+                        val $(c, d) = b.splt(prelude)
+                        val $(_, _, _, _, raid, _) = c.splt(",")
+
+                        if (raid == " 0")
+                            r = a + prelude + d.dropRight(1)
+                    }
+                }
+
+                r
+            }
         )
 
         r

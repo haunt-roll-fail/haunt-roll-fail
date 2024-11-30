@@ -204,7 +204,7 @@ object AbductAAAExpansion extends FactionExpansion[AbductAAA] {
             val l = f.phases.%(p => f.pool(SkunkAAACaptain(p)))
 
             if (l.any)
-                Ask(f)(board.forests.%(f.at(_).none)./(AbductAAAStartingForestAction(f, l.first.get, _)))
+                Ask(f)(board.forests.%(f.at(_).none)./(AbductAAAStartingForestAction(f, l.first, _)))
             else {
                 val pp = f.phases.%(p => f.items(p).none)
 

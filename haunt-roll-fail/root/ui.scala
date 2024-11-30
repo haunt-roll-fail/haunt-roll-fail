@@ -63,17 +63,19 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
 
     val replayAsker = new NewAsker(replayPane.attach.appendContainer(Content.div(xlo.flexhcenter)(xlo.fullwidth), resources), resources.images.get)
 
+    lazy val mapid = game.board.id + ":"
+
     var map = new CachedBitmap(mapSmall.attach.parent)
 
     mapSmall.replace(Div(Div(title, styles.title), xstyles.overlay), resources)
 
-    lazy val regions = new IndexedImageRegions[Region](new RawImage(resources.images.get("map-regions")), 0, 0, game.board.clearings./(c => c -> XY(game.board.center(c)._1, game.board.center(c)._2)).toMap)
+    lazy val regions = new IndexedImageRegions[Region](new RawImage(resources.images.get(mapid + "map-regions")), 0, 0, game.board.clearings./(c => c -> XY(game.board.center(c)._1, game.board.center(c)._2)).toMap)
 
     lazy val pieces = new FitLayer[Region, Figure](regions, FitOptions(kX = 2))
 
     object layers {
         val background = new OrderedLayer
-        background.add(sprite("map"))(0, 0)
+        background.add(sprite(mapid + "map"))(0, 0)
 
         val clearings = new OrderedLayer
         val rule = new OrderedLayer
@@ -81,7 +83,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
 
 
     lazy val scene = {
-        val mp = resources.images.get("map")
+        val mp = resources.images.get(mapid + "map")
 
         val d = options.has(AutumnMap).?(0).|(12)
 
@@ -98,8 +100,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
 
     lazy val findAnother = {
 
-
-        val mplace = resources.images.get("map-regions")
+        val mplace = resources.images.get(mapid + "map-regions")
         val placeb = new Bitmap(mplace.width, mplace.height)
         placeb.context.drawImage(mplace, 0, 0)
         val placed = placeb.context.getImageData(0, 0, placeb.width, placeb.height).data
@@ -137,7 +138,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
         val forest = region.is[Forest]
 
         val icon : DrawRect = piece match {
-            case FreeBuildingSlot => { DrawRect("building-slot", -50, -50, 100, 100) }
+            case FreeBuildingSlot => { DrawRect(mapid + "building-slot", -50, -50, 100, 100) }
             case Battle => { DrawRect("clearing-battle", -50, -50, 100, 100) }
             case Placement => { DrawRect("clearing-placement", -50, -50, 100, 100) }
             case Nuke => { DrawRect("clearing-nuke", -50, -50, 100, 100) }
@@ -278,11 +279,14 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
     var oldPositions : $[DrawItem] = $
     var oldGates : $[Region] = $
 
-    val mp = resources.images.get("map")
+    lazy val mp = resources.images.get(mapid + "map")
     var deadmp : Bitmap = null
 
     def drawMap() {
-        if (resources.images.get("map-regions").complete.not)
+        if (resources.images.get(mapid + "map").complete.not)
+            return
+
+        if (resources.images.get(mapid + "map-regions").complete.not)
             return
 
         val bitmap = {
@@ -462,7 +466,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
                     val (x, y) = game.board.center(c)
                     g.drawImage(resources.images.get("clearing-highlight-battle"), x - 300, y - 300)
                 case MoveHighlight(from, to) =>
-                    val pp = $("path-" + from.name + "-" + to.name, "path-" + to.name + "-" + from.name)
+                    val pp = $(mapid + "path-" + from.name + "-" + to.name, "path-" + to.name + "-" + from.name)
                     pp.%(resources.images.has).take(1)./{ p => g.drawImage(resources.images.get(p), 20, 20) }
                 case _ =>
             }
@@ -471,12 +475,12 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
         def drawRule() {
             game.flooded.foreach { c =>
                 c @@ {
-                    case TidalBoard.HouseBoat => g.drawImage(resources.images.get("flood-north"), 0, 0)
-                    case TidalBoard.Stilts => g.drawImage(resources.images.get("flood-south-east"), 0, 0)
-                    case TidalBoard.Wetlands => g.drawImage(resources.images.get("flood-south-west"), 0, 0)
+                    case TidalBoard.HouseBoat => g.drawImage(resources.images.get(mapid + "flood-north"), 0, 0)
+                    case TidalBoard.Stilts => g.drawImage(resources.images.get(mapid + "flood-south-east"), 0, 0)
+                    case TidalBoard.Wetlands => g.drawImage(resources.images.get(mapid + "flood-south-west"), 0, 0)
                     case c =>
                         val (x, y) = game.board.center(c)
-                        g.drawImage(resources.images.get("flood"), x - 248 - 40, y - 213 + 10 - (c != TidalBoard.HouseBoat).??(30))
+                        g.drawImage(resources.images.get(mapid + "flood"), x - 248 - 40, y - 213 + 10 - (c != TidalBoard.HouseBoat).??(30))
                 }
             }
 
@@ -486,7 +490,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
                     val dx = c.name.length * 12 + 38
 
                     val nmn = c.name.replace(' ', '-')
-                    val nmi = resources.images.get("clearing-name-" + nmn)
+                    val nmi = resources.images.get(mapid + "clearing-name-" + nmn)
                     val stn = game.mapping(c)./(_.name).distinct.join("-")
                     val sti = resources.images.get("text-tint:" + stn)
 
@@ -551,7 +555,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
         val nowoods = (game.turn > 0) && factions.of[Hero].none && factions.of[Expedition].none && factions.of[OldExpedition].none && factions.of[CommonAbduct].none && hirelings.has(TheExile).not
 
         if (nowoods.not)
-            g.drawImage(resources.images.get("map-woods"), 0, 0)
+            g.drawImage(resources.images.get(mapid + "map-woods"), 0, 0)
 
         var saved = oldPositions
         oldPositions = $
@@ -685,9 +689,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
             val (x, y) = game.board.mid(from, to)
 
             if (game.blizzard.has((from, to)))
-                g.drawImage(resources.images.get("blizzard"), x - 150, y - 150)
+                g.drawImage(resources.images.get(mapid + "blizzard"), x - 150, y - 150)
             else
-                g.drawImage(resources.images.get("blizzard-mark"), x - 32, y - 32)
+                g.drawImage(resources.images.get(mapid + "blizzard-mark"), x - 32, y - 32)
         }
 
         drawRule()
@@ -1026,7 +1030,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
     }
 
     Speech.onKey("Backspace") {
-        val cancel = lastActions.notOf[Hidden].of[Cancel].first
+        val cancel = lastActions.notOf[Hidden].of[Cancel].starting
 
         if (cancel.any) {
             overlayPane.invis()

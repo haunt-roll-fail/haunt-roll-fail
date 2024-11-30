@@ -414,7 +414,7 @@ object TurnExpansion extends MandatoryExpansion {
         case TransferTurnAction =>
             game.factions = factions.drop(1) ++ factions.take(1)
 
-            Milestone(StartPlayerTurnAction(factions.first.get))
+            Milestone(StartPlayerTurnAction(factions.first))
 
         // END
         case WarnAction(f, then, q, proceed, cancel) =>

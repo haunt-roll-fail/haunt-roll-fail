@@ -79,9 +79,11 @@ package object elem {
         object card extends CustomStyle(display("block"), width("14.88ex"), height("20.78ex"))
         object leaderCard extends CustomStyle(display("block"), width("14.88ex"), height("25.50ex"))
         object courtCard extends CustomStyle(display("block"), width("20.00ex"), height("27.93ex"))
+        object fateCard extends CustomStyle(display("block"), width("22.32ex"), height("37.75ex"))
         object card0 extends CustomStyle(padding("5px"), padding("0.5vmin"), margin("0px"), margin("0.0vmin"), border.color("transparent"), border.style("solid"), border.width("0.3vmin"))
         object cardX extends CustomStyle(padding("5px"), padding("0.5vmin"), margin("8px"), margin("0.8vmin"), border.color("transparent"), border.style("solid"), border.width("0.3vmin"))
         object cardS extends CustomStyle(filter("brightness(1.1) saturate(1.1)"), border.color("#ffffff"))
+        object cardI extends CustomStyle(margin("1.2ex"), outline.width("0.8ex"))
 
         object group extends CustomStyle(margin.top("0.5ex"), margin.bottom("0.5ex"))
         object inline extends CustomStyle(display("inline-block"))
@@ -115,7 +117,7 @@ package object elem {
 
         object statusUpper extends CustomStyle(height("100%"), overflow.x("hidden"), overflow.y("auto"))
         object play extends CustomStyle(margin.top("-4.2ex"))
-        object initative extends CustomStyle(font.size("120%"), line.height("0"))
+        object initative extends CustomStyle(font.size("160%"), line.height("0"), vertical.align("sub"), color("#ffffff"))
         object cardName extends CustomStyle(margin.top("-0.6ex"), margin.bottom("-0.9ex"))
 
 
@@ -129,6 +131,8 @@ package object elem {
         object tokenTop extends CustomStyle(width("2.8ex"), vertical.align("top"), margin("0.2ex"))
 
         object infoStatus extends CustomStyle(line.height("100%"))
+
+        object notDoneYet extends CustomStyle(color("darkred"), text.decoration.line("line-through"), text.decoration.style("wavy"))
     }
 
     implicit class ElemString(val s : String) extends AnyVal {
@@ -151,9 +155,9 @@ package object elem {
         import rules._
 
         Red --> outline.color("#680016")
-        Yellow --> outline.color("#d09f31")
+        Yellow --> outline.color("#684f19")
         // Green --> outline.color("#087033")
-        Blue --> outline.color("#0b4e98")
-        White --> outline.color("#cccccc")
+        Blue --> outline.color("#05274c")
+        White --> outline.color("#666666")
     }
 }

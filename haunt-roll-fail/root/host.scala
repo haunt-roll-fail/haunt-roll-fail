@@ -60,7 +60,7 @@ object Host {
                 action
 
             case Ask(f : Faction, actions) =>
-                new BotXX(f).ask(g, actions, 0)
+                new BotXX(f).ask(actions, 0)(g)
         }
     }
 

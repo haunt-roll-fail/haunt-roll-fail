@@ -12,6 +12,7 @@ import hrf.logger._
 
 import org.scalajs.dom
 
+
 case class XY(x : Double, y : Double)
 
 case class Rectangle(x : Double, y : Double, width : Double, height : Double) {
@@ -140,6 +141,8 @@ object ImageRect {
     def apply(image : dom.html.Image, dx : Int, dy : Int) : ImageRect = ImageRect(new RawImage(image), Rectangle(-dx, -dy, image.width, image.height), 1.0)
 
     def apply(image : dom.html.Image, dx : Int, dy : Int, scale : Double) : ImageRect = ImageRect(new RawImage(image), Rectangle(-dx*scale, -dy*scale, image.width*scale, image.height*scale), 1.0)
+
+    def r180(image : dom.html.Image, dx : Int, dy : Int, scale : Double) : ImageRect = ImageRect(new RawImageRotated180(image), Rectangle(-dx*scale, -dy*scale, image.width*scale, image.height*scale), 1.0)
 }
 
 case class Sprite(images : $[ImageRect], hitboxes : $[Rectangle], tag : |[Any] = None)

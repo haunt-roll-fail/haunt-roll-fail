@@ -126,13 +126,6 @@ case object ExilesDeck extends DeckOption {
     val valueOn = "Exiles and Partisans".hh
 }
 
-
-
-
-
-
-
-
 case object MixedDeck extends DeckOption {
     val valueOn = "Mixed".hh
     override val explain = $(
@@ -141,7 +134,6 @@ case object MixedDeck extends DeckOption {
         "Soup Kitchens".hh ~ " are replaced with " ~ "Borscht Kitchens".hh ~ ".",
         "Boat Builders".hh ~ " are excluded if " ~ RF.name.styled(RF) ~ " is in the game.",
         "Corvid Planners".hh ~ " are excluded if " ~ CC.name.styled(CC) ~ " is in the game.",
-
         "Ambushes, dominances and item craft cards same as in all decks.",
         Image("borscht-kitchens", styles.card)
     )
@@ -157,7 +149,6 @@ case object DuskDeck extends DeckOption {
 
 case object NonBirdPartisans extends GameOption with ToggleOption {
     val group = "Cards"
-
     val valueOn = "Partisans".styled(styles.get(Bird)) ~ SpacedDash ~ "Discard".hh ~ " " ~ "Birds".styled(Bird)
     override def required(all : $[BaseOption]) = $($(ExilesDeck), $(MixedDeck))
     override val explain = $(
@@ -168,7 +159,6 @@ case object NonBirdPartisans extends GameOption with ToggleOption {
 
 case object UnthematicCoffinMakers extends GameOption with ToggleOption {
     val group = "Cards"
-
     val valueOn = "Coffin Makers".styled(styles.get(Rabbit)) ~ SpacedDash ~ "Any Warrior Recycle".hh
     override def required(all : $[BaseOption]) = $($(ExilesDeck))
     override val explain = $(
@@ -459,27 +449,18 @@ case object SawmillMassOverwork extends GameOption with ToggleOption {
     val group = MC.title
     val valueOn = Sawmill.sof(MC) ~ SpacedDash ~ "Mass Overwork".hh
     override def required(all : $[BaseOption]) = $($(IncludeFaction(MC)), $(IncludeFaction(BK)))
-    override val explain = $(
-
-    )
 }
 
 case object WorkshopEveningCraft extends GameOption with ToggleOption {
     val group = MC.title
     val valueOn = Workshop.sof(MC) ~ SpacedDash ~ "Evening".styled(styles.phase) ~ " Craft".hh
     override def required(all : $[BaseOption]) = $($(IncludeFaction(MC)), $(IncludeFaction(BK)))
-    override val explain = $(
-
-    )
 }
 
 case object WorkshopActionBonuses extends GameOption with ToggleOption {
     val group = MC.title
     val valueOn = Workshop.sof(MC) ~ SpacedDash ~ "Action Bonuses".hh
     override def required(all : $[BaseOption]) = $($(IncludeFaction(MC)), $(IncludeFaction(BK)))
-    override val explain = $(
-
-    )
 }
 
 case object KeepExtraBuildingSlot extends GameOption with ToggleOption {
@@ -801,7 +782,6 @@ case object OneDemotedTwoNormalHirelings extends HirelingsOption {
     val valueOn = "Demoted".hh ~ ", " ~ "Staunch".styled(styles.hit) ~ ", " ~ "Staunch".styled(styles.hit)
 }
 
-
 case object ThreeNormalHirelings extends HirelingsOption {
     val valueOn = "Staunch".styled(styles.hit) ~ ", " ~ "Staunch".styled(styles.hit) ~ ", " ~ "Staunch".styled(styles.hit)
 }
@@ -959,7 +939,6 @@ object Meta extends MetaGame {
 
     type F = Faction
 
-
     def tagF = implicitly
 
     val name = "root"
@@ -1015,15 +994,11 @@ object Meta extends MetaGame {
     val clones = $[Faction](BK, PE, FU, NB, CM, DR, RI, LK)
     val fun = $[Faction](KDvA, TCvA, LDvD, LDvC, LDvB, TD, FH, XC, CUv2, CU, OK, AF, SF, MB)
 
-
     val factions = official ++ clones ++ fun
 
     override def factionGroup(f : F) : |[Elem] = clones.has(f).?("Mirror Factions".txt) || fun.has(f).?("Fun Factions".txt)
 
     val minPlayers = 2
-
-
-
 
     val hirelings = $(StreetBand, StoicProtector, BanditGangs, MoleArtisians, RatSmugglers, ForestPatrol, LastDynasty, SpringUprising, TheExile, RiverfolkFlotilla)
 
@@ -1135,7 +1110,6 @@ object Meta extends MetaGame {
     override def presetsFor(n : Int, l : $[F]) = $(
         ("Reset Options".spn, hirelings./(IncludeHireling), $),
         ("Official".hl ~ " Rules", $(
-
             AllRandomClearings,
             StandardDeck,
             NonBirdPartisans,
@@ -1147,7 +1121,6 @@ object Meta extends MetaGame {
             AdSetBuffOff
         ), $),
         ("Official".hl ~ " | " ~ "Hirelings".styled(BanditGangs), $(
-
             AllRandomClearings,
             StandardDeck,
             NonBirdPartisans,
@@ -1256,10 +1229,7 @@ object Meta extends MetaGame {
     def getBot(f : Faction, b : String) = (f, b) match {
         case (f : Faction, "Easy") => new BotXX(f)
         case (f : Faction, "None") => new BotXX(f)
-
-
-
-
+        case (f : Faction, _) => new BotXX(f)
         case (f : Faction, "Normal") => new BotTT(f, 1, 6, 3, o => new BotXX(o))
     }
 
@@ -1557,12 +1527,8 @@ object Meta extends MetaGame {
 
         ImageAsset("fmb-varmint"           ) ::
         ImageAsset("fmb-varmint-empty"     ) ::
-
-
-
-
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(AutumnMap), "autumn")(
+    ConditionalAssetsList((factions, options) => options.has(AutumnMap), "autumn", "autumn:")(
         ImageAsset("map"          ,    "map-bright-new-expand" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1601,7 +1567,7 @@ object Meta extends MetaGame {
         ImageAsset("path-weald-mountain"        ) ::
         ImageAsset("path-weald-waterfall"       ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(WinterMap), "winter")(
+    ConditionalAssetsList((factions, options) => options.has(WinterMap), "winter", "winter:")(
         ImageAsset("map"          ,    "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1621,7 +1587,7 @@ object Meta extends MetaGame {
         ImageAsset("clearing-name-trench"       ) ::
         ImageAsset("clearing-name-wade"         ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(LakeMap), "lake")(
+    ConditionalAssetsList((factions, options) => options.has(LakeMap), "lake", "lake:")(
         ImageAsset("map"          ,    "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1641,7 +1607,7 @@ object Meta extends MetaGame {
         ImageAsset("clearing-name-vert"    ) ::
         ImageAsset("clearing-name-yard"    ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(MountainMap), "mountain")(
+    ConditionalAssetsList((factions, options) => options.has(MountainMap), "mountain", "mountain:")(
         ImageAsset("map"          ,    "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1668,7 +1634,7 @@ object Meta extends MetaGame {
         ImageAsset("rubble-valley-ridge"  ) ::
         ImageAsset("rubble-cliff-crest"  ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(TidalMap), "tidal")(
+    ConditionalAssetsList((factions, options) => options.has(TidalMap), "tidal", "tidal:")(
         ImageAsset("map"          ,    "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1694,7 +1660,7 @@ object Meta extends MetaGame {
         ImageAsset("clearing-name-underpass" ) ::
         ImageAsset("clearing-name-wetlands" ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(TundraMap), "tundra")(
+    ConditionalAssetsList((factions, options) => options.has(TundraMap), "tundra", "tundra:")(
         ImageAsset("map"          ,    "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"  ) ::
@@ -1717,7 +1683,7 @@ object Meta extends MetaGame {
         ImageAsset("clearing-name-hovel" ) ::
         ImageAsset("clearing-name-deep-woods" ) ::
     $) ::
-    ConditionalAssetsList((factions, options) => options.has(GloomMap), "gloom")(
+    ConditionalAssetsList((factions, options) => options.has(GloomMap), "gloom", "gloom:")(
         ImageAsset("map"          , "map-bright" ) ::
         ImageAsset("map-regions"  ).makeLossless ::
         ImageAsset("map-woods"    ) ::
@@ -1858,7 +1824,6 @@ object Meta extends MetaGame {
         ImageAsset("ed-charismatic"    ) ::
         ImageAsset("ed-commander"      ) ::
         ImageAsset("ed-despot"         ) ::
-
 
         ImageAsset("pe-glyph"          ) ::
         ImageAsset("pe-title"          ) ::
@@ -2126,7 +2091,6 @@ object Meta extends MetaGame {
         ImageAsset("cc-plot"           ) ::
         ImageAsset("cc-diversion"      , "cc-plot" ) ::
         ImageAsset("cc-action"         ) ::
-
         ImageAsset("ri-glyph"           ) ::
         ImageAsset("ri-title"           ) ::
         ImageAsset("ri-char"            , "cc-char"           ) ::
@@ -2402,21 +2366,21 @@ object Meta extends MetaGame {
         ImageAsset("repair-a-shed-fox"      ) ::
     $) ::
     ConditionalAssetsList((factions, options) => factions.of[Hero].any && options.has(RevisedQuests), "card/quest", "quest:", lzy = Laziness.OnDemand)(
-        ImageAsset("errand-fox"             , "revised/errand-fox") ::
-        ImageAsset("errand-rabbit"          , "revised/errand-rabbit") ::
-        ImageAsset("escort-mouse"           , "revised/escort-mouse") ::
-        ImageAsset("expel-bandits-mouse"    ) ::
-        ImageAsset("expel-bandits-rabbit"   ) ::
-        ImageAsset("fend-off-a-bear-mouse"  ) ::
-        ImageAsset("repair-a-shed-rabbit"   , "revised/repair-a-shed-rabbit") ::
-        ImageAsset("fundraising-fox"        , "revised/fundraising-fox") ::
-        ImageAsset("give-a-speech-fox"      ) ::
-        ImageAsset("give-a-speech-rabbit"   ) ::
-        ImageAsset("guard-duty-mouse"       ) ::
-        ImageAsset("guard-duty-rabbit"      ) ::
-        ImageAsset("logistic-help-fox"      ) ::
-        ImageAsset("logistic-help-mouse"    ) ::
-        ImageAsset("escort-fox"             , "revised/escort-fox") ::
+        ImageAsset("revised-errand-fox"            , "revised/errand-fox"           ) ::
+        ImageAsset("revised-errand-rabbit"         , "revised/errand-rabbit"        ) ::
+        ImageAsset("revised-escort-mouse"          , "revised/escort-mouse"         ) ::
+        ImageAsset("revised-expel-bandits-mouse"   , "expel-bandits-mouse"          ) ::
+        ImageAsset("revised-expel-bandits-rabbit"  , "expel-bandits-rabbit"         ) ::
+        ImageAsset("revised-fend-off-a-bear-mouse" , "fend-off-a-bear-mouse"        ) ::
+        ImageAsset("revised-repair-a-shed-rabbit"  , "revised/repair-a-shed-rabbit" ) ::
+        ImageAsset("revised-fundraising-fox"       , "revised/fundraising-fox"      ) ::
+        ImageAsset("revised-give-a-speech-fox"     , "give-a-speech-fox"            ) ::
+        ImageAsset("revised-give-a-speech-rabbit"  , "give-a-speech-rabbit"         ) ::
+        ImageAsset("revised-guard-duty-mouse"      , "guard-duty-mouse"             ) ::
+        ImageAsset("revised-guard-duty-rabbit"     , "guard-duty-rabbit"            ) ::
+        ImageAsset("revised-logistic-help-fox"     , "logistic-help-fox"            ) ::
+        ImageAsset("revised-logistic-help-mouse"   , "logistic-help-mouse"          ) ::
+        ImageAsset("revised-escort-fox"            , "revised/escort-fox"           ) ::
     $) ::
     ConditionalAssetsList((factions, options) => true, "card/deck", lzy = Laziness.Later, scale = 50)(
         ImageAsset("bird-ambush"                ) ::
@@ -2849,5 +2813,5 @@ object Meta extends MetaGame {
         ImageAsset("kd-captain-evening-empty"  , "kd-captain-empty" ) ::
     $)
 
-    override def intLinks = $(("Root: Advanced Setup".spn -> "/play/root-adset"), ("Root: Mirror".spn -> "/play/root-mirror"))
+    override def intLinks = $(("Root: Advanced Setup".spn -> "root-adset"), ("Root: Mirror".spn -> "root-mirror"))
 }

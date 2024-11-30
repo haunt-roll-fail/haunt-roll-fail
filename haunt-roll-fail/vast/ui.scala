@@ -266,7 +266,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             case _ if game.states.contains(f).not => Empty
             case f : Knight.type =>
                 ("Health " ~ f.health.hl ~ "/" ~ 7.hh).div ~
-                ("Grit " ~ f.grit.hl ~ "/" ~ $(5, 11, 18, 26, 35, 45).%(_ > f.grit).first./(_.hh).|("max".hh)).div ~
+                ("Grit " ~ f.grit.hl ~ "/" ~ $(5, 11, 18, 26, 35, 45).%(_ > f.grit).starting./(_.hh).|("max".hh)).div ~
                 ("Stamina " ~ (f.free.times(dt.Stamina) ~ min(f.stamina - f.lost, f.assigned.num).times(dt.Used) ~ f.lost.times(dt.Lost) ~ f.poison.times(dt.Poison)).&).div ~
                 ((f.movement - f.moves).times(dt.MovementK) ~ (f.perception - f.encounters).times(dt.PerceptionK) ~ (f.strength - f.strbonus).times(dt.StrengthK) ~ (f.strbonus).times(dt.Strength)).div ~
                 f.basic.%(f.assigned.has)./(e => (e.elem ~ f.assigned.count(e).times(dt.Stamina).some./(" " ~ _)).div.onClick.param(e)) ~

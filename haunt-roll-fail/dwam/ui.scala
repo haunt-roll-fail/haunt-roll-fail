@@ -233,7 +233,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         target.of[Area].single.foreach { case r =>
             keys.of[RecruitKey].%(k => k.area == r).single.foreach { k =>
                 k.color.as[Faction].foreach { f =>
-                    game.states(f).pool.minion.first.foreach { m =>
+                    game.states(f).pool.minion.starting.foreach { m =>
                         pieces.addHint(r, m)(xy.x, xy.y)
                     }
                 }
@@ -243,7 +243,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         target.of[Area].single.foreach { case r =>
             keys.of[SpreadTroubleKey].%(k => k.area == r).single.foreach { k =>
-                game.pool.trouble.first.foreach { m =>
+                game.pool.trouble.starting.foreach { m =>
                     pieces.addHint(r, m)(xy.x, xy.y)
                 }
                 return onClick(k)
@@ -253,7 +253,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         target.of[Area].single.foreach { case r =>
             keys.of[BuildKey].%(k => k.area == r).single.foreach { k =>
                 k.color.as[Faction].foreach { f =>
-                    game.states(f).pool.building.first.foreach { b =>
+                    game.states(f).pool.building.starting.foreach { b =>
                         pieces.addHint(r, b)(xy.x, xy.y)
                     }
                 }

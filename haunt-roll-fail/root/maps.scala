@@ -11,6 +11,7 @@ import hrf.logger._
 //
 
 object AutumnBoard extends Board {
+    val id = "autumn"
     val name = "Autumn"
 
     object Hill extends Clearing(1)
@@ -149,6 +150,7 @@ object AutumnBoard extends Board {
 }
 
 object WinterBoard extends Board {
+    val id = "winter"
     val name = "Winter"
 
     object Mound extends Clearing(1)
@@ -264,6 +266,7 @@ object WinterBoard extends Board {
 }
 
 object LakeBoard extends Board {
+    val id = "lake"
     val name = "Lake"
 
     object Den extends Clearing(1)
@@ -396,6 +399,7 @@ object LakeBoard extends Board {
 }
 
 object MountainBoard extends Board {
+    val id = "mountain"
     val name = "Mountain"
 
     object Slope extends Clearing(2)
@@ -518,6 +522,7 @@ object MountainBoard extends Board {
 }
 
 object TidalBoard extends Board {
+    val id = "tidal"
     val name = "Tidal Flats"
 
     object NorthGlen extends Clearing(2) { override val name = "North Glen" }
@@ -628,6 +633,7 @@ object TidalBoard extends Board {
 case object Blizzard extends Effect
 
 object TundraBoard extends Board {
+    val id = "tundra"
     val name = "Tundra"
 
     object DeepWoods extends Clearing(2) { override val name = "Deep Woods" }
@@ -754,6 +760,7 @@ object TundraBoard extends Board {
 }
 
 object GloomBoard extends Board {
+    val id = "gloom"
     val name = "Gloom"
 
     object Effigy extends Clearing(2)

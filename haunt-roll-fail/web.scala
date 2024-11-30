@@ -61,10 +61,16 @@ package object web {
         private val gizmo = "gizmo"
         private var states : $[(String, () => Unit)] = $
         private var processing : Boolean = false
+        private var available : Boolean = true
 
-        dom.window.history.replaceState(gizmo, "")
-        dom.window.history.pushState("initilaize 1", "")
-        dom.window.history.forward()
+        try {
+            dom.window.history.replaceState(gizmo, "")
+            dom.window.history.pushState("initilaize 1", "")
+            dom.window.history.forward()
+        }
+        catch {
+            case e => available = false
+        }
 
         var ignore : Int = 0
 
@@ -77,9 +83,11 @@ package object web {
 
         def popState() {
             if (processing.not) {
-                if (dom.window.history.state != gizmo) {
-                    dom.window.history.back()
-                    ignore += 1
+                if (available) {
+                    if (dom.window.history.state != gizmo) {
+                        dom.window.history.back()
+                        ignore += 1
+                    }
                 }
 
                 processing = true
@@ -92,8 +100,10 @@ package object web {
                 val old = states.lift(0)./(_._1).|(base)
 
                 setTimeout(100) {
-                    dom.window.history.pushState(v, "",  (old == null).?(null).|(old + query + hash))
-                    dom.window.history.forward()
+                    if (available) {
+                        dom.window.history.pushState(v, "",  (old == null).?(null).|(old + query + hash))
+                        dom.window.history.forward()
+                    }
                 }
 
                 last./{ (url, action) =>
@@ -111,7 +121,9 @@ package object web {
         def pushState(url : String, onPop : () => Unit) {
             states +:= url -> onPop
 
-            dom.window.history.pushState(url, "", (url == null).?(null).|(url + query + hash))
+            if (available) {
+                dom.window.history.pushState(url, "", (url == null).?(null).|(url + query + hash))
+            }
         }
     }
 

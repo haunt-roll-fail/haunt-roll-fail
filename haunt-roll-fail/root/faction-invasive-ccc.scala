@@ -165,7 +165,7 @@ object InvasiveCCCExpansion extends FactionExpansion[InvasiveCCC] {
             f.reserve --> f.warrior --> c
             f.reserve --> f.warrior --> c
 
-            val t = f.latent(s).first.get
+            val t = f.latent(s).first
             f.latent += s -> f.latent(s).drop(1)
 
             f.reserve --> t --> c
@@ -564,8 +564,8 @@ object InvasiveCCCExpansion extends FactionExpansion[InvasiveCCC] {
                     .withGroup("Settle".styled(f) ~ " in clearings")
                     .withRuleNone(_.upTo(1).each(d => u.exists(_.cost.matched(d.suit))))
                     .withThens(d =>
-                        d./~(d => u.%(_.cost.matched(d.suit))./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveCCCSettleAction(f, |(d), c, s).as(f.latent(s).first./(_.of(f)), s, f.latent(s).first./(_.imgd(f)), "in", c, "with", d))))
-                        ++ (r./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveCCCSettleAction(f, None, c, s).as(f.latent(s).first./(_.of(f)), s, f.latent(s).first./(_.imgd(f)), "in", c))))
+                        d./~(d => u.%(_.cost.matched(d.suit))./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveCCCSettleAction(f, |(d), c, s).as(f.latent(s).starting./(_.of(f)), s, f.latent(s).starting./(_.imgd(f)), "in", c, "with", d))))
+                        ++ (r./~(c => FoxRabbitMouse.%(f.latent(_).any).%(c.cost.matched)./(s => InvasiveCCCSettleAction(f, None, c, s).as(f.latent(s).starting./(_.of(f)), s, f.latent(s).starting./(_.imgd(f)), "in", c))))
                     )
                     .withExtra($(NoHand, Next.as("Done")))
                     .ask
@@ -579,7 +579,7 @@ object InvasiveCCCExpansion extends FactionExpansion[InvasiveCCC] {
 
             f.log("settled in", c, d.any.?("with"), d)
 
-            f.reserve --> f.latent(s).first.get --> c
+            f.reserve --> f.latent(s).first --> c
 
             f.latent += s -> f.latent(s).drop(1)
 

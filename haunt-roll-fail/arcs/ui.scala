@@ -31,21 +31,26 @@ import scalajs.js.timers.setTimeout
 object UI extends BaseUI {
     val mmeta = Meta
 
-    def create(uir : ElementAttachmentPoint, arity : Int, options : $[mmeta.O], resources : Resources, title : String, callbacks : hrf.Callbacks) = new UI(uir, arity, resources, callbacks)
+    def create(uir : ElementAttachmentPoint, arity : Int, options : $[hrf.meta.GameOption], resources : Resources, title : String, callbacks : hrf.Callbacks) = new UI(uir, arity, options, resources, callbacks)
 }
 
-class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resources, callbacks : hrf.Callbacks) extends MapGUI {
+class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta.GameOption], val resources : Resources, callbacks : hrf.Callbacks) extends MapGUI {
     def factionElem(f : Faction) = f.name.styled(f)
 
     val statuses = 1.to(arity)./(i => newPane("status-" + i, Content, styles.status, styles.fstatus, ExternalStyle("hide-scrollbar")))
 
+    val campaign : Boolean = options.of[CampaignOption].any
+
+    def starport : String = callbacks.settings.has(StarStarports).?("starport-alt").|("starport")
+
     val court : CanvasPane = newCanvasPane("court", 2) { bitmap =>
+        val n = 4 + campaign.??(1)
         val d = 12
 
         val cards = new OrderedLayer
 
         if (game.chapter > 0) {
-            0.until(4).foreach { i =>
+            0.until(n).foreach { i =>
                 if (i < game.market.num) {
                     val c = game.market.$(i)
 
@@ -74,7 +79,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             }
         }
 
-        val scene = new Scene($(cards), 744*4+d*3, 1039*1, Margins(d, d, d, d))
+        val scene = new Scene($(cards), 744*n + d*3, 1039*1, Margins(d, d, d, d))
 
         if (resources.images.incomplete.none)
             scene.render(bitmap.context, bitmap.width, bitmap.height, 1, 0, 0)
@@ -92,8 +97,47 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         val width = court.container.attach.parent.clientWidth * dom.window.devicePixelRatio * upscale
         val height = court.container.attach.parent.clientHeight * dom.window.devicePixelRatio * upscale
 
-        onClick(game.market((offsetX.~ * 4 /↓ width.~).clamp(0, 3)))
+        onClick(game.market((offsetX.~ * (4 + campaign.??(1)) /↓ width.~).clamp(0, 3)))
     }
+
+    val ambitions : |[CanvasPane] = campaign.?(newCanvasPane("ambitions", 2) { bitmap =>
+        val mp = img("ambitions")
+
+        val background = new OrderedLayer
+        background.add(Sprite($(ImageRect(new RawImage(mp), Rectangle(0, 0, mp.width, mp.height), 1.0)), $))(0, 0)
+
+        val tokens = new OrderedLayer
+
+        game.ambitionable.lift(0)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(20, 82))
+        game.ambitionable.lift(1)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154, 82))
+        game.ambitionable.lift(2)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(288, 82))
+
+        game.declared.get(Tycoon)./(l => l.indexed./{ (m, i) =>
+            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 270)
+        })
+        game.declared.get(Tyrant)./(l => l.indexed./{ (m, i) =>
+            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 470)
+        })
+        game.declared.get(Warlord)./(l => l.indexed./{ (m, i) =>
+            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 668)
+        })
+        game.declared.get(Keeper)./(l => l.indexed./{ (m, i) =>
+            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 867)
+        })
+        game.declared.get(Empath)./(l => l.indexed./{ (m, i) =>
+            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 1067)
+        })
+
+        val scene = new Scene($(background, tokens), mp.width, mp.height, Margins(0, 0, 0, 0))
+
+        if (resources.images.incomplete.none)
+            scene.render(bitmap.context, bitmap.width, bitmap.height, 1, 0, 0)
+
+        if (resources.images.incomplete.any)
+            setTimeout(min(25, resources.images.incomplete.num) * 20)(ambitions.get.draw())
+
+        resources.images.incomplete = $
+    })
 
     object regions {
         val centers = Map[System, XY](
@@ -162,7 +206,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     val margins = Margins(0, 0, 0, 0)
 
     lazy val scene = {
-        val mp = img("map")
+        val mp = img("map-no-slots")
         val mr = img("map-regions")
         val ms = img("map-regions-select")
 
@@ -219,7 +263,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     case class Plaque(area : System)
 
     def makeScene() : |[Scene] = {
-        if (img("map").complete.not | img("map-regions").complete.not | img("map-regions-select").complete.not)
+        if (img("map-no-slots").complete.not | img("map-regions").complete.not | img("map-regions-select").complete.not)
             return None
 
         outOfPlay.clear()
@@ -230,7 +274,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             outOfPlay.add(Sprite($(ImageRect(new RawImage(mo), Rectangle(0, 0, mo.width, mo.height), 1.0)), $))(0, 0)
         }
 
-        1.to(6).diff(game.board.clusters).intersect($(3)).$.first.foreach { i =>
+        1.to(6).diff(game.board.clusters).intersect($(3)).$.starting.foreach { i =>
             val am = img("map-ambitions-" + i)
 
             outOfPlay.add(Sprite($(ImageRect(new RawImage(am), Rectangle(0, 0, am.width, am.height), 1.0)), $))(0, 0)
@@ -238,50 +282,59 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         pieces.flush()
 
-        game.board.systems.reverse.foreach { r =>
+        systems.reverse.foreach { r =>
             val figures = game.at(r)
-            var gates = regions.gates.get(r).|(Nil)
+            var gates = regions.gates.get(r).|(Nil).sortBy(_.y)
 
             val extra : $[Figure] = $
 
             import hrf.ui.sprites._
 
-            (extra ++ figures).foreach { p =>
-                def prefix = p.faction.?./(_.short.toLowerCase + "-").|("")
+            (extra ++ figures ++ 1.to(game.freeSlots(r))./(i => Figure(Free, Slot, systems.indexOf(r) * 10 + i))).foreach { p =>
+                def prefix = p.faction.as[Faction]./(_.short.toLowerCase + "-").|((p.faction == Empire).?("imperial-").|(""))
 
                 val target = false
 
                 val selected = extra.has(p)
 
-                val status = p.faction.as[Faction].?(_.damaged.has(p)).??("-damaged")
+                val status = (p.piece != Slot).??(p.faction.damaged.has(p).??("-damaged"))
 
                 val a = p.piece match {
-                    case City => ImageRect(img(prefix + "city" + status), 61, 61, 1.0 + 0.4 * selected.??(1))
-                    case Starport => ImageRect(img(prefix + "starport" + status), 61, 61, 1.0 + 0.4 * selected.??(1))
-                    case Ship => ImageRect(img(prefix + "ship" + status), 97, 71, 1.0 + 0.4 * selected.??(1))
+                    case Slot => $(ImageRect(img("city-empty"), 61, 61, 1.0 + 0.4 * selected.??(1)).copy(alpha = 0.4))
+                    case City => $(ImageRect(img(prefix + "city" + status), 61, 61, 1.0 + 0.4 * selected.??(1)))
+                    case Starport => $(ImageRect(img(prefix + starport + status), 61, 61, 1.0 + 0.4 * selected.??(1)))
+                    case Ship => $(ImageRect(img(prefix + "ship" + status), 97, 71, 1.0 + 0.4 * selected.??(1)))
+                    case Blight => $(ImageRect(img("blight" + status), 43, 79, 1.0 + 0.4 * selected.??(1)))
                 }
 
                 var q = p.piece match {
-                    case City | Starport => Sprite($(a), $(Rectangle(-60, 21, 120, 28), Rectangle(-46, -7, 92, 28), Rectangle(-32, -35, 64, 28), Rectangle(-18, -54, 36, 19)), |((r, p)))
-                    case Ship => Sprite($(a), $(Rectangle(-70, -10, 135, 20), Rectangle(-97, -30, 194, 20), Rectangle(5, -50, 75, 20), Rectangle(35, -70, 35, 20)), |((r, p)))
-                    case _ => Sprite($(a), $(a.rect))
+                    case Slot | City | Starport => Sprite(a, $(Rectangle(-60, 21, 120, 28), Rectangle(-46, -7, 92, 28), Rectangle(-32, -35, 64, 28), Rectangle(-18, -54, 36, 19)), |((r, p)))
+                    case Ship => Sprite(a, $(Rectangle(-70, -10, 135, 20), Rectangle(-97, -30, 194, 20), Rectangle(5, -50, 75, 20), Rectangle(35, -70, 35, 20)), |((r, p)))
+                    case _ => Sprite(a, $(a.head.rect))
                 }
 
                 var z = p.piece match {
-                    case Ship => 4
-                    case City => 3
-                    case Starport => 3
+                    case Ship | Blight => 4
+                    case Slot | City | Starport => 3
                 }
 
                 if (extra.has(p)) {
                     q = q.copy(images = q.images./(i => i.copy(alpha = 0.7)), hitboxes = $)
                     pieces.addFixed(r, p, z + 8)(q)(highlightCoordinates.get.x, highlightCoordinates.get.y)
                 }
-                if ((p.piece == City || p.piece == Starport) && gates.any) {
-                    gates.first.foreach { g =>
+                else
+                if (p.piece == Starport && gates.any) {
+                    gates.starting.foreach { g =>
                         pieces.addFixed(r, p, z)(q)(g.x, g.y)
                     }
                     gates = gates.drop(1)
+                }
+                else
+                if (p.piece.is[Building] && gates.any) {
+                    gates.lastOption.foreach { g =>
+                        pieces.addFixed(r, p, z)(q)(g.x, g.y)
+                    }
+                    gates = gates.dropRight(1)
                 }
                 else {
                     val xy = pieces.addFloat(r, p, z)(q)
@@ -293,53 +346,55 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         ambTokens.clear()
 
-        val x1 = 1724
-        val y1 = 1017
+        1.to(6).diff(game.board.clusters).intersect($(3)).$.starting.foreach { i =>
+            val x1 = 1724
+            val y1 = 1017
 
-        game.ambitionable.lift(0)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))( 34+x1, 82+y1))
-        game.ambitionable.lift(1)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154+x1, 82+y1))
-        game.ambitionable.lift(2)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(274+x1, 82+y1))
+            game.ambitionable.lift(0)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))( 34+x1, 82+y1))
+            game.ambitionable.lift(1)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154+x1, 82+y1))
+            game.ambitionable.lift(2)./(m => ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(274+x1, 82+y1))
 
-        game.declared.get(Tycoon)./(l => l.indexed./{ (m, i) =>
-            ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x1, 250+y1)
-        })
+            game.declared.get(Tycoon)./(l => l.indexed./{ (m, i) =>
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x1, 250+y1)
+            })
 
-        val x2 = 1724 + 391
-        val y2 = 1017 - 359
-        game.declared.get(Tyrant)./(l => l.indexed./{ (m, i) =>
-            ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 430+y2)
-        })
-        game.declared.get(Warlord)./(l => l.indexed./{ (m, i) =>
-            ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 608+y2)
-        })
-        game.declared.get(Keeper)./(l => l.indexed./{ (m, i) =>
-            ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 787+y2)
-        })
-        game.declared.get(Empath)./(l => l.indexed./{ (m, i) =>
-            ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 967+y2)
-        })
+            val x2 = 1724 + 391
+            val y2 = 1017 - 359
+            game.declared.get(Tyrant)./(l => l.indexed./{ (m, i) =>
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 430+y2)
+            })
+            game.declared.get(Warlord)./(l => l.indexed./{ (m, i) =>
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 608+y2)
+            })
+            game.declared.get(Keeper)./(l => l.indexed./{ (m, i) =>
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 787+y2)
+            })
+            game.declared.get(Empath)./(l => l.indexed./{ (m, i) =>
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 111, 125), 1.0)), $))(154 + 120*(2*i - l.num + 1)/2+x2, 967+y2)
+            })
 
-        if (game.factions.forall(game.states.contains)) {
-            if (game.factions.exists(_.loyal.has(MaterialCartel)).not)
-            1.to(game.availableNum(Material)).foreach { i =>
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(Material.id)), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*2, 1390 + i * 68)
-            }
+            if (game.factions.forall(game.states.contains)) {
+                if (game.factions.exists(_.loyal.has(MaterialCartel)).not)
+                1.to(game.availableNum(Material)).foreach { i =>
+                    ambTokens.add(Sprite($(ImageRect(new RawImage(img(Material.id)), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*2, 1390 + i * 68)
+                }
 
-            if (game.factions.exists(_.loyal.has(FuelCartel)).not)
-            1.to(game.availableNum(Fuel)).foreach { i =>
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(Fuel.id    )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*1, 1390 + i * 68)
-            }
+                if (game.factions.exists(_.loyal.has(FuelCartel)).not)
+                1.to(game.availableNum(Fuel)).foreach { i =>
+                    ambTokens.add(Sprite($(ImageRect(new RawImage(img(Fuel.id    )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*1, 1390 + i * 68)
+                }
 
-            1.to(game.availableNum(Weapon)).foreach { i =>
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(Weapon.id  )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*0, 1390 + i * 68)
-            }
+                1.to(game.availableNum(Weapon)).foreach { i =>
+                    ambTokens.add(Sprite($(ImageRect(new RawImage(img(Weapon.id  )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*0, 1390 + i * 68)
+                }
 
-            1.to(game.availableNum(Relic)).foreach { i =>
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(Relic.id   )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*1, 1390 + i * 68)
-            }
+                1.to(game.availableNum(Relic)).foreach { i =>
+                    ambTokens.add(Sprite($(ImageRect(new RawImage(img(Relic.id   )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*1, 1390 + i * 68)
+                }
 
-            1.to(game.availableNum(Psionic)).foreach { i =>
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(Psionic.id )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*2, 1390 + i * 68)
+                1.to(game.availableNum(Psionic)).foreach { i =>
+                    ambTokens.add(Sprite($(ImageRect(new RawImage(img(Psionic.id )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 + 68*2, 1390 + i * 68)
+                }
             }
         }
 
@@ -347,7 +402,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     }
 
     def factionStatus(f : Faction) {
-        val container = statuses(game.setup.indexOf(f))
+        val container = statuses(game.seating.indexOf(f))
 
         val name = resources.getName(f).|(f.name)
 
@@ -356,7 +411,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             return
         }
 
-        val initative = game.seized.%(_ == f)./(_ => DoubleDagger.hl).||((game.factions(0) == f && game.seized.none).?(Dagger.hl)).|(Empty)
+        val initative = game.seized.%(_ == f)./(_ => DoubleDagger).||((game.factions.first == f && game.seized.none).?(Dagger)).|("")
 
         val title = Div(Div(initative.styled(styles.title)(styles.initative) ~ name).styled(f), styles.smallname, xlo.pointer)
         val hand = Hint("Hand: " + f.hand.num + " cards",
@@ -379,7 +434,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         val pieces = (
             (
                 (5 - f.pooled(City)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-city", styles.building) ~ " " ~
-                (5 - f.pooled(Starport)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-starport", styles.building)
+                (5 - f.pooled(Starport)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-" + starport, styles.building)
             ).& ~ " " ~
             (
                 (15 - f.pooled(Ship)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-ship", styles.ship) ~ " " ~
@@ -408,9 +463,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             case _ => Empty
         })).pointer.onClick.param(c)).merge
 
-        val play = f.played.first./ { d =>
+        val play = f.played.starting./ { d =>
             (Image((game.zeroed && f == game.factions(0)).?("zeroed").|(d.suit.name + "-number-" + d.strength), styles.plaque) ~ Image((game.lead.get.suit != d.suit).?(d.suit + "-pips-pivot").|(d.suit + "-pips-" + d.pips), styles.plaque) ~ Image(d.suit + "-plaque", styles.plaque)).div(styles.plaqueContainer)
-        }.||(f.blind.first./ { d =>
+        }.||(f.blind.starting./ { d =>
             (Image("hidden", styles.plaque) ~ Image(game.lead.get.suit + "-pips-copy", styles.plaque) ~ Image(game.lead.get.suit + "-plaque", styles.plaque)).div(styles.plaqueContainer)
         }).|(Empty)
 
@@ -424,6 +479,14 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             case x => onClick(x)
         })
 
+        if (f == game.current && game.isOver)
+            container.attach.parent.style.background = f @@ {
+                case Red => "#680016"
+                case Yellow => "#684f19"
+                case Blue => "#05274c"
+                case White => "#666666"
+            }
+        else
         if (f == game.current)
             container.attach.parent.style.outline = "2px solid #aaaaaa"
         else
@@ -505,7 +568,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             desc("Cities".hl.larger) ~
             HGap ~
             HGap ~
-            desc(game.systems./~(f.at(_).cities)./(u => Image(u.faction.short + "-city" + f.damaged.has(u).??("-damaged"), styles.token3x)),
+            desc(systems./~(f.at(_).cities)./(u => Image(u.faction.short + "-city" + f.damaged.has(u).??("-damaged"), styles.token3x)),
                 $(
                     Image("building-empty-keys-1", styles.token3x),
                     Image("building-empty-keys-2", styles.token3x),
@@ -514,6 +577,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                     Image("building-empty-plus-3", styles.token3x),
                 ).drop(5 - f.pooled(City))
             ) ~
+            (f.pooled(City) < 2).?(desc("Total bonus for won ambitions", "+" ~ ((f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)).power)) ~
             HGap ~
             HGap ~
             HGap ~
@@ -523,7 +587,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             desc("Starports".hl.larger) ~
             HGap ~
             HGap ~
-            desc(game.systems./~(f.at(_).starports)./(u => Image(u.faction.short + "-starport" + f.damaged.has(u).??("-damaged"), styles.token3x)), f.pooled(Starport).times(Image("starport-empty", styles.token3x))) ~
+            desc(systems./~(f.at(_).starports)./(u => Image(u.faction.short + "-" + starport + f.damaged.has(u).??("-damaged"), styles.token3x)), f.pooled(Starport).times(Image(starport + "-empty", styles.token3x))) ~
             HGap ~
             HGap ~
             HGap ~
@@ -533,7 +597,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             desc("Ships".hl.larger) ~
             HGap ~
             HGap ~
-            desc(game.systems./~(f.at(_).ships)./(u => Image(u.faction.short + "-ship" + f.damaged.has(u).??("-damaged"), styles.ship3x)), f.pooled(Ship).times(Image("ship-empty", styles.ship3x))) ~
+            desc(systems./~(f.at(_).ships)./(u => Image(u.faction.short + "-ship" + f.damaged.has(u).??("-damaged"), styles.ship3x)), f.pooled(Ship).times(Image("ship-empty", styles.ship3x))) ~
             HGap ~
             HGap ~
             HGap ~
@@ -611,7 +675,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
     def updateStatus() {
         0.until(arity).foreach { n =>
-            factionStatus(game.setup(n))
+            factionStatus(game.seating(n))
         }
 
         if (overlayPane.visible)
@@ -621,6 +685,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         drawMap()
         court.draw()
+        ambitions.foreach(_.draw())
     }
 
     val layoutZoom = 0.49 * 0.88
@@ -629,12 +694,14 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
     val layouts = $(Layout("base",
         $(
-            BasicPane("status", (19+1)*kkk, 22*kkk, Priorities(top = 3, left = 2, maxXscale = 1.8*11111111, maxYscale = 1.8, grow = 1)),
-            BasicPane("court", 61.5*kkk, 22*kkk, Priorities(top = 3, right = 3, maxXscale = 1.0, maxYscale = 1.0, grow = 0)),
+            BasicPane("status", 5*kkk*arity, 22*kkk, Priorities(top = 3, left = 2, maxXscale = 1.8*11111111, maxYscale = 1.8, grow = 1)),
+            BasicPane("court", (61.5/4)*kkk*(4 + campaign.??(1)), 22*kkk, Priorities(top = 3, right = 3, maxXscale = 1.0, maxYscale = 1.0, grow = 0)),
             BasicPane("log", 32, 13+3, Priorities(right = 1)),
             BasicPane("map-small", 71, 50, Priorities(top = 2, left = 1, grow = -1)),
             BasicPane("action-a", 64, 36, Priorities(bottom = 1, right = 3, grow = 1)),
             BasicPane("action-b", 55, 47, Priorities(bottom = 1, right = 3, grow = 1, maxXscale = 1.2))
+        ).++(
+            campaign.?(BasicPane("ambitions", 16*0.8, 44*0.8, Priorities(grow = -4)))
         )
        ./(p => p.copy(kX = p.kX * layoutZoom, kY = p.kY * layoutZoom))
     ))./~(l =>
@@ -680,7 +747,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
     val settingsKey = Meta.settingsKey
 
-    val layoutKey = "v" + 1 + "." + "arity-" + arity
+    val layoutKey = "v" + 1 + "." + campaign.?("campaign").|("base") + "." + "arity-" + arity
 
     def overlayScrollX(e : Elem) = overlayScroll(e)(styles.seeThroughInner).onClick
     def overlayFitX(e : Elem) = overlayFit(e)(styles.seeThroughInner).onClick
@@ -705,6 +772,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         case card : CourtCard =>
             showOverlay(overlayFitX(Image(card.id, styles.artwork)).onClick, onClick)
 
+        case fate : Fate =>
+            showOverlay(overlayFitX(Image(fate.id, styles.artwork)).onClick, onClick)
+
         case leader : Leader =>
             showOverlay(overlayFitX(Image(leader.id, styles.artwork)).onClick, onClick)
 
@@ -719,14 +789,24 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                 game.discourt./(c => OnClick(c, Div(Image(c.id, styles.courtCard), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
-        case "disdeck" =>
+        case "discard" =>
             showOverlay(overlayScrollX(Div("Action Cards Discard Pile") ~
-                game.disdeck./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+                game.discard./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
         case "showndeck" =>
             showOverlay(overlayScrollX(Div("Played Cards Pile") ~
-                game.shown./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+                game.seen./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+            ).onClick, onClick)
+
+        case "seen" =>
+            showOverlay(overlayScrollX(Div("Played Action Cards".hl) ~
+                game.seenX.groupBy(_._1).$.sortBy(_._1)./{ case (n, l) =>
+                    Div("Round " ~ n.hh) ~
+                    l./{ case (_, f, d) =>
+                        OnClick(d, Div(Image(d./(_.imgid).|("card-back"), styles.card), xstyles.choice, xstyles.xx, styles.cardI, elem.borders.get(f), styles.inline, xlo.pointer))
+                    }.merge
+                }.merge
             ).onClick, onClick)
 
         case "readout" =>
@@ -737,7 +817,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                 HGap ~
                 HGap ~
                 HGap ~
-                game.board.systems./~(s =>
+                systems./~(s =>
                     $(
                     game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.txt).larger.styled(xstyles.bold),
                     HGap,
@@ -745,7 +825,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                     HGap
                     ) ++
                     game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_.sortBy(_.piece.is[Building].not)./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.token3x))))./(game.desc(_).div(styles.figureLine)) ++
-                    $(game.desc(game.freeSlots(s).times(Image("starport-empty", styles.token3x))).div(styles.figureLine)) ++
+                    $(game.desc(game.freeSlots(s).times(Image(starport + "-empty", styles.token3x))).div(styles.figureLine)) ++
                     $(
                     HGap,
                     HGap,
@@ -768,7 +848,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
         case "readout" =>
             showOverlay(overlayScrollX((
-                game.board.systems./(s =>
+                systems./(s =>
                     s.elem.div ~
                     HGap ~
                     HGap ~
@@ -822,8 +902,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     override def info(self : |[Faction], aa : $[UserAction]) = {
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
-            (currentGame.options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("disdeck") }).copy(clear = false)) ++
-            (currentGame.options.has(SplitDiscardPile).not).$(ZBasic(Break ~ Break, "Played Cards Pile".hh, () => { onClick("showndeck") }).copy(clear = false)) ++
+            (options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("discard") }).copy(clear = false)) ++
+            // $(ZBasic(Break ~ Break, "Played Cards Pile".hh, () => { onClick("showndeck") }).copy(clear = false)) ++
+            $(ZBasic(Break ~ Break, "Played Action Cards".hh, () => { onClick("seen") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
