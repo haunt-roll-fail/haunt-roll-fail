@@ -619,7 +619,6 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var pivot : Boolean = false
 
     var adjust : Boolean = false
-    var pip: Boolean = false
 
     def can(e : Effect) = (loyal.contains(e) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
 
