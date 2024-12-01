@@ -70,8 +70,9 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
-case class TaxLoyalAction(self : Faction, cost : Cost, r : System, c : Figure, then : ForcedAction) extends ForcedAction
-case class TaxRivalAction(self : Faction, cost : Cost, r : System, e : Faction, c : Figure, then : ForcedAction) extends ForcedAction
+case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
+case class TaxLoyalAction(self : Faction, cost : Cost, r : System, c : Figure, then : ForcedAction) extends ForcedAction // unused
+case class TaxRivalAction(self : Faction, cost : Cost, r : System, e : Faction, c : Figure, then : ForcedAction) extends ForcedAction // unused
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -318,6 +319,9 @@ object CommonExpansion extends Expansion {
             StartChapterAction
 
         // ADJUST
+        case AdjustResourcesAction(f, AdjustResourcesAction(ff, then)) if f == ff =>
+            AdjustResourcesAction(f, then)
+
         case AdjustResourcesAction(f, then) =>
             Force(AdjustingResourcesAction(f, f.resources, then))
 
@@ -746,40 +750,39 @@ object CommonExpansion extends Expansion {
                 .cancel
 
         case TaxLoyalAction(f, x, r, c, then) =>
-            f.pay(x)
-
-            f.log("taxed", c, "in", r, x.elemLog)
-
-            f.taxed :+= c
-
-            if (f.add(board.resource(r))) {
-                f.log("gained", board.resource(r))
-
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            TaxAction(f, x, r, c, true, then)
 
         case TaxRivalAction(f, x, r, e, c, then) =>
+            TaxAction(f, x, r, c, false, then)
+
+        case TaxAction(f, x, r, c, loyal, then) =>
+            var next = then
+
             f.pay(x)
 
             f.log("taxed", c, "in", r, x.elemLog)
 
             f.taxed :+= c
 
-            if (e.pooled(Agent) > e.outraged.num) {
-                e.reserve --> Agent --> f.captives
+            if (loyal.not)
+                c.faction.as[Faction].but(f).foreach { e =>
+                    if (e.pool(Agent)) {
+                        e.reserve --> Agent --> f.captives
 
-                f.log("captured", Agent.of(e))
-            }
+                        f.log("captured", Agent.of(e))
+                    }
+                }
 
             if (f.add(board.resource(r))) {
                 f.log("gained", board.resource(r))
 
-                AdjustResourcesAction(f, then)
+                next = AdjustResourcesAction(f, next)
             }
-            else
-                then
+
+            // if (x == Pip)
+            //     next = TaxBonusAction(f, next)
+
+            next
 
         // MOVE
         case MoveMainAction(f, x, then) =>

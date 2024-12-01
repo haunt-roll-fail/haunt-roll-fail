@@ -622,6 +622,10 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     def can(e : Effect) = (loyal.contains(e) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
 
+    override def pooled(p : Piece) = super.pooled(p) - (p == Agent).??(outraged.num)
+
+    override def pool(p : Piece) = (p == Agent).?(pooled(p) > 0).|(super.pool(p))
+
     def remove(x : ResourceRef) {
         val i = 0.until(resources.num).reverse.%(i => resources(i) == x.resource && x.lock./(_ == keys(i)).|(true)).$.starting
 
@@ -816,7 +820,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def influence(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + InfluenceMainAction(f, x, repeat).as("Influence".styled(f), x)(group).!(f.pooled(Agent) <= f.outraged.num, "no agents")
+        + InfluenceMainAction(f, x, repeat).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
 
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
             + ExecuteMainAction(f, x, repeat).as("Execute".styled(f), x)(group)
