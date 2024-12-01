@@ -71,6 +71,8 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
+case class TaxBonusAction(self : Faction, then : ForcedAction) extends ForcedAction
+
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -771,15 +773,15 @@ object CommonExpansion extends Expansion {
                 next = AdjustResourcesAction(f, next)
             }
 
-            // if (x == Pip)
-            //     next = TaxBonusAction(f, next)
+            if (x == Pip)
+              next = TaxBonusAction(f, next)
 
             next
 
-        case TaxBonusAction(f, x, then) =>
+        case TaxBonusAction(f, then) =>
             var next = then
 
-            if (x == Pip && (f.copy || f.pivot)) {
+            if (f.copy || f.pivot) {
                 if (f.can(Attuned) && f.add(Psionic)) {
                     f.log("gained", Psionic, "from", Attuned)
                     next = AdjustResourcesAction(f, next)
