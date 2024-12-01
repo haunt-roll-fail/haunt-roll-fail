@@ -70,9 +70,7 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
-case class TaxLoyalAction(self : Faction, cost : Cost, r : System, c : Figure, then : ForcedAction) extends ForcedAction
-case class TaxRivalAction(self : Faction, cost : Cost, r : System, e : Faction, c : Figure, then : ForcedAction) extends ForcedAction
-case class TaxBonusAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction
+case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -319,6 +317,9 @@ object CommonExpansion extends Expansion {
             StartChapterAction
 
         // ADJUST
+        case AdjustResourcesAction(f, AdjustResourcesAction(ff, then)) if f == ff =>
+            AdjustResourcesAction(f, then)
+
         case AdjustResourcesAction(f, then) =>
             Force(AdjustingResourcesAction(f, f.resources, then))
 
@@ -742,45 +743,38 @@ object CommonExpansion extends Expansion {
             val g = "Tax".hl
 
             Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxLoyalAction(f, x, s, c, TaxBonusAction(f, x, then)).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxRivalAction(f, x, s, e, c, TaxBonusAction(f, x, then)).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
+                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
                 .cancel
 
-        case TaxLoyalAction(f, x, r, c, then) =>
+        case TaxAction(f, x, r, c, loyal, then) =>
+            var next = then
+
             f.pay(x)
 
             f.log("taxed", c, "in", r, x.elemLog)
 
             f.taxed :+= c
 
-            if (f.add(board.resource(r))) {
-                f.log("gained", board.resource(r))
+            if (loyal.not)
+                c.faction.as[Faction].but(f).foreach { e =>
+                    if (e.pool(Agent)) {
+                        e.reserve --> Agent --> f.captives
 
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
-
-        case TaxRivalAction(f, x, r, e, c, then) =>
-            f.pay(x)
-
-            f.log("taxed", c, "in", r, x.elemLog)
-
-            f.taxed :+= c
-
-            if (e.pooled(Agent) > e.outraged.num) {
-                e.reserve --> Agent --> f.captives
-
-                f.log("captured", Agent.of(e))
-            }
+                        f.log("captured", Agent.of(e))
+                    }
+                }
 
             if (f.add(board.resource(r))) {
                 f.log("gained", board.resource(r))
 
-                AdjustResourcesAction(f, then)
+                next = AdjustResourcesAction(f, next)
             }
-            else
-                then
+
+            // if (x == Pip)
+            //     next = TaxBonusAction(f, next)
+
+            next
 
         case TaxBonusAction(f, x, then) =>
             var next = then
@@ -1824,7 +1818,7 @@ object CommonExpansion extends Expansion {
                         u --> u.faction.as[Faction].get.reserve
 
                         if (u.piece == City)
-                            if (u.faction.pooled(City) >= 2)
+                            if (u.faction.pooled(City) > 2)
                                 adjust ++= u.faction.as[Faction]
 
                         f.log("returned", u)

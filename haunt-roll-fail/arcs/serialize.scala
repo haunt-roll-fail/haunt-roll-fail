@@ -40,21 +40,25 @@ object Serialize extends Serializer {
         case EUnitRef(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseSymbol(b).get.asInstanceOf[Piece], c)
         case EUnitRefP(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseExpr(b).asInstanceOf[Piece], c)
 
+        // 0.8.106 --> 0.8.108
+        case EApply("UsedCourtCardAction", params) => super.parseExpr(EApply("UsedEffectCardAction", params))
+
+        // 0.8.109 --> 0.8.110
+        case EApply("TaxLoyalAction", params) => super.parseExpr(EApply("TaxAction", params.dropLast :+ EBool(true) :+ params.last))
+        case EApply("TaxRivalAction", params) => super.parseExpr(EApply("TaxAction", params.take(3) :+ params(4) :+ EBool(false) :+ params.last))
+
+        // 0.8.109 --> 0.8.110
+        case EApply("ReorderResourcesAction", $(f, EList(l), EApply("ContinueMultiAdjustResourcesAction", t))) if l.num == 6 => ForceInvalidAction(super.parseExpr(e).asInstanceOf[Action])
+
         case _ => super.parseExpr(e)
     }
 
     override def parseAction(s : String) : Action = {
-        // 0.8.108 --> 0.8.109
-        // if (s.startsWith("AssignHitsAction"))
-        //     return CommentAction(s)
-
         val r = super.parseAction(s
-            // 0.8.106 --> 0.8.108
-            .replace("UsedCourtCardAction", "UsedEffectCardAction")
             // 0.8.108 --> 0.8.109
             .use { s =>
                 if (s.startsWith("AssignHitsAction"))
-                    "ForceInvalidAction(DoAction(" + s + "))"
+                    "ForceInvalidAction(" + s + ")"
                 else
                     s
             }
@@ -145,5 +149,6 @@ object Serialize extends Serializer {
 
         r
     }
+
 
 }

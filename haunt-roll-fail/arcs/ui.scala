@@ -286,8 +286,6 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             val figures = game.at(s)
             var gates = regions.gates.get(s).|(Nil).sortBy(_.y)
 
-            println(s + " -> " + gates)
-
             val extra : $[Figure] = $
 
             import hrf.ui.sprites._
@@ -440,7 +438,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             ).& ~ " " ~
             (
                 (15 - f.pooled(Ship)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-ship", styles.ship) ~ " " ~
-                (10 - f.pooled(Agent)).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-agent", styles.ship)
+                (10 - f.pooled(Agent) - f.outraged.num).hlb.styled(xstyles.smaller85) ~ "×" ~ Image(f.short + "-agent", styles.ship)
             ).&
         ).div
 
@@ -609,7 +607,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             desc("Agents".hl.larger) ~
             HGap ~
             HGap ~
-            desc(game.market./~(Influence(_).$).%(_.faction == f)./(u => Image(u.faction.short + "-agent", styles.ship3x)), (f.pooled(Agent) - f.outraged.num).times(Image("agent-empty", styles.ship3x))) ~
+            desc(game.market./~(Influence(_).$).%(_.faction == f)./(u => Image(u.faction.short + "-agent", styles.ship3x)), f.pooled(Agent).times(Image("agent-empty", styles.ship3x))) ~
             HGap ~
             HGap ~
             HGap ~

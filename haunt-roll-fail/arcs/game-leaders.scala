@@ -209,7 +209,7 @@ object LeadersExpansion extends Expansion {
             Ask(f).group("Influence".hl)
                 .each(market)(c => InfluenceAction(f, NoCost, c, BoldMainAction(f, influenced :+ c, then)).as(c)
                     .!(influenced.has(c), "influenced")
-                    .!(f.pooled(Agent) <= f.outraged.num, "no agents")
+                    .!(f.pool(Agent).not, "no agents")
                 )
                 .cancelIf(influenced.none)
                 .done(influenced.any.?(then))
