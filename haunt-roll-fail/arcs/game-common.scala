@@ -71,8 +71,6 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
-case class TaxLoyalAction(self : Faction, cost : Cost, r : System, c : Figure, then : ForcedAction) extends ForcedAction // unused
-case class TaxRivalAction(self : Faction, cost : Cost, r : System, e : Faction, c : Figure, then : ForcedAction) extends ForcedAction // unused
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -745,15 +743,9 @@ object CommonExpansion extends Expansion {
             val g = "Tax".hl
 
             Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxLoyalAction(f, x, s, c, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxRivalAction(f, x, s, e, c, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
+                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
                 .cancel
-
-        case TaxLoyalAction(f, x, r, c, then) =>
-            TaxAction(f, x, r, c, true, then)
-
-        case TaxRivalAction(f, x, r, e, c, then) =>
-            TaxAction(f, x, r, c, false, then)
 
         case TaxAction(f, x, r, c, loyal, then) =>
             var next = then
@@ -1804,7 +1796,7 @@ object CommonExpansion extends Expansion {
                         u --> u.faction.as[Faction].get.reserve
 
                         if (u.piece == City)
-                            if (u.faction.pooled(City) >= 2)
+                            if (u.faction.pooled(City) > 2)
                                 adjust ++= u.faction.as[Faction]
 
                         f.log("returned", u)

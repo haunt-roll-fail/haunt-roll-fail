@@ -734,9 +734,15 @@ trait Gaming extends Timelines {
                 continue = a @@ {
                     case CommentAction(m) => continue.unwrap
                     case ForceInvalidAction(a) =>
-                      warn("invalid action forced", a)
+                        val invalid = validating && old.any && validate(old.get, a).not
 
-                      Log("Warning: ".spn ~ "invalid action forced".spn(xstyles.warning), LogKind.Normal, performRaw(a, false).nest)
+                        if (invalid) {
+                            warn("invalid action forced", a)
+
+                            Log("Warning: ".spn ~ "invalid action forced".spn(xstyles.warning), LogKind.Normal, performRaw(a, false).nest)
+                        }
+                        else
+                            performRaw(a, false).nest
 
                     case a : ForcedAction => performRaw(a, false).nest
                     case a : ExternalAction => performRaw(a, false).nest

@@ -89,11 +89,9 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
             case RepairAction(f, cost, s, u, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-            case TaxLoyalAction(f, cost, s, u, _) =>
+            case TaxAction(f, cost, s, u, loyal, _) =>
                 true |=> -appraise(cost) -> "cost"
-
-            case TaxRivalAction(f, cost, s, e, u, _) =>
-                true |=> -appraise(cost) -> "cost"
+                loyal.not |=> 100 -> "capture"
 
             case MoveListAction(f, s, dest, l, cascade, cost, _) =>
                 true |=> -appraise(cost) -> "cost"
