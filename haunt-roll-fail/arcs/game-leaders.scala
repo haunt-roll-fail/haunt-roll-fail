@@ -81,8 +81,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    // def preset1 = $(Rebel, Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
-    def preset1 = $(Rebel, Mystic, FuelDrinker, Agitator)
+    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator)
 }
 
 
