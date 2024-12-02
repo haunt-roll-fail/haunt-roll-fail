@@ -48,8 +48,7 @@ case class AmbitionDeclaredAction(self : Faction, ambition : Ambition, used : $[
 case class PreludeActionAction(self : Faction, suit : Suit, pips : Int) extends ForcedAction
 
 case class AdjustResourcesAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
-case class MultiAdjustResourcesAction(l : $[Faction],  then : ForcedAction) extends ForcedAction
-case class ContinueMultiAdjustResourcesAction(then : ForcedAction) extends ForcedAction with Soft
+case class MultiAdjustResourcesAction(then : ForcedAction) extends ForcedAction with Soft
 
 case class AdjustingResourcesAction(self : Faction, l : $[Resource], then : ForcedAction) extends HiddenChoice with Soft with NoExplode
 case class ExplodeReorderResourcesAction(self : Faction, slots : Int, l : $[Resource], then : ForcedAction) extends HiddenChoice with SelfExplode with SelfValidate {
@@ -153,7 +152,7 @@ case class FenceResourceAction(self : Faction, r : Resource, cost : Cost, then :
 case class GainResourcesAction(self : Faction, r : $[Resource], then : ForcedAction) extends ForcedAction
 
 case class TradeMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
-case class TakeResourceAction(self : Faction, e : Faction, x : Resource, k : Int, then : ForcedAction) extends ForcedAction
+case class TakeResourceAction(self : Faction, e : Faction, r : Resource, k : Int, cost : Cost, then : ForcedAction) extends ForcedAction
 case class GiveBackResourceMainAction(self : Faction, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class GiveBackResourceAction(self : Faction, e : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 
@@ -325,17 +324,9 @@ object CommonExpansion extends Expansion {
         case AdjustResourcesAction(f, then) =>
             Force(AdjustingResourcesAction(f, f.resources, then))
 
-        case MultiAdjustResourcesAction(Nil, then) =>
-            then
-
-        case MultiAdjustResourcesAction(l, then) =>
-            l.foreach { _.adjust = true }
-
-            ContinueMultiAdjustResourcesAction(then)
-
-        case ContinueMultiAdjustResourcesAction(then) =>
+        case MultiAdjustResourcesAction(then) =>
             if (factions.exists(_.adjust))
-                MultiAsk(factions.%(_.adjust)./~(f => game.internalPerform(AdjustingResourcesAction(f, f.resources, ContinueMultiAdjustResourcesAction(then)), NoVoid).as[Ask]))
+                MultiAsk(factions.%(_.adjust)./~(f => game.internalPerform(AdjustingResourcesAction(f, f.resources, MultiAdjustResourcesAction(then)), NoVoid).as[Ask]))
             else
                 Milestone(then)
 
@@ -386,13 +377,34 @@ object CommonExpansion extends Expansion {
 
 //[[ GREENER
         // COURT
-        case FillSlotsMainAction(f, r, then) =>
+        case FillSlotsMainAction(f, r, then) if options.has(BadFillResources) =>
             if (f.resources.has(Nothingness)) {
-                if (f.add(r))
+                if (game.available(r)) {
+                    f.gain(r, $)
+
                     FillSlotsMainAction(f, r, then)
+                }
                 else
                 if (factions.but(f).exists(_.stealable(r)))
                     StealResourceMainAction(f, |(r), $(), FillSlotsMainAction(f, r, then))
+                else
+                    then
+            }
+            else
+                then
+
+        case FillSlotsMainAction(f, r, then) =>
+            val adjust = then.as[MultiAdjustResourcesAction].|(MultiAdjustResourcesAction(then))
+
+            if (f.resources.has(Nothingness) || (f.resourceSlots > f.resources.num)) {
+                if (game.available(r)) {
+                    f.gain(r, $)
+
+                    FillSlotsMainAction(f, r, adjust)
+                }
+                else
+                if (factions.but(f).exists(_.stealable(r)))
+                    StealResourceMainAction(f, |(r), $(), FillSlotsMainAction(f, r, adjust))
                 else
                     then
             }
@@ -410,16 +422,14 @@ object CommonExpansion extends Expansion {
                 .needOk
                 .add(extra)
 
-        case StealResourceAction(f, e, x, k, then) =>
-            e.remove(ResourceRef(x, |(k)))
+        case StealResourceAction(f, e, r, k, then) =>
+            e.remove(ResourceRef(r, |(k)))
 
-            if (f.add(x)) {
-                f.log("stole", ResourceRef(x, |(k)))
+            f.gain(r)
 
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            f.log("stole", ResourceRef(r, |(k)))
+
+            MultiAdjustResourcesAction(then)
 
         case StealGuildCardMainAction(f, alt, then) =>
             Ask(f).group("Steal".hl, "a", "Guild Card".hh)
@@ -504,11 +514,9 @@ object CommonExpansion extends Expansion {
         case PressganAction(f, u, r, x, then) =>
             f.pay(x)
 
-            f.add(r)
-
             u --> u.faction.reserve
 
-            f.log("released", u, "and took", r, x)
+            f.gain(r, $("releasing", u, x))
 
             PressgangMainAction(f, AlreadyPaid, then)
 
@@ -603,29 +611,14 @@ object CommonExpansion extends Expansion {
         case FenceResourceAction(f, r, x, then) =>
             f.pay(x)
 
-            if (f.add(r)) {
-                f.log("fenced", Relic, x)
+            f.gain("fenced", Relic, $(x))
 
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            MultiAdjustResourcesAction(then)
 
         case GainResourcesAction(f, l, then) =>
-            var any = false
+            l.foreach { r => f.gain(r, $) }
 
-            l.foreach { r =>
-                if (f.add(r)) {
-                    any = true
-
-                    f.log("gained", r)
-                }
-            }
-
-            if (any)
-                AdjustResourcesAction(f, then)
-            else
-                then
+            MultiAdjustResourcesAction(then)
 //]]
 
 //[[ PINKER
@@ -752,9 +745,11 @@ object CommonExpansion extends Expansion {
         case TaxAction(f, x, r, c, loyal, then) =>
             var next = then
 
+            next = MultiAdjustResourcesAction(next)
+
             f.pay(x)
 
-            f.log("taxed", c, "in", r, x.elemLog)
+            f.log("taxed", c, "in", r, x)
 
             f.taxed :+= c
 
@@ -767,14 +762,10 @@ object CommonExpansion extends Expansion {
                     }
                 }
 
-            if (f.add(board.resource(r))) {
-                f.log("gained", board.resource(r))
-
-                next = AdjustResourcesAction(f, next)
-            }
+            f.gain(board.resource(r), $)
 
             if (x == Pip)
-              next = TaxBonusAction(f, next)
+                next = TaxBonusAction(f, next)
 
             next
 
@@ -783,10 +774,8 @@ object CommonExpansion extends Expansion {
 
             if (f.copy || f.pivot) {
                 $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
-                    if (f.can(t) && f.add(r)) {
-                        f.log("gained", r, "from", t)
-                        next = AdjustResourcesAction(f, next)
-                    }
+                    if (f.can(t))
+                        f.gain(r, $("from", t))
                 }
             }
 
@@ -832,7 +821,7 @@ object CommonExpansion extends Expansion {
         case MoveListAction(f, r, d, l, cascade, x, then) =>
             f.pay(x)
 
-            f.log("moved", l.comma, "from", r, "to", d, x.elemLog)
+            f.log("moved", l.comma, "from", r, "to", d, x)
 
             l --> d
 
@@ -864,7 +853,7 @@ object CommonExpansion extends Expansion {
         case BattleDiceAction(f, x, r, e, skirmish, assault, raid, then) =>
             f.pay(x)
 
-            f.log("battled", e, "in", r, x.elemLog)
+            f.log("battled", e, "in", r, x)
 
             Roll3[$[BattleResult], $[BattleResult], $[BattleResult]](skirmish.times(Skirmish.die), assault.times(Assault.die), raid.times(Raid.die), (l1, l2, l3) => BattleRolledAction(f, r, e, l1, l2, l3, then))
 
@@ -960,13 +949,11 @@ object CommonExpansion extends Expansion {
         case BattleRaidResourceAction(f, e, x, k, then) =>
             e.remove(ResourceRef(x, |(k)))
 
-            if (f.add(x)) {
-                f.log("stole", ResourceRef(x, |(k)))
+            f.gain(x)
 
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            f.log("stole", ResourceRef(x, |(k)))
+
+            MultiAdjustResourcesAction(then)
 
         case BattleRaidCourtCardAction(f, e, c, then) =>
             e.loyal --> c --> f.loyal
@@ -1129,7 +1116,7 @@ object CommonExpansion extends Expansion {
 
             u --> r
 
-            f.log("built", u, "in", r, x.elemLog)
+            f.log("built", u, "in", r, x)
 
             then
 
@@ -1143,7 +1130,7 @@ object CommonExpansion extends Expansion {
 
             u --> r
 
-            f.log("built", u, "in", r, x.elemLog)
+            f.log("built", u, "in", r, x)
 
             then
 
@@ -1159,7 +1146,7 @@ object CommonExpansion extends Expansion {
 
             f.built :+= f.at(r).%(u => u.piece == Starport && f.built.has(u).not).first
 
-            f.log("built", u, "in", r, x.elemLog)
+            f.log("built", u, "in", r, x)
 
             then
 
@@ -1177,7 +1164,7 @@ object CommonExpansion extends Expansion {
 
             f.damaged :-= u
 
-            f.log("repaired", u, "in", r, x.elemLog)
+            f.log("repaired", u, "in", r, x)
 
             then
 
@@ -1192,7 +1179,7 @@ object CommonExpansion extends Expansion {
 
             f.reserve --> Agent --> Influence(c)
 
-            f.log("influenced", c, x.elemLog)
+            f.log("influenced", c, x)
 
             then
 
@@ -1211,7 +1198,7 @@ object CommonExpansion extends Expansion {
 
             f.used :+= c
 
-            f.log("secured", c, x.elemLog)
+            f.log("secured", c, x)
 
             Influence(c).foreach { u =>
                 if (u.faction == f)
@@ -1229,46 +1216,34 @@ object CommonExpansion extends Expansion {
         case ManufactureMainAction(f, x, then) =>
             f.pay(x)
 
-            f.log("manufactured", x.elemLog)
+            f.gain("manufactured", Material, $(x))
 
-            if (f.add(Material)) {
-                f.log("gained", Material)
-
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            MultiAdjustResourcesAction(then)
 
         // SYNTHESIZE
         case SynthesizeMainAction(f, x, then) =>
             f.pay(x)
 
-            f.log("synthesize", x.elemLog)
+            f.gain("synthesized", Fuel, $(x))
 
-            if (f.add(Fuel)) {
-                f.log("gained", Fuel)
-
-                AdjustResourcesAction(f, then)
-            }
-            else
-                then
+            MultiAdjustResourcesAction(then)
 
         // TRADE
         case TradeMainAction(f, x, then) =>
             Ask(f).group("Trade".hl)
                 .some(factions.but(f).%(_.resources.but(Nothingness).any)) { e =>
                     e.resources.lazyZip(e.keys).toList.%<(_ != Nothingness).%<(r => systems.exists(s => e.at(s).cities.any && board.resource(s) == r && f.rules(s)))./ { case (r, k) =>
-                        TakeResourceAction(f, e, r, k, GiveBackResourceMainAction(f, e, then)).as(e, ResourceRef(r, None))
+                        TakeResourceAction(f, e, r, k, x, GiveBackResourceMainAction(f, e, then)).as(e, ResourceRef(r, None))
                     }
                 }
                 .cancel
 
-        case TakeResourceAction(f, e, x, k, then) =>
-            e.remove(ResourceRef(x, |(k)))
+        case TakeResourceAction(f, e, r, k, x, then) =>
+            f.pay(x)
 
-            f.add(x)
+            e.remove(ResourceRef(r, |(k)))
 
-            f.log("took in trade", ResourceRef(x, |(k)))
+            f.gain("took in trade", ResourceRef(r, |(k)), $(x))
 
             then
 
@@ -1280,11 +1255,9 @@ object CommonExpansion extends Expansion {
         case GiveBackResourceAction(f, e, r, then) =>
             f.remove(ResourceRef(r, None))
 
-            e.add(r)
+            e.gain("got back", r, $)
 
-            f.log("gave back", r)
-
-            AdjustResourcesAction(f, AdjustResourcesAction(e, then))
+            MultiAdjustResourcesAction(then)
 
         // WEAPON
         case AddBattleOptionAction(f, x, then) =>
@@ -1292,7 +1265,7 @@ object CommonExpansion extends Expansion {
 
             f.anyBattle = true
 
-            f.log("could use any card action as ", "Battle".styled(f), x.elemLog)
+            f.log("could use any card action as ", "Battle".styled(f), x)
 
             then
 
@@ -1803,8 +1776,6 @@ object CommonExpansion extends Expansion {
             Milestone(CleanUpChapterAction)
 
         case CleanUpChapterAction =>
-            var adjust : $[Faction] = $
-
             if (game.declared.contains(Tycoon)) {
                 factions.foreach { f =>
                     if (f.can(Lavish)) {
@@ -1834,7 +1805,9 @@ object CommonExpansion extends Expansion {
 
                         if (u.piece == City)
                             if (u.faction.pooled(City) > 2)
-                                adjust ++= u.faction.as[Faction]
+                                u.faction.as[Faction].foreach { f =>
+                                    f.adjust = true
+                                }
 
                         f.log("returned", u)
                     }
@@ -1861,7 +1834,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            MultiAdjustResourcesAction(factions.intersect(adjust), CheckWinAction)
+            MultiAdjustResourcesAction(CheckWinAction)
 
         case GameOverAction(winner) =>
             val winners = $(winner)

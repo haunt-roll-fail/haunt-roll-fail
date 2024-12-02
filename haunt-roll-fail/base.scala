@@ -149,10 +149,13 @@ trait Gaming extends Timelines {
     }
 
 
-    trait ForcedAction extends Action with ActionClass[ForcedAction] {
-        def wrap = DoAction(this)
-        def as(q : (G => Elem)*) = WrapAction(this)(q : _*)
-        def view[T](obj : T)(view : T => Any) = WrapViewAction(obj, this)(view)
+    trait ForcedAction extends Action with ActionClass[ForcedAction]
+
+    implicit class ForcedActionEx(val action : ForcedAction) {
+        def wrap = DoAction(action)
+        def as(q : (G => Elem)*) = WrapAction(action)(q : _*)
+        def as[U : ClassTag] : |[U] = Some(action).collect({ case m : U => m })
+        def view[T](obj : T)(view : T => Any) = WrapViewAction(obj, action)(view)
     }
 
     trait ExternalAction extends Action { self : ActionClass[_] => }
@@ -679,7 +682,7 @@ trait Gaming extends Timelines {
                                     case _ => "(not a shuffle)"
                                 }
                                 case c => ""
-                            } + "\n" + continue.toString
+                            } + "\n\n" + continue.unwrap.toString + "\n\n" + continue.toString
 
                             return handleError(new Error(e), Some("perform validation failed"))
                         }
@@ -862,7 +865,7 @@ trait Gaming extends Timelines {
 
             // 0.8.106 --> 0.8.108
             a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
-                val b = a.copy(then = arcs.ContinueMultiAdjustResourcesAction(arcs.CheckWinAction)).asInstanceOf[Action]
+                val b = a.copy(then = arcs.MultiAdjustResourcesAction(arcs.CheckWinAction)).asInstanceOf[Action]
 
                 if (validate(continue, b, false))
                     return true
@@ -878,6 +881,32 @@ trait Gaming extends Timelines {
                     if (validate(continue, b, false))
                         return true
                 }
+            }
+
+            // 0.8.110 --> 0.8.111
+            a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
+                if (a.then.is[arcs.MultiAdjustResourcesAction].not) {
+                    val b = a.copy(then = arcs.MultiAdjustResourcesAction(a.then)).asInstanceOf[Action]
+
+                    if (validate(continue, b, false))
+                        return true
+                }
+            }
+
+            // 0.8.110 --> 0.8.111
+            a.unwrap.as[arcs.StartChapterAction.type].foreach { a =>
+                val b = arcs.CheckWinAction.asInstanceOf[Action]
+
+                if (validate(continue, b, false))
+                    return true
+            }
+
+            // 0.8.110 --> 0.8.111
+            a.unwrap.as[arcs.GameOverAction].foreach { a =>
+                val b = arcs.CheckWinAction.asInstanceOf[Action]
+
+                if (validate(continue, b, false))
+                    return true
             }
 
             if (validate(continue, a, true).not)

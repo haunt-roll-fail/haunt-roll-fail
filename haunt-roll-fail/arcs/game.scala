@@ -635,17 +635,41 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
         resources = resources.updated(i.get, Nothingness)
     }
 
-    def add(x : Resource) : Boolean = {
-        if (game.available(x)) {
+    private def add(r : Resource) : Boolean = {
+        if (game.available(r)) {
             if (resources.has(Nothingness).not)
                 resources :+= Nothingness
 
-            resources = resources.updated(resources.indexOf(Nothingness), x)
+            resources = resources.updated(resources.indexOf(Nothingness), r)
+
+            adjust = true
 
             true
         }
         else
             false
+    }
+
+    def gain(r : Resource) {
+        add(r)
+    }
+
+    def gain(r : Resource, message : $[Any]) {
+        gain("gained", r, message)
+    }
+
+    def gain(verb : String, r : Resource, message : $[Any]) {
+        if (add(r))
+            faction.log(verb, r, message)
+        else
+            faction.log("could not gain", r, message)
+    }
+
+    def gain(verb : String, r : ResourceRef, message : $[Any]) {
+        if (add(r.resource))
+            faction.log(verb, r, message)
+        else
+            faction.log("could not gain", r, message)
     }
 
     def stealable(x : Resource) : Boolean = {
@@ -765,6 +789,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         case f : Faction => |(f.elem)
         case d : DeckCard => |(OnClick(d, d.elem.spn(xlo.pointer)))
         case c : CourtCard => |(OnClick(c, c.elem.spn(xlo.pointer)))
+        case p : PayResource => |(p.elemLog)
         case l : $[Any] => convertForLog(l)
         case x => |(x)
     }

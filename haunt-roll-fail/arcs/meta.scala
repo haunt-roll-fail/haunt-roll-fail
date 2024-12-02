@@ -29,6 +29,11 @@ case object BadGuildStruggle extends GameOption with ToggleOption {
     val valueOn = "Guild Struggle Shuffles Vox Cards"
 }
 
+case object BadFillResources extends GameOption with ToggleOption {
+    val group = "Old Incorrect Behaviour"
+    val valueOn = "Fill Resources Might Not Fully Fill"
+}
+
 trait LeadersAndLoreOption extends GameOption with ToggleOption with ImportantOption {
     val group = "Leaders and Lore".hh
     override def blocked(all : $[BaseOption]) = all.of[CampaignOption]./($(_))
@@ -88,7 +93,8 @@ object Meta extends MetaGame { mmm =>
 
     override val hiddenOptions =
         1.to(5)./(BadInitiativeTransferChapter) ++
-        $(BadGuildStruggle)
+        $(BadGuildStruggle) ++
+        $(BadFillResources)
 
     val options = $(NoFate) ++ $(LeadersAndLorePreset1) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
 

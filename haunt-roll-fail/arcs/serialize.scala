@@ -50,6 +50,12 @@ object Serialize extends Serializer {
         // 0.8.109 --> 0.8.110
         case EApply("ReorderResourcesAction", $(f, EList(l), EApply("ContinueMultiAdjustResourcesAction", t))) if l.num == 6 => ForceInvalidAction(super.parseExpr(e).asInstanceOf[Action])
 
+        // 0.8.110 --> 0.8.111
+        case EApply("ContinueMultiAdjustResourcesAction", $(_, t)) => super.parseExpr(EApply("MultiAdjustResourcesAction", $(t)))
+
+        // 0.8.110 --> 0.8.111
+        case EApply("ContinueMultiAdjustResourcesAction", $(t)) => super.parseExpr(EApply("MultiAdjustResourcesAction", $(t)))
+
         case _ => super.parseExpr(e)
     }
 
