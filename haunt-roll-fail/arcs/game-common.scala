@@ -1804,6 +1804,18 @@ object CommonExpansion extends Expansion {
         case CleanUpChapterAction =>
             var adjust : $[Faction] = $
 
+            if (game.declared.contains(Tycoon)) {
+                factions.foreach { f =>
+                    if (f.can(Lavish)) {
+                        while (f.resources.has(Fuel)) {
+                            f.remove(ResourceRef(Fuel, None))
+
+                            f.log("discarded", Fuel, "due to", Lavish)
+                        }
+                    }
+                }
+            }
+
             if (game.declared.contains(Tyrant)) {
                 factions.foreach { f =>
                     f.captives.foreach { u =>
