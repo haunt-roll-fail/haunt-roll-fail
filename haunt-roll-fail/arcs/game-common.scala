@@ -782,19 +782,11 @@ object CommonExpansion extends Expansion {
             var next = then
 
             if (f.copy || f.pivot) {
-                if (f.can(Attuned) && f.add(Psionic)) {
-                    f.log("gained", Psionic, "from", Attuned)
-                    next = AdjustResourcesAction(f, next)
-                }
-
-                if (f.can(Insatiable) && f.add(Fuel)) {
-                    f.log("gained", Fuel, "from", Insatiable)
-                    next = AdjustResourcesAction(f, next)
-                }
-
-                if (f.can(Firebrand) && f.add(Weapon)) {
-                    f.log("gained", Weapon, "from", Firebrand)
-                    next = AdjustResourcesAction(f, next)
+                $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
+                    if (f.can(t) && f.add(r)) {
+                        f.log("gained", r, "from", t)
+                        next = AdjustResourcesAction(f, next)
+                    }
                 }
             }
 
