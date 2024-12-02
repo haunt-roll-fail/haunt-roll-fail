@@ -25,12 +25,17 @@ case object Just extends LeaderEffect
 case object Attuned extends LeaderEffect
 case object Cryptic extends LeaderEffect
 
+case object Insatiable extends LeaderEffect
+case object Lavish extends LeaderEffect
+
 case object Committed extends LeaderEffect
 case object Disorganized extends LeaderEffect
 
 case object Bold extends LeaderEffect
 case object Paranoid extends LeaderEffect
 
+case object Firebrand extends LeaderEffect
+case object Irregular extends LeaderEffect
 
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
@@ -40,7 +45,7 @@ abstract class Leader(val id : String, val name : String, val effects : $[Effect
 
 case object Elder         extends Leader("leader01", "Elder",         $(Beloved, Just), $(Relic, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Mystic        extends Leader("leader02", "Mystic",        $(Attuned, Cryptic), $(Psionic, Relic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
-case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship)) { override val name = "Fuel Drinker" }
+case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(Insatiable, Lavish), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship)) { override val name = "Fuel Drinker" }
 case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Rebel         extends Leader("leader05", "Rebel",         $(Committed, Disorganized), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Warrior       extends Leader("leader06", "Warrior",       $, $, $, $, $)
@@ -52,7 +57,7 @@ case object Corsair       extends Leader("leader11", "Corsair",       $, $, $, $
 case object Noble         extends Leader("leader12", "Noble",         $(), $(Psionic, Psionic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Anarchist     extends Leader("leader13", "Anarchist",     $, $, $, $, $)
 case object Shaper        extends Leader("leader14", "Shaper",        $, $, $, $, $)
-case object Agitator      extends Leader("leader15", "Agitator",      $, $, $, $, $)
+case object Agitator      extends Leader("leader15", "Agitator",      $(Firebrand, Irregular), $(Fuel, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Quartermaster extends Leader("leader16", "Quartermaster", $, $, $, $, $)
 
 
@@ -76,7 +81,7 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Rebel, Mystic, FuelDrinker, Upstart, Rebel, Noble, Demagogue, Elder)
+    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator)
 }
 
 
@@ -183,6 +188,11 @@ object LeadersExpansion extends Expansion {
                 f.resources = leader.resources
 
                 f.log("took", leader.resources.lift(0), "and", leader.resources.lift(1))
+
+                if (f.can(Cryptic))
+                    f.outraged ++= $(Material, Fuel)
+
+
             }
 
             StartChapterAction

@@ -71,6 +71,8 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 case class TaxMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
+case class TaxBonusAction(self : Faction, then : ForcedAction) extends ForcedAction
+
 
 case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
@@ -771,8 +773,22 @@ object CommonExpansion extends Expansion {
                 next = AdjustResourcesAction(f, next)
             }
 
-            // if (x == Pip)
-            //     next = TaxBonusAction(f, next)
+            if (x == Pip)
+              next = TaxBonusAction(f, next)
+
+            next
+
+        case TaxBonusAction(f, then) =>
+            var next = then
+
+            if (f.copy || f.pivot) {
+                $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
+                    if (f.can(t) && f.add(r)) {
+                        f.log("gained", r, "from", t)
+                        next = AdjustResourcesAction(f, next)
+                    }
+                }
+            }
 
             next
 
@@ -890,10 +906,19 @@ object CommonExpansion extends Expansion {
 
         case BattleProcessAction(f, r, e, l, then) =>
             val sd = l.count(OwnDamage)
-            val ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
+            var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
             val hs = l.count(HitShip)
             val bb = l.count(HitBuilding)
             val rd = l.count(RaidKey)
+
+            if (l.has(Intersept) && e.can(Irregular)) {
+                ic = e.resources.count(Weapon) + e.loyal.of[GuildCard].count(_.suit == Weapon)
+
+                if (e.resources.has(Weapon)) {
+                    e.remove(ResourceRef(Weapon, None))
+                    e.log("discarded", Weapon, "due to", Irregular)
+                }
+            }
 
             if (sd > 0)
                 f.log("suffered", sd.hit)
@@ -1779,6 +1804,18 @@ object CommonExpansion extends Expansion {
 
         case CleanUpChapterAction =>
             var adjust : $[Faction] = $
+
+            if (game.declared.contains(Tycoon)) {
+                factions.foreach { f =>
+                    if (f.can(Lavish)) {
+                        while (f.resources.has(Fuel)) {
+                            f.remove(ResourceRef(Fuel, None))
+
+                            f.log("discarded", Fuel, "due to", Lavish)
+                        }
+                    }
+                }
+            }
 
             if (game.declared.contains(Tyrant)) {
                 factions.foreach { f =>
