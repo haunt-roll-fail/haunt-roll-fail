@@ -914,10 +914,19 @@ object CommonExpansion extends Expansion {
 
         case BattleProcessAction(f, r, e, l, then) =>
             val sd = l.count(OwnDamage)
-            val ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
+            var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
             val hs = l.count(HitShip)
             val bb = l.count(HitBuilding)
             val rd = l.count(RaidKey)
+
+            if (l.has(Intersept) && e.can(Irregular)) {
+                ic = e.resources.count(Weapon) + e.loyal.of[GuildCard].count(_.suit == Weapon)
+
+                if (e.resources.has(Weapon)) {
+                    e.remove(ResourceRef(Weapon, None))
+                    e.log("discarded", Weapon, "due to", Irregular)
+                }
+            }
 
             if (sd > 0)
                 f.log("suffered", sd.hit)
