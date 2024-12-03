@@ -820,7 +820,10 @@ object CommonExpansion extends Expansion {
                 l3./(x => Image("raid-die-" + (Raid.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))
             )
 
-            val next = BattleProcessAction(f, r, e, (l1 ++ l2 ++ l3).flatten, then)
+            val mp = (e.lores.has(MirrorPlating) && l2.num > 0).$($(Intersept))
+            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships == f.at(r).diff(f.damaged)).$(Intersept)
+
+            val next = BattleProcessAction(f, r, e, (l1 ++ l2 ++ l3 ++ mp).flatten.diff(sb), then)
 
             if (l1.any && f.loyal.has(Skirmishers)) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
