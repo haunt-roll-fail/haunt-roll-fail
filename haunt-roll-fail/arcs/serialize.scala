@@ -40,118 +40,11 @@ object Serialize extends Serializer {
         case EUnitRef(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseSymbol(b).get.asInstanceOf[Piece], c)
         case EUnitRefP(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseExpr(b).asInstanceOf[Piece], c)
 
-        // 0.8.106 --> 0.8.108
-        case EApply("UsedCourtCardAction", params) => super.parseExpr(EApply("UsedEffectCardAction", params))
-
-        // 0.8.109 --> 0.8.110
-        case EApply("TaxLoyalAction", params) => super.parseExpr(EApply("TaxAction", params.dropLast :+ EBool(true) :+ params.last))
-        case EApply("TaxRivalAction", params) => super.parseExpr(EApply("TaxAction", params.take(3) :+ params(4) :+ EBool(false) :+ params.last))
-
-        // 0.8.109 --> 0.8.110
-        case EApply("ReorderResourcesAction", $(f, EList(l), EApply("ContinueMultiAdjustResourcesAction", t))) if l.num == 6 => ForceInvalidAction(super.parseExpr(e).asInstanceOf[Action])
-
-        // 0.8.110 --> 0.8.111
-        case EApply("ContinueMultiAdjustResourcesAction", $(_, t)) => super.parseExpr(EApply("MultiAdjustResourcesAction", $(t)))
-
-        // 0.8.110 --> 0.8.111
-        case EApply("ContinueMultiAdjustResourcesAction", $(t)) => super.parseExpr(EApply("MultiAdjustResourcesAction", $(t)))
-
         case _ => super.parseExpr(e)
     }
 
     override def parseAction(s : String) : Action = {
-        val r = super.parseAction(s
-            // 0.8.108 --> 0.8.109
-            .use { s =>
-                if (s.startsWith("AssignHitsAction"))
-                    "ForceInvalidAction(" + s + ")"
-                else
-                    s
-            }
-            // 0.8.108 --> 0.8.109
-            .use { s =>
-                val deal = "DealHitsAction"
-                val assign = "AssignHitsAction"
-                val battle = "BattleRaidAction"
-                val main = "MainTurnAction"
-                val prelude = "PreludeActionAction"
-
-                var r = s
-
-                if (r.contains(main) && r.contains(battle)) {
-                    if (r.contains(deal) && r.contains(assign).not) {
-                        val $(a, b) = r.splt(battle)
-                        val $(c, d) = b.splt(main)
-
-                        val $(_, _, _, _, raid, _) = c.splt(",")
-
-                        r = a + raid + ", " + main + d.dropRight(1)
-                    }
-
-                    if (r.contains(deal) && r.contains(assign)) {
-                        val $(a, b) = r.splt(assign)
-
-                        r = a + "0, " + assign + b
-                    }
-
-                    if (r.contains(assign)) {
-                        val $(a, b) = r.splt(assign)
-                        val $(c, d) = b.splt(battle)
-                        val $(e, f) = d.splt(main)
-                        val $(_, _, _, _, raid, _) = e.splt(",")
-
-                        r = a + assign + c.dropRight(1) + raid + ", " + main + f.dropRight(1)
-                    }
-
-                    if (r.contains(battle)) {
-                        val $(a, b) = r.splt(battle)
-                        val $(c, d) = b.splt(main)
-
-                        val $(_, _, _, _, raid, _) = c.splt(",")
-
-                        if (raid == " 0")
-                            r = a + main + d.dropRight(1)
-                    }
-                }
-
-                if (r.contains(prelude) && r.contains(battle)) {
-                    if (r.contains(deal) && r.contains(assign).not) {
-                        val $(a, b) = r.splt(battle)
-                        val $(c, d) = b.splt(prelude)
-
-                        val $(_, _, _, _, raid, _) = c.splt(",")
-
-                        r = a + raid + ", " + prelude + d.dropRight(1)
-                    }
-
-                    if (r.contains(deal) && r.contains(assign)) {
-                        val $(a, b) = r.splt(assign)
-
-                        r = a + "0, " + assign + b
-                    }
-
-                    if (r.contains(assign)) {
-                        val $(a, b) = r.splt(assign)
-                        val $(c, d) = b.splt(battle)
-                        val $(e, f) = d.splt(prelude)
-                        val $(_, _, _, _, raid, _) = e.splt(",")
-
-                        r = a + assign + c.dropRight(1) + raid + ", " + prelude + f.dropRight(1)
-                    }
-
-                    if (r.contains(battle)) {
-                        val $(a, b) = r.splt(battle)
-                        val $(c, d) = b.splt(prelude)
-                        val $(_, _, _, _, raid, _) = c.splt(",")
-
-                        if (raid == " 0")
-                            r = a + prelude + d.dropRight(1)
-                    }
-                }
-
-                r
-            }
-        )
+        val r = super.parseAction(s)
 
         r
     }

@@ -19,19 +19,8 @@ case class UnknownOption(o : String) extends GameOption {
     val valueOn = "Unknown Option " ~ o
 }
 
-case class BadInitiativeTransferChapter(n : Int) extends GameOption with ToggleOption {
+trait OldIncorrectBehaviour extends GameOption with ToggleOption {
     val group = "Old Incorrect Behaviour"
-    val valueOn = "Incorrect Initiative Transfer in Chapter " ~ n.hlb
-}
-
-case object BadGuildStruggle extends GameOption with ToggleOption {
-    val group = "Old Incorrect Behaviour"
-    val valueOn = "Guild Struggle Shuffles Vox Cards"
-}
-
-case object BadFillResources extends GameOption with ToggleOption {
-    val group = "Old Incorrect Behaviour"
-    val valueOn = "Fill Resources Might Not Fully Fill"
 }
 
 trait LeadersAndLoreOption extends GameOption with ToggleOption with ImportantOption {
@@ -91,10 +80,7 @@ object Meta extends MetaGame { mmm =>
 
     val minPlayers = 3
 
-    override val hiddenOptions =
-        1.to(5)./(BadInitiativeTransferChapter) ++
-        $(BadGuildStruggle) ++
-        $(BadFillResources)
+    override val hiddenOptions = $
 
     val options = $(NoFate) ++ $(LeadersAndLorePreset1) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
 

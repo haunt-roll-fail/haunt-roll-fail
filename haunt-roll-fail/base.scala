@@ -855,60 +855,6 @@ trait Gaming extends Timelines {
             if (validate(continue, a, false))
                 return true
 
-            // 0.8.106 --> 0.8.108
-            a.unwrap.as[arcs.MoveListAction].foreach { a =>
-                val b = a.copy(cascade = a.cascade.not).asInstanceOf[Action]
-
-                if (validate(continue, b, false))
-                    return true
-            }
-
-            // 0.8.106 --> 0.8.108
-            a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
-                val b = a.copy(then = arcs.MultiAdjustResourcesAction(arcs.CheckWinAction)).asInstanceOf[Action]
-
-                if (validate(continue, b, false))
-                    return true
-            }
-
-            // 0.8.108 --> 0.8.109
-            a.unwrap.as[arcs.ShuffledCourtDeckAction].foreach { a =>
-                val l = a.shuffled.of[arcs.VoxCard]
-
-                l.toSet.subsets().foreach { s =>
-                    val b = a.copy(shuffled = a.shuffled.diff(s.$)).asInstanceOf[Action]
-
-                    if (validate(continue, b, false))
-                        return true
-                }
-            }
-
-            // 0.8.110 --> 0.8.111
-            a.unwrap.as[arcs.ReorderResourcesAction].foreach { a =>
-                if (a.then.is[arcs.MultiAdjustResourcesAction].not) {
-                    val b = a.copy(then = arcs.MultiAdjustResourcesAction(a.then)).asInstanceOf[Action]
-
-                    if (validate(continue, b, false))
-                        return true
-                }
-            }
-
-            // 0.8.110 --> 0.8.111
-            a.unwrap.as[arcs.StartChapterAction.type].foreach { a =>
-                val b = arcs.CheckWinAction.asInstanceOf[Action]
-
-                if (validate(continue, b, false))
-                    return true
-            }
-
-            // 0.8.110 --> 0.8.111
-            a.unwrap.as[arcs.GameOverAction].foreach { a =>
-                val b = arcs.CheckWinAction.asInstanceOf[Action]
-
-                if (validate(continue, b, false))
-                    return true
-            }
-
             if (validate(continue, a, true).not)
                 return false
 

@@ -18,7 +18,6 @@ import arcs.elem._
 
 
 case class StartAction(version : String) extends StartGameAction with GameVersion
-case class StartingInitiativeAction(random : Faction) extends RandomAction[Faction] with SkipValidate
 case class PlayOrderAction(random : $[Faction]) extends RandomAction[$[Faction]]
 case object StartSetupAction extends ForcedAction
 case object CourtSetupAction extends ForcedAction
@@ -47,8 +46,7 @@ case class DeclareAmbitionAction(self : Faction, ambition : Ambition, zero : Boo
 case class AmbitionDeclaredAction(self : Faction, ambition : Ambition, used : $[Effect], then : ForcedAction) extends ForcedAction with Soft
 case class PreludeActionAction(self : Faction, suit : Suit, pips : Int) extends ForcedAction
 
-case class AdjustResourcesAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
-case class MultiAdjustResourcesAction(then : ForcedAction) extends ForcedAction with Soft
+case class AdjustResourcesAction(then : ForcedAction) extends ForcedAction with Soft
 
 case class AdjustingResourcesAction(self : Faction, l : $[Resource], then : ForcedAction) extends HiddenChoice with Soft with NoExplode
 case class ExplodeReorderResourcesAction(self : Faction, slots : Int, l : $[Resource], then : ForcedAction) extends HiddenChoice with SelfExplode with SelfValidate {
@@ -160,8 +158,8 @@ case class GiveBackResourceAction(self : Faction, e : Faction, r : Resource, the
 case class LatticeSeizeAction(self : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
 
 case class FreeCityAction(self : Faction, r : System, u : Figure, then : ForcedAction) extends ForcedAction
-case class FreeCitySeazeAskAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
-case class FreeCitySeazeAction(self : Faction, then : ForcedAction) extends ForcedAction
+case class FreeCitySeizeAskAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class FreeCitySeizeAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class OutrageSpreadsAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
 
@@ -216,21 +214,6 @@ object CommonExpansion extends Expansion {
             else
                 Random[$[Faction]](game.setup./(f => game.setup.dropWhile(_ != f) ++ game.setup.takeWhile(_ != f)), PlayOrderAction(_))
 
-        case StartingInitiativeAction(f) =>
-            game.current = f
-
-            log("Old initiative roll")
-
-            game.seating = game.setup.dropWhile(_ != f) ++ game.setup.takeWhile(_ != f)
-
-            game.factions = game.seating
-
-            f.log("randomly took initiative")
-
-            log("Play order", factions.comma)
-
-            StartSetupAction
-
         case PlayOrderAction(l) =>
             game.seating = l
 
@@ -250,9 +233,6 @@ object CommonExpansion extends Expansion {
         case ShuffleCourtDiscardAction(then) =>
             discourt --> discourt.of[GuildCard] --> court
 
-            if (options.has(BadGuildStruggle))
-                discourt --> court
-
             if (chapter > 0)
                 log("Guild cards from court discard were added to the court deck")
 
@@ -262,9 +242,7 @@ object CommonExpansion extends Expansion {
             Shuffle[CourtCard](court, ShuffledCourtDeckAction(_, then))
 
         case ShuffledCourtDeckAction(l, then) =>
-            l.diff(court.$).foreach { c => game.log(c, "was not found in court deck".styled(xstyles.warning)) }
-
-            court --> l.intersect(court.$) --> court
+            court --> l --> court
 
             log("The court deck was shuffled")
 
@@ -318,15 +296,9 @@ object CommonExpansion extends Expansion {
             StartChapterAction
 
         // ADJUST
-        case AdjustResourcesAction(f, AdjustResourcesAction(ff, then)) if f == ff =>
-            AdjustResourcesAction(f, then)
-
-        case AdjustResourcesAction(f, then) =>
-            Force(AdjustingResourcesAction(f, f.resources, then))
-
-        case MultiAdjustResourcesAction(then) =>
+        case AdjustResourcesAction(then) =>
             if (factions.exists(_.adjust))
-                MultiAsk(factions.%(_.adjust)./~(f => game.internalPerform(AdjustingResourcesAction(f, f.resources, MultiAdjustResourcesAction(then)), NoVoid).as[Ask]))
+                MultiAsk(factions.%(_.adjust)./~(f => game.internalPerform(AdjustingResourcesAction(f, f.resources, AdjustResourcesAction(then)), NoVoid).as[Ask]))
             else
                 Milestone(then)
 
@@ -377,24 +349,8 @@ object CommonExpansion extends Expansion {
 
 //[[ GREENER
         // COURT
-        case FillSlotsMainAction(f, r, then) if options.has(BadFillResources) =>
-            if (f.resources.has(Nothingness)) {
-                if (game.available(r)) {
-                    f.gain(r, $)
-
-                    FillSlotsMainAction(f, r, then)
-                }
-                else
-                if (factions.but(f).exists(_.stealable(r)))
-                    StealResourceMainAction(f, |(r), $(), FillSlotsMainAction(f, r, then))
-                else
-                    then
-            }
-            else
-                then
-
         case FillSlotsMainAction(f, r, then) =>
-            val adjust = then.as[MultiAdjustResourcesAction].|(MultiAdjustResourcesAction(then))
+            val adjust = then.as[AdjustResourcesAction].|(AdjustResourcesAction(then))
 
             if (f.resources.has(Nothingness) || (f.resourceSlots > f.resources.num)) {
                 if (game.available(r)) {
@@ -429,7 +385,7 @@ object CommonExpansion extends Expansion {
 
             f.log("stole", ResourceRef(r, |(k)))
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         case StealGuildCardMainAction(f, alt, then) =>
             Ask(f).group("Steal".hl, "a", "Guild Card".hh)
@@ -494,7 +450,7 @@ object CommonExpansion extends Expansion {
             then
 
         case PressgangMainAction(f, x, then) =>
-            val done = (x == AlreadyPaid).?(AdjustResourcesAction(f, then).as("Done")).|(CancelAction)
+            val done = (x == AlreadyPaid).?(AdjustResourcesAction(then).as("Done")).|(CancelAction)
 
             implicit val convert = (u : Figure, selected : Boolean) => {
                 val prefix = selected.not.??(u.faction.?./(_.short.toLowerCase + "-").|(""))
@@ -613,12 +569,12 @@ object CommonExpansion extends Expansion {
 
             f.gain("fenced", Relic, $(x))
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         case GainResourcesAction(f, l, then) =>
             l.foreach { r => f.gain(r, $) }
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 //]]
 
 //[[ PINKER
@@ -677,17 +633,17 @@ object CommonExpansion extends Expansion {
 
             f.log("freed", u, "in", r)
 
-            AdjustResourcesAction(u.faction.as[Faction].get, FreeCitySeazeAskAction(f, then))
+            AdjustResourcesAction(FreeCitySeizeAskAction(f, then))
 
-        case FreeCitySeazeAskAction(f, then) =>
+        case FreeCitySeizeAskAction(f, then) =>
             if (game.seized.none && factions.first != f)
                 Ask(f).group("Initiative")
-                    .add(FreeCitySeazeAction(f, then).as("Seize".hl))
+                    .add(FreeCitySeizeAction(f, then).as("Seize".hl))
                     .skip(then)
             else
                 NoAsk(f)(then)
 
-        case FreeCitySeazeAction(f, then) =>
+        case FreeCitySeizeAction(f, then) =>
             game.seized = |(f)
 
             f.log("seized the initative")
@@ -745,7 +701,7 @@ object CommonExpansion extends Expansion {
         case TaxAction(f, x, r, c, loyal, then) =>
             var next = then
 
-            next = MultiAdjustResourcesAction(next)
+            next = AdjustResourcesAction(next)
 
             f.pay(x)
 
@@ -953,7 +909,7 @@ object CommonExpansion extends Expansion {
 
             f.log("stole", ResourceRef(x, |(k)))
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         case BattleRaidCourtCardAction(f, e, c, then) =>
             e.loyal --> c --> f.loyal
@@ -1218,7 +1174,7 @@ object CommonExpansion extends Expansion {
 
             f.gain("manufactured", Material, $(x))
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         // SYNTHESIZE
         case SynthesizeMainAction(f, x, then) =>
@@ -1226,7 +1182,7 @@ object CommonExpansion extends Expansion {
 
             f.gain("synthesized", Fuel, $(x))
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         // TRADE
         case TradeMainAction(f, x, then) =>
@@ -1257,7 +1213,7 @@ object CommonExpansion extends Expansion {
 
             e.gain("got back", r, $)
 
-            MultiAdjustResourcesAction(then)
+            AdjustResourcesAction(then)
 
         // WEAPON
         case AddBattleOptionAction(f, x, then) =>
@@ -1673,9 +1629,6 @@ object CommonExpansion extends Expansion {
                 if (game.seized.any)
                     game.seized.get
                 else
-                if (options.has(BadInitiativeTransferChapter(chapter))) // !!!! TODO REMOVE !!!!
-                    factions.%(_.played.single.exists(d => d.suit == lead.get.suit && d.strength >= zeroed.not.??(lead.get.strength))).starting.|(current)
-                else
                     factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
 
             log(DoubleLine)
@@ -1834,7 +1787,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            MultiAdjustResourcesAction(CheckWinAction)
+            AdjustResourcesAction(CheckWinAction)
 
         case GameOverAction(winner) =>
             val winners = $(winner)
