@@ -24,7 +24,9 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
 
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
+case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
+case object AncientHoldings   extends Lore("lore13", "Ancient Holdings")
 case object SurvivalOverrides extends Lore("lore18", "Survival Overrides")
 case object WarlordsCruelty   extends Lore("lore23", "Warlords Cruelty")
 
@@ -33,11 +35,13 @@ object Lores {
         MirrorPlating    ,
         HiddenHarbors    ,
         LivingStructures ,
+        AncientHoldings  ,
         SurvivalOverrides,
         WarlordsCruelty  ,
+        SignalBreaker    ,
     )
 
-    def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, SurvivalOverrides, WarlordsCruelty)
+    def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, AncientHoldings, SignalBreaker)
 }
 
 

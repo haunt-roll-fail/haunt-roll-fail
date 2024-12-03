@@ -177,6 +177,7 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("half-keys-1").scaled(12.5) ::
         ImageAsset("half-keys-2").scaled(12.5) ::
         ImageAsset("half-keys-3").scaled(12.5) ::
+        ImageAsset("half-keys-4").scaled(12.5) ::
         ImageAsset("card-back-small") ::
         ImageAsset("card-back-5") ::
         ImageAsset("b-glyph") ::

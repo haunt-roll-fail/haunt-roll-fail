@@ -593,8 +593,8 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     var power = 0
 
-    val keys : $[Int] = $(3, 1, 1, 2, 1, 3)
-    def resourceSlots = $(6, 6, 6, 4, 3, 2)(pooled(City))
+    var keys : $[Int] = $(3, 1, 1, 2, 1, 3)
+    def resourceSlots = $(6, 6, 6, 4, 3, 2)(pooled(City)) + lores.has(AncientHoldings).??(1)
 
     var resources : $[Resource] = $
     var spent : $[Resource] = $
