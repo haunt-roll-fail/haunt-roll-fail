@@ -799,7 +799,7 @@ object CommonExpansion extends Expansion {
 
         case BattleFactionAction(f, x, r, e, then) =>
             val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
-            val canRaid = e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not
+            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors).not || e.at(r).buildings.%(u => u.piece == Starport).diff(e.damaged).none)
             val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
             Ask(f).group(f, "battles", e, "in", r, x)
@@ -1107,7 +1107,7 @@ object CommonExpansion extends Expansion {
 
             val u = f.reserve --> Ship.of(f)
 
-            if (factions.but(f).exists(_.rules(r)))
+            if (factions.but(f).exists(_.rules(r)) && f.lores.has(HiddenHarbors).not)
                 f.damaged :+= u
 
             u --> r

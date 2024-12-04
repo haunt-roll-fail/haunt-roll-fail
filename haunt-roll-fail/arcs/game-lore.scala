@@ -49,8 +49,7 @@ object Lores {
         TycoonsCharm     ,
     )
 
-    // def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, AncientHoldings, SignalBreaker, TyrantsEgo)
-    def preset1 = $(WarlordsCruelty, LivingStructures, EmpathsVision, TycoonsCharm)
+    def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
 }
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
