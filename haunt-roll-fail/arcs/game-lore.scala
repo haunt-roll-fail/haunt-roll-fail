@@ -25,7 +25,10 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
+case object RepairDrones      extends Lore("lore06", "Repair Drones")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
+case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
+case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
 case object AncientHoldings   extends Lore("lore13", "Ancient Holdings")
 case object SurvivalOverrides extends Lore("lore18", "Survival Overrides")
 case object EmpathsVision     extends Lore("lore19", "Empath's Vision")
@@ -39,7 +42,10 @@ object Lores {
         MirrorPlating    ,
         HiddenHarbors    ,
         SignalBreaker    ,
+        RepairDrones     ,
         LivingStructures ,
+        RailgunArrays    ,
+        SeekerTorpedoes  ,
         AncientHoldings  ,
         SurvivalOverrides,
         EmpathsVision    ,
