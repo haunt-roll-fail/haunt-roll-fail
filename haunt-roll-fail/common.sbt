@@ -1,6 +1,6 @@
 name := "HRF"
 
-version := "0.8.110"
+version := "0.8.111"
 
 scalaVersion := "2.13.15"
 

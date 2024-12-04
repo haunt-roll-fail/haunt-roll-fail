@@ -226,7 +226,7 @@ object CommonExpansion extends Expansion {
 
             log("Play order", l.comma)
 
-            StartSetupAction
+            Milestone(StartSetupAction)
 
         case CourtSetupAction =>
             ShuffleCourtDiscardAction(ReplenishMarketAction(FactionsSetupAction))
@@ -732,7 +732,7 @@ object CommonExpansion extends Expansion {
             if (f.copy || f.pivot) {
                 $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
                     if (f.can(t))
-                        f.gain(r, $("from", t))
+                        f.gain(r, $("from", t.name.hh))
                 }
             }
 
@@ -759,7 +759,7 @@ object CommonExpansion extends Expansion {
             val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
 
             implicit val convert = (u : Figure, k : Int) => {
-                val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) + k
+                val status = damaged.has(u).??(1) + k
 
                 val prefix = (k < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
                 val suffix = (k == 1).??("-damaged") + (k == 2).??("-empty")
@@ -800,7 +800,7 @@ object CommonExpansion extends Expansion {
 
         case BattleFactionAction(f, x, r, e, then) =>
             val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
-            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors).not || e.at(r).buildings.starports.diff(e.damaged).none)
+            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors) && e.at(r).starports.fresh.any).not
             val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
             Ask(f).group(f, "battles", e, "in", r, x)
@@ -836,7 +836,7 @@ object CommonExpansion extends Expansion {
                     .skip(next)
             }
             else
-                NoAsk(f)(next)
+                Then(next)
 
         case SkirmishersAction(f, r, e, l1, l2, l3, q, then) =>
             Roll[$[BattleResult]](q.num.times(Skirmish.die), n => SkirmishersRolledAction(f, r, e, l1, l2, l3, q, n, then))
@@ -852,12 +852,12 @@ object CommonExpansion extends Expansion {
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
             val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
-            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.%(f.damaged.has(_)).none).$(Intersept)
+            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.damaged.none).$(Intersept)
 
             val l = (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp
 
             val sd = l.count(OwnDamage)
-            var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
+            var ic = l.has(Intersept).??(e.at(r).ships.fresh.num)
             val hs = l.count(HitShip)
             val bb = l.count(HitBuilding)
             val rd = l.count(RaidKey)
@@ -926,7 +926,7 @@ object CommonExpansion extends Expansion {
 
         case AssignHitsAction(self, r, f, e, l, hits, bombardments, raid, then) =>
             implicit val convert = (u : Figure, k : Int) => {
-                val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) + k
+                val status = u.damaged.??(1) + k
 
                 val prefix = (status < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
                 val suffix = (status == 1).??("-damaged") + (status == 2).??("-empty")
@@ -941,8 +941,8 @@ object CommonExpansion extends Expansion {
             var h = hits
             var b = bombardments
 
-            val ships = l.ships./(u => u.faction.as[Faction].?(_.damaged.has(u)).?(1).|(2)).sum
-            val buildings = l.buildings./(u => u.faction.as[Faction].?(_.damaged.has(u)).?(1).|(2)).sum
+            val ships = l.ships./(u => u.fresh.?(2).|(1)).sum
+            val buildings = l.buildings./(u => u.fresh.?(2).|(1)).sum
 
             if (h > ships) {
                 b = b + (h - ships)
@@ -957,7 +957,7 @@ object CommonExpansion extends Expansion {
                     .withGroup(f, "dealt", hits.hit, (bombardments > 0).?(("and", bombardments.hlb), "Bombardment".s(bombardments).styled(styles.hit)), "to", e, "in", r,
                         $(convert(Figure(e, City, 0), 1), convert(Figure(e, Starport, 0), 1), convert(Figure(e, Ship, 0), 1), convert(Figure(e, City, 0), 2), convert(Figure(e, Starport, 0), 2), convert(Figure(e, Ship, 0), 2)).merge.div(xstyles.displayNone))
                     .withRule(_.num(h + b).all(d => d.ships.num <= h && d.buildings.num <= b))
-                    .withMultipleSelects(u => 2 - e.damaged.has(u).??(1))
+                    .withMultipleSelects(_.fresh.??(2).|(1))
                     .withThen(d => DealHitsAction(self, r, f, e, d, raid, then))(_ => "Damage".hl)
                     .ask
             else
@@ -1127,7 +1127,7 @@ object CommonExpansion extends Expansion {
 
             Ask(f)
                 .group("Repair".hl)
-                .some(ll)(r => f.at(r).intersect(f.damaged)./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
+                .some(ll)(r => f.at(r).damaged./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
                 .cancel
 
         case RepairAction(f, x, r, u, then) =>
@@ -1518,15 +1518,13 @@ object CommonExpansion extends Expansion {
             if (f.can(FuelCartel))
                 + StealResourceMainAction(f, |(Fuel), $(CancelAction), DiscardCourtCardAction(f, FuelCartel, repeat)).as("Steal", ResourceRef(Fuel, None))(FuelCartel)
 
-            if (f.reserve.$.ships.any) {
-                if (f.can(Gatekeepers))
-                    + ShipAtEachGateMainAction(f, DiscardCourtCardAction(f, Gatekeepers, repeat)).as("Place", Ship.of(f), "at each gate")(Gatekeepers)
+            if (f.can(Gatekeepers))
+                + ShipAtEachGateMainAction(f, DiscardCourtCardAction(f, Gatekeepers, repeat)).as("Place", Ship.of(f), "at each gate")(Gatekeepers).!(f.pool(Ship).not, "no ships")
 
-                systems.%(r => f.rules(r)).some.foreach { l =>
-                    $(PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines).foreach { c =>
-                        if (f.can(c))
-                            + ShipsInSystemMainAction(f, l, DiscardCourtCardAction(f, c, repeat)).as("Place", 3.hlb, Ship.sof(f), "in a controlled system")(c)
-                    }
+            systems.%(r => f.rules(r)).some.foreach { l =>
+                $(PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines).foreach { c =>
+                    if (f.can(c))
+                        + ShipsInSystemMainAction(f, l, DiscardCourtCardAction(f, c, repeat)).as("Place", 3.hlb, Ship.sof(f), "in a controlled system")(c).!(f.pool(Ship).not, "no ships")
                 }
             }
 
@@ -1562,7 +1560,7 @@ object CommonExpansion extends Expansion {
                 (TycoonsCharm, $(Material, Fuel))   ,
             ).foreach { case (l, r) =>
                 if (f.lores.has(l)) {
-                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, repeat)).as("Clear", r, "outrage")(l)
+                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, repeat)).as("Clear", r, "outrage")(l).!(f.outraged.intersect(r).none)
                 }
             }
 

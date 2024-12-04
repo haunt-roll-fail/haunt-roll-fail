@@ -97,8 +97,9 @@ case class SomePieceOf(faction : Color, piece : Piece) extends PieceOf with Elem
 
 case class Figure(faction : Color, piece : Piece, index : Int) extends GameElementary {
     override def toString = "" + faction + "/" + piece + "/" + index
-    def sp = SomePieceOf(faction, piece)
-    def elem(implicit game : Game) = (faction.as[Faction]./~(_.damaged.has(this).?("Damaged ")).?? + faction.name + " " + piece.name).styled(faction)
+    def fresh(implicit game : Game) = faction.damaged.has(this).not
+    def damaged(implicit game : Game) = faction.damaged.has(this)
+    def elem(implicit game : Game) = (damaged.??("Damaged ") + faction.name + " " + piece.name).styled(faction)
 }
 
 
@@ -508,6 +509,9 @@ object Figure {
         def cities = l.%(u => u.piece == City)
         def starports = l.%(u => u.piece == Starport)
 
+        def fresh(implicit game : Game) = l.%(u => u.faction.damaged.has(u).not)
+        def damaged(implicit game : Game) = l.%(u => u.faction.damaged.has(u))
+
         def comma : $[Any] = l./~(e => $(Comma, e)).drop(1)
     }
 
@@ -593,8 +597,10 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     var power = 0
 
-    var keys : $[Int] = $(3, 1, 1, 2, 1, 3)
-    def resourceSlots = $(6, 6, 6, 4, 3, 2)(pooled(City)) + lores.has(AncientHoldings).??(1)
+    val cityKeys : $[Int] = $(3, 1, 1, 2, 1, 3)
+    var extraKeys : $[Int] = $
+    def keys = extraKeys ++ cityKeys
+    def resourceSlots = extraKeys.num + $(6, 6, 6, 4, 3, 2)(pooled(City))
 
     var resources : $[Resource] = $
     var spent : $[Resource] = $
