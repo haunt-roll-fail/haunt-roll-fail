@@ -799,13 +799,13 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def build(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + BuildMainAction(f, x, repeat).as("Build".styled(f), x)(group)
-            .!{
-                val ll = systems.%(f.present)
-                val bb = ll.%(c => freeSlots(c) > 0)
-                val ss = ll.%(f.at(_).hasA(Starport)).%(s => f.at(s).exists(u => u.piece == Starport && u.faction == f && f.built.has(u).not))
-                (bb.none || (f.pool(City).not && f.pool(Starport).not)) && ss.none
-            }
+        + BuildMainAction(f, x, repeat).as("Build".styled(f), x)(group).!!!
+            // .!{
+            //     val ll = systems.%(f.present)
+            //     val bb = ll.%(c => freeSlots(c) > 0)
+            //     val ss = ll.%(f.at(_).hasA(Starport)).%(s => f.at(s).exists(u => u.piece == Starport && u.faction == f && f.built.has(u).not))
+            //     (bb.none || (f.pool(City).not && f.pool(Starport).not)) && ss.none
+            // }
 
         if (f.loyal.has(MiningInterest)) {
             + ManufactureMainAction(f, x, repeat).as("Manufacture".styled(f), x)(group)
@@ -829,11 +829,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def move(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + MoveMainAction(f, x, repeat).as("Move".styled(f), x)(group)
+        + MoveMainAction(f, x, repeat).as("Move".styled(f), x)(group).!!!
     }
 
     def battle(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + BattleMainAction(f, x, repeat).as("Battle".styled(f), x)(group)
+        + BattleMainAction(f, x, repeat).as("Battle".styled(f), x)(group).!!!
 
         val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
 
@@ -857,7 +857,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def tax(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + TaxMainAction(f, x, repeat).as("Tax".styled(f), x)(group)
+        + TaxMainAction(f, x, repeat).as("Tax".styled(f), x)(group).!!!
 
         if (f.loyal.has(ElderBroker) && systems.exists(r => f.rules(r) && factions.but(f).exists(e => e.at(r).cities.any))) {
             + TradeMainAction(f, x, repeat).as("Trade".styled(f), x)(group)

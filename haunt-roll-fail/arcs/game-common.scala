@@ -81,9 +81,9 @@ case class BattleSystemAction(self : Faction, cost : Cost, r : System, then : Fo
 case class BattleFactionAction(self : Faction, cost : Cost, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class BattleDiceAction(self : Faction, cost : Cost, r : System, e : Faction, skirmish : Int, assault : Int, raid : Int, then : ForcedAction) extends ForcedAction
 case class BattleRolledAction(self : Faction, r : System, e : Faction, rolled1 : $[$[BattleResult]], rolled2 : $[$[BattleResult]], rolled3 : $[$[BattleResult]], then : ForcedAction) extends Rolled3Action[$[BattleResult], $[BattleResult], $[BattleResult]]
-case class SkirmishersAction(self : Faction, r : System, e : Faction, results : $[BattleResult], reroll : $[$[BattleResult]], then : ForcedAction) extends ForcedAction
-case class SkirmishersRolledAction(self : Faction, r : System, e : Faction, results : $[BattleResult], old : $[$[BattleResult]], rolled : $[$[BattleResult]], then : ForcedAction) extends RolledAction[$[BattleResult]]
-case class BattleProcessAction(self : Faction, r : System, e : Faction, results : $[BattleResult], then : ForcedAction) extends ForcedAction
+case class SkirmishersAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], then : ForcedAction) extends ForcedAction
+case class SkirmishersRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], then : ForcedAction) extends RolledAction[$[BattleResult]]
+case class BattleProcessAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], then : ForcedAction) extends ForcedAction
 case class BattleRaidAction(self : Faction, r : System, e : Faction, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, keys : Int, then : ForcedAction) extends ForcedAction
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
@@ -301,7 +301,7 @@ object CommonExpansion extends Expansion {
             if (factions.exists(_.adjust))
                 MultiAsk(factions.%(_.adjust)./~(f => game.internalPerform(AdjustingResourcesAction(f, f.resources, AdjustResourcesAction(then)), NoVoid).as[Ask]))
             else
-                Milestone(then)
+                Then(then)
 
         case AdjustingResourcesAction(f, ll, then) =>
             val kk = f.resourceSlots
@@ -821,10 +821,7 @@ object CommonExpansion extends Expansion {
                 l3./(x => Image("raid-die-" + (Raid.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))
             )
 
-            val mp = (e.lores.has(MirrorPlating) && l2.num > 0).$(Intersept)
-            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships == f.at(r).diff(f.damaged)).$(Intersept)
-
-            val next = BattleProcessAction(f, r, e, (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp, then)
+            val next = BattleProcessAction(f, r, e, l1, l2, l3, then)
 
             if (l1.any && f.loyal.has(Skirmishers)) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
@@ -835,25 +832,27 @@ object CommonExpansion extends Expansion {
                 val rerollable = 1.to(min(limit, misses)).reverse./(_.times(miss)) ++ 1.to(min(limit, hits))./(_.times(hit))
 
                 Ask(f).group(Skirmishers)
-                    .each(rerollable)(q => SkirmishersAction(f, r, e, (l1.diff(q) ++ l2 ++ l3).flatten, q, then).as("Reroll", q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
+                    .each(rerollable)(q => SkirmishersAction(f, r, e, l1.diff(q), l2, l3, q, then).as("Reroll", q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
                     .skip(next)
             }
             else
                 NoAsk(f)(next)
 
-        case SkirmishersAction(f, r, e, l, q, then) =>
-            Roll[$[BattleResult]](q.num.times(Skirmish.die), n => SkirmishersRolledAction(f, r, e, l, q, n, then))
+        case SkirmishersAction(f, r, e, l1, l2, l3, q, then) =>
+            Roll[$[BattleResult]](q.num.times(Skirmish.die), n => SkirmishersRolledAction(f, r, e, l1, l2, l3, q, n, then))
 
-        case SkirmishersRolledAction(f, r, e, l, q, n, then) =>
+        case SkirmishersRolledAction(f, r, e, l1, l2, l3, q, n, then) =>
             f.log("rerolled",
                 q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
                 "to",
                 n./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
                 "with", Skirmishers)
 
-            BattleProcessAction(f, r, e, l ++ n.flatten, then)
+            BattleProcessAction(f, r, e, l1 ++ n, l2, l3, then)
 
-        case BattleProcessAction(f, r, e, l, then) =>
+        case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
+            val l = (l1 ++ l2 ++ l3).flatten
+
             val sd = l.count(OwnDamage)
             var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
             val hs = l.count(HitShip)
@@ -1268,7 +1267,7 @@ object CommonExpansion extends Expansion {
                 f.log("drew", 6.cards)
             }
 
-            StartRoundAction
+            Milestone(StartRoundAction)
 
         case StartRoundAction =>
             log(DoubleLine)
@@ -1278,10 +1277,13 @@ object CommonExpansion extends Expansion {
             LeadMainAction(factions.first)
 
         case LeadMainAction(f) =>
-            YYSelectObjectsAction(f, f.hand)
-                .withGroup(f.elem ~ " leads")
-                .withThen(LeadAction(f, _))("Play " ~ _.elem)("Play")
-                .withExtras(NoHand, PassAction(f).as("Pass".hh))
+            if (f.hand.none)
+                NoAsk(f)(PassAction(f))
+            else
+                YYSelectObjectsAction(f, f.hand)
+                    .withGroup(f.elem ~ " leads")
+                    .withThen(LeadAction(f, _))("Play " ~ _.elem)("Play")
+                    .withExtras(NoHand, PassAction(f).as("Pass".hh))
 
         case PassAction(f) =>
             if (f.hand.any)
@@ -1290,14 +1292,14 @@ object CommonExpansion extends Expansion {
             if (game.passed >= factions.%(_.hand.any).num) {
                 f.log("passed")
 
-                EndChapterAction
+                Milestone(EndChapterAction)
             }
             else {
                 game.factions = factions.drop(1).dropWhile(_.hand.none) ++ factions.take(1) ++ factions.drop(1).takeWhile(_.hand.none)
 
                 f.log("passed initative to", factions.first)
 
-                StartRoundAction
+                Milestone(StartRoundAction)
             }
 
         case LeadAction(f, d) =>
@@ -1362,8 +1364,6 @@ object CommonExpansion extends Expansion {
                 .withExtras(NoHand)
 
         case SurpassAction(f, d) =>
-            log(SingleLine)
-
             f.log("surpassed with", d)
 
             f.hand --> d --> f.played
@@ -1381,8 +1381,6 @@ object CommonExpansion extends Expansion {
             CheckSeizeAction(f, PreludeActionAction(f, d.suit, d.pips))
 
         case CopyAction(f, d) =>
-            log(SingleLine)
-
             f.log("copied with a card")
 
             f.hand --> d --> f.blind
@@ -1393,8 +1391,6 @@ object CommonExpansion extends Expansion {
             CheckSeizeAction(f, PreludeActionAction(f, lead.get.suit, 1))
 
         case PivotAction(f, d) =>
-            log(SingleLine)
-
             f.log("pivoted with", d)
 
             f.hand --> d --> f.played
@@ -1618,6 +1614,8 @@ object CommonExpansion extends Expansion {
             f.used = $
             f.anyBattle = false
 
+            log(SingleLine)
+
             val next = factions.dropWhile(_ != f).drop(1).%(_.hand.any).starting
 
             if (next.any) {
@@ -1647,16 +1645,12 @@ object CommonExpansion extends Expansion {
 
             Milestone(TransferRoundAction)
 
-            TransferRoundAction
-
         case TransferRoundAction =>
             val next =
                 if (game.seized.any)
                     game.seized.get
                 else
                     factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
-
-            log(DoubleLine)
 
             if (next != current)
                 next.log("took the initiative")
@@ -1684,9 +1678,9 @@ object CommonExpansion extends Expansion {
             game.seized = None
 
             if (factions.exists(_.hand.any))
-                StartRoundAction
+                Milestone(StartRoundAction)
             else
-                EndChapterAction
+                Milestone(EndChapterAction)
 
         case EndChapterAction =>
             factions.foreach { f =>
