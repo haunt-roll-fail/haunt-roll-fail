@@ -726,8 +726,6 @@ object CommonExpansion extends Expansion {
             next
 
         case TaxBonusAction(f, then) =>
-            var next = then
-
             if (f.copy || f.pivot) {
                 $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
                     if (f.can(t))
@@ -735,7 +733,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            next
+            then
 
         // MOVE
         case MoveMainAction(f, x, then) =>
@@ -820,10 +818,10 @@ object CommonExpansion extends Expansion {
                 l3./(x => Image("raid-die-" + (Raid.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))
             )
 
-            val mp = (e.lores.has(MirrorPlating) && l2.num > 0).$($(Intersept))
+            val mp = (e.lores.has(MirrorPlating) && l2.num > 0).$(Intersept)
             val sb = (f.lores.has(SignalBreaker) && f.at(r).ships == f.at(r).diff(f.damaged)).$(Intersept)
 
-            val next = BattleProcessAction(f, r, e, (l1 ++ l2 ++ l3 ++ mp).flatten.diff(sb), then)
+            val next = BattleProcessAction(f, r, e, (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp, then)
 
             if (l1.any && f.loyal.has(Skirmishers)) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
