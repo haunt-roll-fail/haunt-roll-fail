@@ -694,9 +694,11 @@ object CommonExpansion extends Expansion {
         case TaxMainAction(f, x, then) =>
             val g = "Tax".hl
 
+            val wc = f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)
+
             Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
+                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
                 .cancel
 
         case TaxAction(f, x, r, c, loyal, then) =>
@@ -708,8 +710,7 @@ object CommonExpansion extends Expansion {
 
             f.log("taxed", c, "in", r, x)
 
-            if ((f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)).not)
-                f.taxed :+= c
+            f.taxed :+= c
 
             if (loyal.not)
                 c.faction.as[Faction].but(f).foreach { e =>
@@ -799,7 +800,7 @@ object CommonExpansion extends Expansion {
 
         case BattleFactionAction(f, x, r, e, then) =>
             val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
-            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors).not || e.at(r).buildings.%(u => u.piece == Starport).diff(e.damaged).none)
+            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors).not || e.at(r).buildings.starports.diff(e.damaged).none)
             val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
             Ask(f).group(f, "battles", e, "in", r, x)
