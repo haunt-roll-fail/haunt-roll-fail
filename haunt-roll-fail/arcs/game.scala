@@ -593,8 +593,8 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     var power = 0
 
-    val keys : $[Int] = $(3, 1, 1, 2, 1, 3)
-    def resourceSlots = $(6, 6, 6, 4, 3, 2)(pooled(City))
+    var keys : $[Int] = $(3, 1, 1, 2, 1, 3)
+    def resourceSlots = $(6, 6, 6, 4, 3, 2)(pooled(City)) + lores.has(AncientHoldings).??(1)
 
     var resources : $[Resource] = $
     var spent : $[Resource] = $
@@ -817,6 +817,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
             + PressgangMainAction(f, x, repeat).as("Press Gang".styled(f), x)(group)
+        }
+
+        if (f.lores.has(LivingStructures)) {
+            + NurtureMainAction(f, x, repeat).as("Nurture".styled(f), x)(group)
         }
     }
 

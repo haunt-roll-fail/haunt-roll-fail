@@ -92,6 +92,7 @@ case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard,
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], raid : Int, then : ForcedAction) extends ForcedAction
 case class OutrageAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
+case class ClearOutrageAction(self : Faction, r : $[Resource], then : ForcedAction) extends ForcedAction
 case class RansackMainAction(self : Faction, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class RansackAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
 
@@ -693,9 +694,11 @@ object CommonExpansion extends Expansion {
         case TaxMainAction(f, x, then) =>
             val g = "Tax".hl
 
+            val wc = f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)
+
             Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed"))))
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
+                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
                 .cancel
 
         case TaxAction(f, x, r, c, loyal, then) =>
@@ -726,8 +729,6 @@ object CommonExpansion extends Expansion {
             next
 
         case TaxBonusAction(f, then) =>
-            var next = then
-
             if (f.copy || f.pivot) {
                 $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon)).foreach { case (t, r) =>
                     if (f.can(t))
@@ -735,7 +736,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            next
+            then
 
         // MOVE
         case MoveMainAction(f, x, then) =>
@@ -799,7 +800,7 @@ object CommonExpansion extends Expansion {
 
         case BattleFactionAction(f, x, r, e, then) =>
             val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
-            val canRaid = e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not
+            val canRaid = (e.at(r).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors).not || e.at(r).buildings.starports.diff(e.damaged).none)
             val combinations : $[(Int, Int, Int)] = 1.to(ships).reverse./~(n => 0.to(min(canRaid.??(6), n))./~(raid => 0.to(min(6, n - raid))./~(assault => |(n - raid - assault).%(_ <= 6)./((_, assault, raid)))))
 
             Ask(f).group(f, "battles", e, "in", r, x)
@@ -850,7 +851,10 @@ object CommonExpansion extends Expansion {
             BattleProcessAction(f, r, e, l1 ++ n, l2, l3, then)
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
-            val l = (l1 ++ l2 ++ l3).flatten
+            val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
+            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.%(f.damaged.has(_)).none).$(Intersept)
+
+            val l = (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp
 
             val sd = l.count(OwnDamage)
             var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
@@ -1026,6 +1030,15 @@ object CommonExpansion extends Expansion {
 
             then
 
+        case ClearOutrageAction(f, r, then) =>
+            r.foreach { c =>
+                f.outraged :-= c
+
+                f.log("cleared", c, "outrage")
+            }
+
+            then
+
         case RansackMainAction(f, e, then) =>
             Ask(f).group("Ransack".hl)
                 .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c))
@@ -1097,7 +1110,7 @@ object CommonExpansion extends Expansion {
 
             val u = f.reserve --> Ship.of(f)
 
-            if (factions.but(f).exists(_.rules(r)))
+            if (factions.but(f).exists(_.rules(r)) && f.lores.has(HiddenHarbors).not)
                 f.damaged :+= u
 
             u --> r
@@ -1539,6 +1552,18 @@ object CommonExpansion extends Expansion {
 
             if (f.can(ElderBroker) && (game.available(Material) || game.available(Fuel) || game.available(Weapon))) {
                 + GainResourcesAction(f, $(Material, Fuel, Weapon), DiscardCourtCardAction(f, ElderBroker, repeat)).as("Gain", ResourceRef(Material, None), ResourceRef(Fuel, None), ResourceRef(Weapon, None))(ElderBroker)
+            }
+
+            $(
+                (WarlordsCruelty, $(Weapon))        ,
+                (TyrantsEgo, $(Weapon))             ,
+                (KeepersTrust, $(Relic))            ,
+                (EmpathsVision, $(Psionic))         ,
+                (TycoonsCharm, $(Material, Fuel))   ,
+            ).foreach { case (l, r) =>
+                if (f.lores.has(l)) {
+                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, repeat)).as("Clear", r, "outrage")(l)
+                }
             }
 
             + EndPreludeAction(f, s, 0, p).as("End Prelude")(" ")
