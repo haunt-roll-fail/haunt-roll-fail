@@ -54,9 +54,6 @@ object Lores {
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
 case class NurtureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
-// case class NurtureAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
-
-
 
 object LoreExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -73,24 +70,6 @@ object LoreExpansion extends Expansion {
             Ask(f).group(g)
                 .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
                 .cancel
-
-        // case NurtureAction(f, x, r, c, loral, then) =>
-        //     var next = then
-
-        //     next = AdjustResourcesAction(next)
-
-        //     f.pay(x)
-
-        //     f.log("taxed", c, "in", r, x)
-
-        //     f.taxed :+= c
-
-        //     f.gain(board.resource(r), $)
-
-        //     if (x == Pip)
-        //         next = TaxBonusAction(f, next)
-
-        //     next
 
 
         case _ => UnknownContinue

@@ -818,6 +818,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
             + PressgangMainAction(f, x, repeat).as("Press Gang".styled(f), x)(group)
         }
+
+        if (f.lores.has(LivingStructures)) {
+            + NurtureMainAction(f, x, repeat).as("Nurture".styled(f), x)(group)
+        }
     }
 
     def repair(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
