@@ -138,6 +138,10 @@ trait Gaming extends Timelines {
             case a : Cancel => CancelAction
             case a => a
         }
+        def wrap : UserAction = this @@ {
+            case a : UserAction => a
+            case a : ForcedAction => DoAction(a)
+        }
     }
 
     trait ExpandCheck { self : Action =>
@@ -152,7 +156,6 @@ trait Gaming extends Timelines {
     trait ForcedAction extends Action with ActionClass[ForcedAction]
 
     implicit class ForcedActionEx(val action : ForcedAction) {
-        def wrap = DoAction(action)
         def as(q : (G => Elem)*) = WrapAction(action)(q : _*)
         def as[U : ClassTag] : |[U] = Some(action).collect({ case m : U => m })
         def view[T](obj : T)(view : T => Any) = WrapViewAction(obj, action)(view)
@@ -245,6 +248,8 @@ trait Gaming extends Timelines {
         def option(implicit g : G) : Elem
         def unary_+(implicit builder : ActionCollector) = builder.add(this)
     }
+
+    case object DummyUserAction extends ElemAction(Empty)(Empty) with Choice
 
     trait Info extends UserAction with UserActionClass[Info] {
         override def canExpandTo(a : Action) : Boolean = false
@@ -455,7 +460,11 @@ trait Gaming extends Timelines {
         case object Temp extends LogKind
     }
 
-    case class Milestone(message : String, then : ForcedAction) extends Continue
+    case class Milestone(message : String, then : ForcedAction) extends Continue {
+        require(then.isSoft.not, "milestone soft action " + then)
+    }
+
+    case class Then(then : Action) extends Continue
 
     object Milestone {
         def apply(then : ForcedAction) : Milestone = Milestone("", then)
@@ -579,6 +588,11 @@ trait Gaming extends Timelines {
         val voiding = new scala.util.control.Breaks
 
         def performRaw(action : Action, void : Boolean) : PerformResult = {
+            val soft = action.isSoft
+
+            if (soft && void)
+                return PerformResult(UnknownContinue, $)
+
             try {
                 val a = action.unwrap
 
@@ -594,6 +608,10 @@ trait Gaming extends Timelines {
 
                     c = loggedPerform(a, break)
                 }
+
+
+                if (soft || logging.not)
+                    return PerformResult(c, $)
 
                 val ll = logs.reverse
                 logs = $
@@ -871,15 +889,16 @@ trait Gaming extends Timelines {
             case _ if action.unwrap.is[OutOfTurn] => true
             case Force(x) if action == x => true
             case Milestone(_, x) if action == x || action.unwrap == x.unwrap => true
+            case Then(x) => validate(Ask(null.asInstanceOf[F], $(x.wrap)), action, expandAll)
             case DelayedContinue(_, c) => validate(c, action, expandAll)
             case Log(_, _, c) => validate(c, action, expandAll)
             case MultiAsk(l) => l.exists(ask => validate(ask, action, expandAll))
-            case Ask(f, l) if l.contains(action) => true
-            case Ask(f, l) if {
+            case Ask(_, l) if l.contains(action) => true
+            case Ask(_, l) if {
                 val aa = action.unwrap
                 l.exists(_.unwrap == aa)
             } => true
-            case ask @ Ask(f, l : $[UserAction]) if {
+            case ask @ Ask(_, l : $[UserAction]) if {
                 val aa = action.unwrap
                 val ll = expandAll.?(l).|(l.%(_.canExpandTo(aa)))
 
@@ -1015,11 +1034,12 @@ trait Gaming extends Timelines {
         def !!!(implicit g : G) = a @@ {
             case a : Choice if a.isSoft.not => throw new Error("!!! on non-soft action")
             case a : Choice if a.isSoft =>
-                g.explode($(a), false, None).%{
+                g.explode($(a, DummyUserAction), false, None).%{
                     case i : Info => false
                     case i : Hidden => false
+                    case i : DummyUserAction.type => false
                     case _ => true
-                }.any.?(a).|(UnavailableReasonAction(a, "that's like, not possible, man"))
+                }.any.?(a).|(UnavailableReasonAction(a, ""))
             case _ => a
         }
     }

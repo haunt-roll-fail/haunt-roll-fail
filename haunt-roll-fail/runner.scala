@@ -653,6 +653,13 @@ object Runner {
                     dirty = true
                     UIRecord(message, c, then.wrap)
 
+                case UIContinue(c @ Then(then), Nil) if then.isSoft =>
+                    UIPerform(then, $)
+
+                case UIContinue(c @ Then(then), Nil) =>
+                    dirty = true
+                    UIRecord("#then", c, then.wrap)
+
                 case UIContinue(c @ GameOver(w, m, l), Nil) =>
                     dirty = true
 
