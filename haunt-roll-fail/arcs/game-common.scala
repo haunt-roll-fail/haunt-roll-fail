@@ -851,7 +851,10 @@ object CommonExpansion extends Expansion {
             BattleProcessAction(f, r, e, l1 ++ n, l2, l3, then)
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
-            val l = (l1 ++ l2 ++ l3).flatten
+            val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
+            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.%(f.damaged.has(_)).none).$(Intersept)
+
+            val l = (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp
 
             val sd = l.count(OwnDamage)
             var ic = l.has(Intersept).??(e.at(r).ships.diff(e.damaged).num)
