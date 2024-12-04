@@ -28,25 +28,73 @@ case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
 case object AncientHoldings   extends Lore("lore13", "Ancient Holdings")
 case object SurvivalOverrides extends Lore("lore18", "Survival Overrides")
-case object WarlordsCruelty   extends Lore("lore23", "Warlords Cruelty")
+case object EmpathsVision     extends Lore("lore19", "Empath's Vision")
+case object KeepersTrust      extends Lore("lore21", "Keeper's Trust")
+case object WarlordsCruelty   extends Lore("lore23", "Warlord's Cruelty")
+case object TyrantsEgo        extends Lore("lore25", "Tyrant's Ego")
+case object TycoonsCharm      extends Lore("lore28", "Tycoon's Charm")
 
 object Lores {
     def all = $(
         MirrorPlating    ,
         HiddenHarbors    ,
+        SignalBreaker    ,
         LivingStructures ,
         AncientHoldings  ,
         SurvivalOverrides,
+        EmpathsVision    ,
+        KeepersTrust     ,
         WarlordsCruelty  ,
-        SignalBreaker    ,
+        TyrantsEgo       ,
+        TycoonsCharm     ,
     )
 
-    def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, AncientHoldings, SignalBreaker)
+    // def preset1 = $(MirrorPlating, HiddenHarbors, LivingStructures, AncientHoldings, SignalBreaker, TyrantsEgo)
+    def preset1 = $(WarlordsCruelty, LivingStructures, EmpathsVision, TycoonsCharm)
 }
+
+case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
+case class NurtureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+// case class NurtureAction(self : Faction, cost : Cost, r : System, c : Figure, loyal : Boolean, then : ForcedAction) extends ForcedAction
+
 
 
 object LoreExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
+        case DiscardLoreCardAction(f, c, then) =>
+            f.lores :-= c
+
+            f.log("discarded", c)
+
+            then
+
+        case NurtureMainAction(f, x, then) =>
+            val g = "Tax".hl
+
+            Ask(f).group(g)
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
+                .cancel
+
+        // case NurtureAction(f, x, r, c, loral, then) =>
+        //     var next = then
+
+        //     next = AdjustResourcesAction(next)
+
+        //     f.pay(x)
+
+        //     f.log("taxed", c, "in", r, x)
+
+        //     f.taxed :+= c
+
+        //     f.gain(board.resource(r), $)
+
+        //     if (x == Pip)
+        //         next = TaxBonusAction(f, next)
+
+        //     next
+
+
         case _ => UnknownContinue
     }
 }
+

@@ -92,6 +92,7 @@ case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard,
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], raid : Int, then : ForcedAction) extends ForcedAction
 case class OutrageAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
+case class ClearOutrageAction(self : Faction, r : $[Resource], then : ForcedAction) extends ForcedAction
 case class RansackMainAction(self : Faction, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class RansackAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
 
@@ -707,7 +708,8 @@ object CommonExpansion extends Expansion {
 
             f.log("taxed", c, "in", r, x)
 
-            f.taxed :+= c
+            if ((f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)).not)
+                f.taxed :+= c
 
             if (loyal.not)
                 c.faction.as[Faction].but(f).foreach { e =>
@@ -1021,6 +1023,15 @@ object CommonExpansion extends Expansion {
 
                     f.log("discarded", c)
                 }
+            }
+
+            then
+
+        case ClearOutrageAction(f, r, then) =>
+            r.foreach { c =>
+                f.outraged :-= c
+
+                f.log("cleared", c, "outrage")
             }
 
             then
@@ -1541,6 +1552,18 @@ object CommonExpansion extends Expansion {
 
             if (f.can(ElderBroker) && (game.available(Material) || game.available(Fuel) || game.available(Weapon))) {
                 + GainResourcesAction(f, $(Material, Fuel, Weapon), DiscardCourtCardAction(f, ElderBroker, repeat)).as("Gain", ResourceRef(Material, None), ResourceRef(Fuel, None), ResourceRef(Weapon, None))(ElderBroker)
+            }
+
+            $(
+                (WarlordsCruelty, $(Weapon))        ,
+                (TyrantsEgo, $(Weapon))             ,
+                (KeepersTrust, $(Relic))            ,
+                (EmpathsVision, $(Psionic))         ,
+                (TycoonsCharm, $(Material, Fuel))   ,
+            ).foreach { case (l, r) =>
+                if (f.lores.has(l)) {
+                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, repeat)).as("Clear", r, "outrage")(l)
+                }
             }
 
             + EndPreludeAction(f, s, 0, p).as("End Prelude")(" ")
