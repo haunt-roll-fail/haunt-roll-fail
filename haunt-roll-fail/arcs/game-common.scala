@@ -87,6 +87,7 @@ case class BattleProcessAction(self : Faction, r : System, e : Faction, skirmish
 case class BattleRaidAction(self : Faction, r : System, e : Faction, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, keys : Int, then : ForcedAction) extends ForcedAction
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
+case class BattleAfterAction(self : Faction, f : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 
 
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
@@ -229,6 +230,7 @@ object CommonExpansion extends Expansion {
             StartSetupAction
 
         case CourtSetupAction =>
+            println("CourtSetupAction")
             ShuffleCourtDiscardAction(ReplenishMarketAction(FactionsSetupAction))
 
         case ShuffleCourtDiscardAction(then) =>
@@ -795,7 +797,7 @@ object CommonExpansion extends Expansion {
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
-                .each(factions.but(f).%(_.present(r)))(e => BattleFactionAction(f, x, r, e, then).as(e))
+                .each(factions.but(f).%(_.present(r)))(e => BattleFactionAction(f, x, r, e, BattleAfterAction(f, f, r, e, then)).as(e))
                 .cancel
 
         case BattleFactionAction(f, x, r, e, then) =>
@@ -958,6 +960,7 @@ object CommonExpansion extends Expansion {
                         $(convert(Figure(e, City, 0), 1), convert(Figure(e, Starport, 0), 1), convert(Figure(e, Ship, 0), 1), convert(Figure(e, City, 0), 2), convert(Figure(e, Starport, 0), 2), convert(Figure(e, Ship, 0), 2)).merge.div(xstyles.displayNone))
                     .withRule(_.num(h + b).all(d => d.ships.num <= h && d.buildings.num <= b))
                     .withMultipleSelects(u => 2 - e.damaged.has(u).??(1))
+                    // .withThen(d => DealHitsAction(self, r, f, e, d, raid, BattleAfterAction(self, f, r, e, then)))(_ => "Damage".hl)
                     .withThen(d => DealHitsAction(self, r, f, e, d, raid, then))(_ => "Damage".hl)
                     .ask
             else
@@ -965,6 +968,7 @@ object CommonExpansion extends Expansion {
                 NoAsk(self)(BattleRaidAction(f, r, e, raid, then))
             else
                 NoAsk(self)(then)
+                // NoAsk(self)(BattleAfterAction(self, f, r, e, then))
 
         case DealHitsAction(self, r, f, e, l, k, then) =>
             val dd = e.damaged ++ l
@@ -1001,7 +1005,48 @@ object CommonExpansion extends Expansion {
                 next = OutrageAction(f, board.resource(r), next)
             }
 
+            // BattleAfterAction(self, f, r, e, next)
             next
+
+        case BattleAfterAction(self, f, r, e, then) =>
+            val rp = 2
+
+            // Ask(f).group(f, "repairs ships in", r)
+            //     .each(f.at(r).ships.%(_.faction == f).%(f.damaged.has).$)(u => RepairAction(f, rp, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r))
+            //     .cancel
+
+            implicit val convert = (u : Figure, k : Int) => {
+                val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) - k
+
+                val prefix = (status < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
+                val suffix = (status == 1).??("-damaged") + (status == 2).??("-empty")
+
+                u.piece match {
+                    case City => Image(prefix + "city" + suffix, styles.qbuilding)
+                    case Starport => Image(prefix + "starport" + suffix, styles.qbuilding)
+                    case Ship => Image(prefix + "ship" + suffix, styles.qship)
+                }
+            }
+
+            if (rp > 0)
+                XXSelectObjectsAction(self, self.damaged)
+                .withGroup(f, "repairs ships in", r,
+                $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
+                .withRule(_.num(rp).all(d => d.ships.num <= rp))
+                // .withMultipleSelects(u => 1)                // .withThen(rr => then)(_ => "Repair")
+                .withThen(rr => then)(_ => "Repair")
+                .withExtras(then.as("Skip"))
+                .ask
+            else
+                NoAsk(f)(then)
+
+            // if (f.can(Reckless))
+            //     Ask(f).group("Reckless")
+            //         .add(RecklessAction(f, then).as(Reckless))
+            //         .skip(then)
+            // else
+            //     NoAsk(f)(then)
+            // then
 
         case OutrageAction(f, r, then) =>
             if (f.outraged.has(r).not) {

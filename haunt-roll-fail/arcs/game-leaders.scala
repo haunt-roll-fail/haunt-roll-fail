@@ -37,6 +37,9 @@ case object Paranoid extends LeaderEffect
 case object Firebrand extends LeaderEffect
 case object Irregular extends LeaderEffect
 
+case object Resilient extends LeaderEffect
+case object Greedy extends LeaderEffect
+
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
     def elem = name.styled(styles.title).hl
@@ -58,7 +61,7 @@ case object Noble         extends Leader("leader12", "Noble",         $(), $(Psi
 case object Anarchist     extends Leader("leader13", "Anarchist",     $, $, $, $, $)
 case object Shaper        extends Leader("leader14", "Shaper",        $, $, $, $, $)
 case object Agitator      extends Leader("leader15", "Agitator",      $(Firebrand, Irregular), $(Fuel, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship))
-case object Quartermaster extends Leader("leader16", "Quartermaster", $, $, $, $, $)
+case object Quartermaster extends Leader("leader16", "Quartermaster", $(Resilient, Greedy), $(Fuel, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
 
 
 object Leaders {
@@ -81,7 +84,8 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator)
+    // def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator, Quartermaster)
+    def preset1 = $(Elder, Mystic, FuelDrinker, Quartermaster)
 }
 
 
