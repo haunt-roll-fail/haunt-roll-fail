@@ -71,7 +71,7 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
                 true |=> -appraise(cost) -> "cost"
 
                 val own = Influence(c).$.%(_.faction == f).num
-                val enemy = factions.but(f)./(e => Influence(c).$.%(_.faction == e).num).max
+                val enemy = f.rivals./(e => Influence(c).$.%(_.faction == e).num).max
 
                 enemy - own ==  1 |=> 100 -> "even out"
                 enemy - own ==  0 |=> 150 -> "break out"

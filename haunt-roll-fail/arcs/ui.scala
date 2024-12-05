@@ -442,15 +442,11 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             ).&
         ).div
 
-        val tr = f.trophies./(_.sp)
-
-        val trophies = tr./( u =>
+        val trophies = f.trophies./( u =>
             Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.building).|(styles.ship))
         )./(_.&).join(" ").div
 
-        val cp = f.captives./(_.sp)
-
-        val captives = cp./( u =>
+        val captives = f.captives./( u =>
             Image(u.faction.short + "-" + u.piece.name, u.piece.is[Building].?(styles.building).|(styles.ship))
         )./(_.&).join(" ").div
 

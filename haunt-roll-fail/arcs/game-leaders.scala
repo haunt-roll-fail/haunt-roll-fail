@@ -84,8 +84,9 @@ object Leaders {
         Quartermaster ,
     )
 
-    // def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator, Quartermaster)
-    def preset1 = $(Elder, Mystic, FuelDrinker, Quartermaster)
+    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
+    def preset2 = $(Agitator)
+    def preset3 = $()
 }
 
 
@@ -130,6 +131,8 @@ object LeadersExpansion extends Expansion {
                     case Left(l) => l.img
                     case Right(l) => l.img
                 }
+
+                game.current = f
 
                 YYSelectObjectsAction(f, game.leaders./(Left(_)) ++ game.lores./(Right(_)))
                     .withGroup("Leaders and Lores".hl)
@@ -196,8 +199,10 @@ object LeadersExpansion extends Expansion {
                 if (f.can(Cryptic))
                     f.outraged ++= $(Material, Fuel)
 
-                if (f.lores.has(AncientHoldings))
-                    f.keys = $(3, 1, 4, 1, 2, 1, 3)
+                if (f.can(AncientHoldings)) {
+                    f.extraKeys = $(4) ++ f.extraKeys
+                    f.resources = $(Nothingness) ++ f.resources
+                }
             }
 
             StartChapterAction
