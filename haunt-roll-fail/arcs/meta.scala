@@ -32,6 +32,14 @@ case object LeadersAndLorePreset1 extends LeadersAndLoreOption {
     val valueOn = "Preset".hh ~ " " ~ "#1".hlb
 }
 
+case object LeadersAndLorePreset2 extends LeadersAndLoreOption {
+    val valueOn = "Preset".hh ~ " " ~ "#2".hlb
+}
+
+case object LeadersAndLorePreset3 extends LeadersAndLoreOption {
+    val valueOn = "Preset".hh ~ " " ~ "#3".hlb
+}
+
 trait CampaignOption extends GameOption with ImportantOption {
     val group = "Campaign Mode".hh
     override def blocked(all : $[BaseOption]) = all.of[LeadersAndLoreOption]./($(_))
@@ -82,7 +90,7 @@ object Meta extends MetaGame { mmm =>
 
     override val hiddenOptions = $
 
-    val options = $(NoFate) ++ $(LeadersAndLorePreset1) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
+    val options = $(NoFate) ++ $(LeadersAndLorePreset1, LeadersAndLorePreset2, LeadersAndLorePreset3) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
 
     override val gradualFactions : Boolean = true
 

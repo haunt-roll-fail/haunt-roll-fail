@@ -537,6 +537,50 @@ trait BuildKey extends Key {
 trait SoftKeys
 
 
+trait GameImplicits {
+    implicit def factionToState(f : Faction)(implicit game : Game) : FactionState = game.states(f).as[FactionState].get
+    implicit def blightsToState(f : Blights.type)(implicit game : Game) : BlightsState = game.states(f).as[BlightsState].get
+    implicit def empireToState(f : Empire.type)(implicit game : Game) : EmpireState = game.states(f).as[EmpireState].get
+    implicit def freeToState(f : Free.type)(implicit game : Game) : FreeState = game.states(f).as[FreeState].get
+    implicit def colorToState(f : Color)(implicit game : Game) : ColorState = game.states(f)
+    implicit def regionToContent(r : Region)(implicit game : Game) : $[Figure] = game.figures.get(r)
+    implicit def cardLocationToContent(r : DeckCardLocation)(implicit game : Game) : $[DeckCard] = game.cards.get(r)
+    implicit def courtLocationToContent(r : CourtLocation)(implicit game : Game) : $[CourtCard] = game.courtiers.get(r)
+
+    def log(s : Any*)(implicit game : Game) {
+        game.log(s : _*)
+    }
+
+    implicit class FactionEx(f : Color)(implicit game : Game) {
+        def log(s : Any*) { if (game.logging) game.log((f +: s.$) : _*) }
+    }
+
+    implicit def descCard(g : Game, d : DeckCard) = d.img
+
+    def options(implicit game : Game) = game.options
+    def colors(implicit game : Game) = game.colors
+    def factions(implicit game : Game) = game.factions
+    def board(implicit game : Game) = game.board
+    def systems(implicit game : Game) = game.board.systems
+    def current(implicit game : Game) = game.current
+    def campaign(implicit game : Game) = game.campaign
+    def chapter(implicit game : Game) = game.chapter
+    def round(implicit game : Game) = game.round
+    def market(implicit game : Game) = game.market
+    def court(implicit game : Game) = game.court
+    def discourt(implicit game : Game) = game.discourt
+    def deck(implicit game : Game) = game.deck
+    def discard(implicit game : Game) = game.discard
+    def lead(implicit game : Game) = game.lead
+    def zeroed(implicit game : Game) = game.zeroed
+    def seized(implicit game : Game) = game.seized
+
+
+    implicit def cards(implicit game : Game) = game.cards
+    implicit def courtiers(implicit game : Game) = game.courtiers
+    implicit def figures(implicit game : Game) = game.figures
+}
+
 
 //[[ BLACKER
 abstract class ColorState(val faction : Color)(implicit game : Game) {
@@ -625,6 +669,9 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var pivot : Boolean = false
 
     var adjust : Boolean = false
+
+    def rivals = game.factions.but(faction)
+    def others = game.colors.but(faction)
 
     def can(e : Effect) = (loyal.contains(e) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
 
@@ -804,6 +851,19 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         super.log(convertForLog(s.$) : _*)
     }
 
+    def showFigure(u : Figure, hits : Int) = {
+        val prefix = (hits < 2).??(u.faction.short.toLowerCase + "-")
+        val suffix = (hits == 1).??("-damaged") + (hits >= 2).??("-empty")
+
+        u.piece match {
+            case Agent => Image(prefix + "agent" + suffix, styles.qship)
+            case City => Image(prefix + "city" + suffix, styles.qbuilding)
+            case Starport => Image(prefix + "starport" + suffix, styles.qbuilding)
+            case Ship => Image(prefix + "ship" + suffix, styles.qship)
+            case Blight => Image("blight" + suffix, styles.qship)
+        }
+    }
+
     def build(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
         + BuildMainAction(f, x, repeat).as("Build".styled(f), x)(group).!!!
             // .!{
@@ -836,6 +896,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     def move(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
         + MoveMainAction(f, x, repeat).as("Move".styled(f), x)(group).!!!
+
+        if (f.can(SurvivalOverrides)) {
+            + MartyrMainAction(f, x, repeat).as("Martyr".styled(f), x)(group).!!!
+        }
     }
 
     def battle(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
@@ -851,7 +915,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def secure(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + SecureMainAction(f, x, repeat).as("Secure".styled(f), x)(group).!(market.exists(c => Influence(c).$.use(l => l.%(_.faction == f).num > factions.but(f)./(e => l.%(_.faction == e).num).max)).not)
+        + SecureMainAction(f, x, repeat).as("Secure".styled(f), x)(group).!(market.exists(c => Influence(c).$.use(l => l.%(_.faction == f).num > f.rivals./(e => l.%(_.faction == e).num).max)).not)
     }
 
     def influence(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
@@ -865,7 +929,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     def tax(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
         + TaxMainAction(f, x, repeat).as("Tax".styled(f), x)(group).!!!
 
-        if (f.loyal.has(ElderBroker) && systems.exists(r => f.rules(r) && factions.but(f).exists(e => e.at(r).cities.any))) {
+        if (f.loyal.has(ElderBroker) && systems.exists(r => f.rules(r) && f.rivals.exists(e => e.at(r).cities.any))) {
             + TradeMainAction(f, x, repeat).as("Trade".styled(f), x)(group)
         }
     }

@@ -81,7 +81,9 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue, Agitator)
+    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
+    def preset2 = $(Agitator)
+    def preset3 = $()
 }
 
 
@@ -126,6 +128,8 @@ object LeadersExpansion extends Expansion {
                     case Left(l) => l.img
                     case Right(l) => l.img
                 }
+
+                game.current = f
 
                 YYSelectObjectsAction(f, game.leaders./(Left(_)) ++ game.lores./(Right(_)))
                     .withGroup("Leaders and Lores".hl)

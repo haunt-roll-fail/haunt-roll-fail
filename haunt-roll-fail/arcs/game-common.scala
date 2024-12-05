@@ -263,8 +263,18 @@ object CommonExpansion extends Expansion {
             then
 
         case FactionsSetupAction =>
-            if (options.has(LeadersAndLorePreset1))
-                Shuffle2[Leader, Lore](Leaders.preset1, Lores.preset1, (l1, l2) => LeadersLoresShuffledAction(l1, l2))
+            val leaders =
+                options.has(LeadersAndLorePreset1).??(Leaders.preset1) ++
+                options.has(LeadersAndLorePreset2).??(Leaders.preset2) ++
+                options.has(LeadersAndLorePreset3).??(Leaders.preset3)
+
+            val lores =
+                options.has(LeadersAndLorePreset1).??(Lores.preset1) ++
+                options.has(LeadersAndLorePreset2).??(Lores.preset2) ++
+                options.has(LeadersAndLorePreset3).??(Lores.preset3)
+
+            if (leaders.num >= factions.num && lores.num >= factions.num)
+                Shuffle2[Leader, Lore](leaders, lores, (l1, l2) => LeadersLoresShuffledAction(l1, l2))
             else
                 BaseFactionsSetupAction
 
@@ -310,7 +320,7 @@ object CommonExpansion extends Expansion {
 
             val l = ll ++ (kk - ll.num).times(Nothingness)
 
-            implicit val convert = (r : Resource) => Image(r.name, styles.token3x)
+            implicit def convert(r : Resource) = Image(r.name, styles.token3x)
 
             if (l.but(Nothingness).any)
                 XXSelectObjectsAction(f, l)
@@ -360,7 +370,7 @@ object CommonExpansion extends Expansion {
                     FillSlotsMainAction(f, r, adjust)
                 }
                 else
-                if (factions.but(f).exists(_.stealable(r)))
+                if (f.rivals.exists(_.stealable(r)))
                     StealResourceMainAction(f, |(r), $(), FillSlotsMainAction(f, r, adjust))
                 else
                     then
@@ -370,7 +380,7 @@ object CommonExpansion extends Expansion {
 
         case StealResourceMainAction(f, x, extra, then) =>
             Ask(f).group("Steal", x.|("Resource"))
-                .some(factions.but(f).%(e => x./(e.resources.has).|(e.resources.but(Nothingness).any))) { e =>
+                .some(f.rivals.%(e => x./(e.resources.has).|(e.resources.but(Nothingness).any))) { e =>
                     e.resources.lazyZip(e.keys).toList.%<(_ != Nothingness).%<(r => x.but(r).none)./ { case (x, k) =>
                         StealResourceAction(f, e, x, k, then).as(ResourceRef(x, |(k)))
                             .!(e.loyal.has(SwornGuardians))
@@ -390,7 +400,7 @@ object CommonExpansion extends Expansion {
 
         case StealGuildCardMainAction(f, alt, then) =>
             Ask(f).group("Steal".hl, "a", "Guild Card".hh)
-                .some(factions.but(f))(e => e.loyal.of[GuildCard]./ { c =>
+                .some(f.rivals)(e => e.loyal.of[GuildCard]./ { c =>
                     StealGuildCardAction(f, e, c, then).as(c, "from", e)
                         .!(e.loyal.has(SwornGuardians) && c != SwornGuardians)
                 })
@@ -453,12 +463,7 @@ object CommonExpansion extends Expansion {
         case PressgangMainAction(f, x, then) =>
             val done = (x == AlreadyPaid).?(AdjustResourcesAction(then).as("Done")).|(CancelAction)
 
-            implicit val convert = (u : Figure, selected : Boolean) => {
-                val prefix = selected.not.??(u.faction.?./(_.short.toLowerCase + "-").|(""))
-                val suffix = selected.??("-empty")
-
-                Image(prefix + "agent" + suffix, styles.qship)
-            }
+            implicit def convert(u : Figure, selected : Boolean) = game.showFigure(u, selected.??(2))
 
             if (f.captives.any)
                 YYSelectObjectsAction(f, f.captives)
@@ -478,12 +483,7 @@ object CommonExpansion extends Expansion {
             PressgangMainAction(f, AlreadyPaid, then)
 
         case ExecuteMainAction(f, x, then) =>
-            implicit val convert = (u : Figure, selected : Boolean) => {
-                val prefix = selected.not.??(u.faction.?./(_.short.toLowerCase + "-").|(""))
-                val suffix = selected.??("-empty")
-
-                Image(prefix + "agent" + suffix, styles.qship)
-            }
+            implicit def convert(u : Figure, selected : Boolean) = game.showFigure(u, selected.??(2))
 
             XXSelectObjectsAction(f, f.captives)
                 .withGroup("Execute captives", x)
@@ -698,7 +698,7 @@ object CommonExpansion extends Expansion {
 
             Ask(f).group(g)
                 .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
-                .some(systems.%(f.rules))(s => factions.but(f)./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
+                .some(systems.%(f.rules))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
                 .cancel
 
         case TaxAction(f, x, r, c, loyal, then) =>
@@ -750,7 +750,7 @@ object CommonExpansion extends Expansion {
 
         case MoveFromAction(f, r, l, cascade, x, alt, then) =>
             Ask(f).group("Move from", r, "to")
-                .each(board.connected(r))(d => MoveToAction(f, r, d, l, cascade && d.symbol == Gate && factions.but(f).exists(_.rules(d)).not, x, then).as(d))
+                .each(board.connected(r))(d => MoveToAction(f, r, d, l, cascade && d.symbol == Gate && f.rivals.exists(_.rules(d)).not, x, then).as(d))
                 .add(alt)
 
         case MoveToAction(f, r, d, l, cascade, x, then) =>
@@ -758,21 +758,10 @@ object CommonExpansion extends Expansion {
             val (damaged, fresh) = l.partition(f.damaged.has)
             val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
 
-            implicit val convert = (u : Figure, k : Int) => {
-                val status = damaged.has(u).??(1) + k
-
-                val prefix = (k < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
-                val suffix = (k == 1).??("-damaged") + (k == 2).??("-empty")
-
-                u.piece match {
-                    case City => Image(prefix + "city" + suffix, styles.qbuilding)
-                    case Starport => Image(prefix + "starport" + suffix, styles.qbuilding)
-                    case Ship => Image(prefix + "ship" + suffix, styles.qship)
-                }
-            }
+            implicit def convert(u : Figure) = game.showFigure(u, damaged.has(u).??(1))
 
             Ask(f).group("Move from", r, "to", d)
-                .each(combinations)(l => MoveListAction(f, r, d, l, cascade, x, then).as(l./(u => convert(u, damaged.has(u).??(1)))))
+                .each(combinations)(l => MoveListAction(f, r, d, l, cascade, x, then).as(l./(u => convert(u))))
                 .cancel
 
         case MoveListAction(f, r, d, l, cascade, x, then) =>
@@ -790,12 +779,12 @@ object CommonExpansion extends Expansion {
         // BATTLE
         case BattleMainAction(f, x, then) =>
             Ask(f).group(f, "battles in", x)
-                .each(systems.%(f.at(_).hasA(Ship)).%(r => factions.but(f).exists(_.present(r))))(r => BattleSystemAction(f, x, r, then).as(r))
+                .each(systems.%(f.at(_).hasA(Ship)).%(r => f.rivals.exists(_.present(r))))(r => BattleSystemAction(f, x, r, then).as(r))
                 .cancel
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
-                .each(factions.but(f).%(_.present(r)))(e => BattleFactionAction(f, x, r, e, then).as(e))
+                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, then).as(e))
                 .cancel
 
         case BattleFactionAction(f, x, r, e, then) =>
@@ -925,18 +914,7 @@ object CommonExpansion extends Expansion {
             GainCourtCardAction(f, c, |(e), then)
 
         case AssignHitsAction(self, r, f, e, l, hits, bombardments, raid, then) =>
-            implicit val convert = (u : Figure, k : Int) => {
-                val status = u.damaged.??(1) + k
-
-                val prefix = (status < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
-                val suffix = (status == 1).??("-damaged") + (status == 2).??("-empty")
-
-                u.piece match {
-                    case City => Image(prefix + "city" + suffix, styles.qbuilding)
-                    case Starport => Image(prefix + "starport" + suffix, styles.qbuilding)
-                    case Ship => Image(prefix + "ship" + suffix, styles.qship)
-                }
-            }
+            implicit def convert(u : Figure, k : Int) = game.showFigure(u, u.damaged.??(1) + k)
 
             var h = hits
             var b = bombardments
@@ -1068,7 +1046,7 @@ object CommonExpansion extends Expansion {
             val bb = ll.%(c => game.freeSlots(c) > 0)
             val ss = ll.%(f.at(_).hasA(Starport))
             val prefix = f.short + "-"
-            def suffix(s : System) = factions.but(f).exists(_.rules(s)).??("-damaged")
+            def suffix(s : System) = f.rivals.exists(_.rules(s)).??("-damaged")
 
             Ask(f)
                 .group("Build".hl)
@@ -1082,7 +1060,7 @@ object CommonExpansion extends Expansion {
 
             val u = f.reserve --> City.of(f)
 
-            if (factions.but(f).exists(_.rules(r)))
+            if (f.rivals.exists(_.rules(r)))
                 f.damaged :+= u
 
             u --> r
@@ -1096,7 +1074,7 @@ object CommonExpansion extends Expansion {
 
             val u = f.reserve --> Starport.of(f)
 
-            if (factions.but(f).exists(_.rules(r)))
+            if (f.rivals.exists(_.rules(r)))
                 f.damaged :+= u
 
             u --> r
@@ -1110,7 +1088,7 @@ object CommonExpansion extends Expansion {
 
             val u = f.reserve --> Ship.of(f)
 
-            if (factions.but(f).exists(_.rules(r)) && f.lores.has(HiddenHarbors).not)
+            if (f.rivals.exists(_.rules(r)) && f.lores.has(HiddenHarbors).not)
                 f.damaged :+= u
 
             u --> r
@@ -1157,7 +1135,7 @@ object CommonExpansion extends Expansion {
         case SecureMainAction(f, x, then) =>
             Ask(f).group("Secure".hl)
                 .each(market)(c => SecureAction(f, x, c, then).as(c)
-                    .!(Influence(c).$.use(l => l.%(_.faction == f).num <= factions.but(f)./(e => l.%(_.faction == e).num).max))
+                    .!(Influence(c).$.use(l => l.%(_.faction == f).num <= f.rivals./(e => l.%(_.faction == e).num).max))
                     .!(f.can(Paranoid) && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
                 )
                 .cancel
@@ -1202,7 +1180,7 @@ object CommonExpansion extends Expansion {
         // TRADE
         case TradeMainAction(f, x, then) =>
             Ask(f).group("Trade".hl)
-                .some(factions.but(f).%(_.resources.but(Nothingness).any)) { e =>
+                .some(f.rivals.%(_.resources.but(Nothingness).any)) { e =>
                     e.resources.lazyZip(e.keys).toList.%<(_ != Nothingness).%<(r => systems.exists(s => e.at(s).cities.any && board.resource(s) == r && f.rules(s)))./ { case (r, k) =>
                         TakeResourceAction(f, e, r, k, x, GiveBackResourceMainAction(f, e, then)).as(e, ResourceRef(r, None))
                     }
@@ -1349,7 +1327,7 @@ object CommonExpansion extends Expansion {
             var ask = Ask(f)
 
             if (f.can(Farseers) && used.has(Farseers).not)
-                ask = ask.each(factions.but(f))(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
+                ask = ask.each(f.rivals)(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
 
             if (f.can(Bold) && used.has(Bold).not)
                 ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold))
