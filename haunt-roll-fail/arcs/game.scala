@@ -524,6 +524,16 @@ trait ViewCard extends ViewObject[DeckCard] { self : UserAction =>
     def obj = d
 }
 
+trait ViewLeader extends ViewObject[Leader] { self : UserAction =>
+    def l : Leader
+    def obj = l
+}
+
+trait ViewLore extends ViewObject[Lore] { self : UserAction =>
+    def l : Lore
+    def obj = l
+}
+
 
 trait Key
 
@@ -756,6 +766,14 @@ trait Expansion {
     }
 }
 
+case object NoHand extends HiddenInfo
+case object NoLeadersAndLores extends HiddenInfo
+
+case class ViewCardInfoAction(self : Faction, d : DeckCard) extends BaseInfo(Break ~ "Hand")(d.img) with ViewCard with OnClickInfo { def param = d }
+case class ViewLeaderInfoAction(l : Leader) extends BaseInfo(Break ~ "Leaders")(l.img) with ViewLeader with OnClickInfo { def param = l }
+case class ViewLoreInfoAction(l : Lore) extends BaseInfo(Break ~ "Lore")(l.img) with ViewLore with OnClickInfo { def param = l }
+
+
 class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame with ContinueGame with LoggedGame {
     private implicit val game = this
 
@@ -828,11 +846,15 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var highlightFaction : $[Faction] = $
 
     def viewHand(f : Faction) = f.hand./(ViewCardInfoAction(f, _))
+    def viewLeaders(l : $[Leader]) = l./(ViewLeaderInfoAction(_))
+    def viewLores(l : $[Lore]) = l./(ViewLoreInfoAction(_))
 
     def info(waiting : $[Faction], self : |[Faction], actions : $[UserAction]) : $[Info] = {
         self.%(states.contains)./~( f =>
             actions.has(NoHand).not.??(viewHand(f))
-        )
+        ) ++
+        actions.has(NoLeadersAndLores).not.??(viewLeaders(leaders)) ++
+        actions.has(NoLeadersAndLores).not.??(viewLores(lores))
     }
 
     def convertForLog(s : $[Any]) : $[Any] = s./~{

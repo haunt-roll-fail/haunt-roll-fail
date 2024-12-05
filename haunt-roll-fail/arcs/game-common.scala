@@ -87,7 +87,7 @@ case class BattleProcessAction(self : Faction, r : System, e : Faction, skirmish
 case class BattleRaidAction(self : Faction, r : System, e : Faction, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, keys : Int, then : ForcedAction) extends ForcedAction
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
-case class BattleAfterAction(self : Faction, f : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class BattleAfterAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 
 
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
@@ -103,6 +103,7 @@ case class BuildStarportAction(self : Faction, cost : Cost, r : System, then : F
 case class BuildShipAction(self : Faction, cost : Cost, r : System, then : ForcedAction) extends ForcedAction
 
 case class RepairMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class RepairsAction(self : Faction, cost : Cost, r : System, l : $[Figure], then : ForcedAction) extends ForcedAction
 case class RepairAction(self : Faction, cost : Cost, r : System, u : Figure, then : ForcedAction) extends ForcedAction
 
 case class InfluenceMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
@@ -179,13 +180,10 @@ case object TransferRoundAction extends ForcedAction
 case object EndChapterAction extends ForcedAction
 case object CleanUpChapterAction extends ForcedAction
 
-case class ViewCardInfoAction(self : Faction, d : DeckCard) extends BaseInfo(Break ~ "Hand")(d.img) with ViewCard with OnClickInfo { def param = d }
-
 
 case class GameOverAction(winner : Faction) extends ForcedAction
 case class GameOverWonAction(self : Faction, f : Faction) extends BaseInfo("Game Over")(f, "won", "(" ~ NameReference(f.name, f).hl ~ ")")
 
-case object NoHand extends HiddenInfo
 
 object CommonExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -786,7 +784,7 @@ object CommonExpansion extends Expansion {
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
-                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, then).as(e))
+                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, BattleAfterAction(f, r, e, then)).as(e))
                 .cancel
 
         case BattleFactionAction(f, x, r, e, then) =>
@@ -945,7 +943,6 @@ object CommonExpansion extends Expansion {
                 NoAsk(self)(BattleRaidAction(f, r, e, raid, then))
             else
                 NoAsk(self)(then)
-                // NoAsk(self)(BattleAfterAction(self, f, r, e, then))
 
         case DealHitsAction(self, r, f, e, l, k, then) =>
             val dd = e.damaged ++ l
@@ -982,15 +979,9 @@ object CommonExpansion extends Expansion {
                 next = OutrageAction(f, board.resource(r), next)
             }
 
-            // BattleAfterAction(self, f, r, e, next)
             next
 
-        case BattleAfterAction(self, f, r, e, then) =>
-            val rp = 2
-
-            // Ask(f).group(f, "repairs ships in", r)
-            //     .each(f.at(r).ships.%(_.faction == f).%(f.damaged.has).$)(u => RepairAction(f, rp, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r))
-            //     .cancel
+        case BattleAfterAction(f, r, e, then) =>
 
             implicit val convert = (u : Figure, k : Int) => {
                 val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) - k
@@ -1005,25 +996,26 @@ object CommonExpansion extends Expansion {
                 }
             }
 
+            val rp = f.lores.has(RepairDrones).??(1) + f.can(Resilient).??(systems.%(f.rules)./(s => factions./(_.at(s).starports.fresh.any).num).sum)
+
+            // val q = systems.%(s => f.rules(s))
+            // val q = systems.%(f.rules).map(s => factions./(_.at(s).starports).num).sum
+            val p = systems.%(f.rules)./(s => factions./(_.at(s).starports.any))
+            val q = systems.%(f.rules)./(s => factions./(_.at(s).starports.fresh))
+            println(p)
+            println(q)
+
             if (rp > 0)
-                XXSelectObjectsAction(self, self.damaged)
+                XXSelectObjectsAction(f, f.damaged)
                 .withGroup(f, "repairs ships in", r,
                 $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
-                .withRule(_.num(rp).all(d => d.ships.num <= rp))
-                // .withMultipleSelects(u => 1)                // .withThen(rr => then)(_ => "Repair")
-                .withThen(rr => then)(_ => "Repair")
+                .withRule(_.upTo(rp))
+                .withMultipleSelects(_ => 1)
+                .withThen(l => RepairsAction(f, NoCost, r, l, then))(_ => "Repair")
                 .withExtras(then.as("Skip"))
                 .ask
             else
                 NoAsk(f)(then)
-
-            // if (f.can(Reckless))
-            //     Ask(f).group("Reckless")
-            //         .add(RecklessAction(f, then).as(Reckless))
-            //         .skip(then)
-            // else
-            //     NoAsk(f)(then)
-            // then
 
         case OutrageAction(f, r, then) =>
             if (f.outraged.has(r).not) {
@@ -1151,6 +1143,17 @@ object CommonExpansion extends Expansion {
                 .group("Repair".hl)
                 .some(ll)(r => f.at(r).damaged./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
                 .cancel
+
+        case RepairsAction(f, x, r, l, then) =>
+            f.pay(x)
+
+            l.foreach { u =>
+                f.damaged :-= u
+            }
+
+            f.log("repaired", l, "in", r, x)
+
+            then
 
         case RepairAction(f, x, r, u, then) =>
             f.pay(x)

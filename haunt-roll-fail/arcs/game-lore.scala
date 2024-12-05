@@ -25,7 +25,7 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
-case object RepairDrones      extends Lore("lore06", "Repair Drones")
+case object RepairDrones      extends Lore("lore07", "Repair Drones")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
 case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
 case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
@@ -56,7 +56,7 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides)
+    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, AncientHoldings)
     def preset3 = $()
 }
 
