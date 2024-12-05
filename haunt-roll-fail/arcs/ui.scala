@@ -49,32 +49,30 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         val cards = new OrderedLayer
 
-        if (game.chapter > 0) {
-            0.until(n).foreach { i =>
-                if (i < game.market.num) {
-                    val c = game.market.$(i)
+        0.until(n).foreach { i =>
+            if (i < game.market.num) {
+                val c = game.market.$(i)
 
-                    cards.add(Sprite($(ImageRect(new RawImage(img(c.id)), Rectangle(0, 0, 744, 1039), 1.0)), $))(744*i + d*i, 1039*0)
-                }
+                cards.add(Sprite($(ImageRect(new RawImage(img(c.id)), Rectangle(0, 0, 744, 1039), 1.0)), $))(744*i + d*i, 1039*0)
             }
+        }
 
-            0.until(4).foreach { i =>
-                if (i < game.market.num) {
-                    val c = game.market.$(i)
+        0.until(4).foreach { i =>
+            if (i < game.market.num) {
+                val c = game.market.$(i)
 
-                    val l = game.figures.get(Influence(c))
+                val l = game.figures.get(Influence(c))
 
-                    val scale = 2.6
-                    val shadow = 3
-                    l.foreach { u =>
-                        val w = (l.num < 7).?(112).|(744 / l.num)
-                    }
+                val scale = 2.6
+                val shadow = 3
+                l.foreach { u =>
+                    val w = (l.num < 7).?(112).|(744 / l.num)
+                }
 
-                    l.foreach { u =>
-                        val w = (l.num < 7).?(112).|(744 / l.num)
-                        cards.add(Sprite($(ImageRect(new RawImage(img("agent-background")), Rectangle(0, 0, (42+shadow+shadow)*scale, (68+shadow+shadow)*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u) - shadow*scale, 400 - shadow*scale)
-                        cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*scale, 68*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u), 400)
-                    }
+                l.foreach { u =>
+                    val w = (l.num < 7).?(112).|(744 / l.num)
+                    cards.add(Sprite($(ImageRect(new RawImage(img("agent-background")), Rectangle(0, 0, (42+shadow+shadow)*scale, (68+shadow+shadow)*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u) - shadow*scale, 400 - shadow*scale)
+                    cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*scale, 68*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u), 400)
                 }
             }
         }
@@ -804,7 +802,13 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     }.merge
                 }.merge
             ).onClick, onClick)
-
+        case "ll" =>
+            showOverlay(overlayScrollX(
+                Div("Leaders Draft") ~
+                game.leaders./(c => Div(Image(c.id, styles.leaderCard), styles.cardX, xstyles.xx, styles.inline)).merge ~
+                Div("Lore Draft") ~
+                game.lores./(c => Div(Image(c.id, styles.card), styles.cardX, xstyles.xx, styles.inline)).merge
+            ), onClick)
         case "readout" =>
             showOverlay(overlayScrollX((
                 HGap ~
@@ -899,9 +903,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
             (options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("discard") }).copy(clear = false)) ++
-            // $(ZBasic(Break ~ Break, "Played Cards Pile".hh, () => { onClick("showndeck") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Played Action Cards".hh, () => { onClick("seen") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
+            ((game.leaders.num > 1 || game.lores.num > 1).$(ZBasic(Break ~ Break, "Leaders & Lore Draft".hh, () => { onClick("ll") }).copy(clear = false))) ++
             $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
                 ZBasic(Break ~ Break ~ Break, "Save Replay As File".hh, () => {
