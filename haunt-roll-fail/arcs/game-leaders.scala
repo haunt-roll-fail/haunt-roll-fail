@@ -119,8 +119,12 @@ object LeadersExpansion extends Expansion {
             DraftNextAction(factions.last)
 
         case DraftNextAction(f) =>
-            if (game.leaders.num <= 1 && game.lores.num <= 1)
+            if (game.leaders.num <= 1 && game.lores.num <= 1) {
+                game.leaders = $
+                game.lores = $
+
                 Milestone(LeadersFactionsSetupAction)
+            }
             else {
                 val next = DraftNextAction((factions.dropWhile(_ != f) ++ factions.takeWhile(_ != f)).last)
 
@@ -145,6 +149,7 @@ object LeadersExpansion extends Expansion {
                         case Left(l) => "Take " ~ l.elem
                         case Right(l) => "Take " ~ l.elem
                     })("Take")
+                    .withExtras(NoLeadersAndLores)
             }
 
         case AssignLeaderAction(f, l, then) =>

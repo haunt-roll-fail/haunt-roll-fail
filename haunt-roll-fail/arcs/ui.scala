@@ -49,7 +49,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         val cards = new OrderedLayer
 
-        if (game.chapter > 0) {
+        if (game.market.any) {
             0.until(n).foreach { i =>
                 if (i < game.market.num) {
                     val c = game.market.$(i)

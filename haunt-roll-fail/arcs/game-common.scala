@@ -178,13 +178,10 @@ case object TransferRoundAction extends ForcedAction
 case object EndChapterAction extends ForcedAction
 case object CleanUpChapterAction extends ForcedAction
 
-case class ViewCardInfoAction(self : Faction, d : DeckCard) extends BaseInfo(Break ~ "Hand")(d.img) with ViewCard with OnClickInfo { def param = d }
-
 
 case class GameOverAction(winner : Faction) extends ForcedAction
 case class GameOverWonAction(self : Faction, f : Faction) extends BaseInfo("Game Over")(f, "won", "(" ~ NameReference(f.name, f).hl ~ ")")
 
-case object NoHand extends HiddenInfo
 
 object CommonExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
