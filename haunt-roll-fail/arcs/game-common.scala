@@ -982,7 +982,6 @@ object CommonExpansion extends Expansion {
             next
 
         case BattleAfterAction(f, r, e, then) =>
-
             implicit val convert = (u : Figure, k : Int) => {
                 val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) - k
 
@@ -996,19 +995,11 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            val rp = f.lores.has(RepairDrones).??(1) + f.can(Resilient).??(systems.%(f.rules)./(s => factions./(_.at(s).starports.fresh.any).num).sum)
-
-            // val q = systems.%(s => f.rules(s))
-            // val q = systems.%(f.rules).map(s => factions./(_.at(s).starports).num).sum
-            val p = systems.%(f.rules)./(s => factions./(_.at(s).starports.any))
-            val q = systems.%(f.rules)./(s => factions./(_.at(s).starports.fresh))
-            println(p)
-            println(q)
+            val rp = f.lores.has(RepairDrones).??(1) + f.can(Resilient).??(systems.%(f.rules)./~(s => factions./~(_.at(s).starports.fresh)).num)
 
             if (rp > 0)
                 XXSelectObjectsAction(f, f.damaged)
-                .withGroup(f, "repairs ships in", r,
-                $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
+                .withGroup(f, "repairs", rp.hl, "ships in", r, $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
                 .withRule(_.upTo(rp))
                 .withMultipleSelects(_ => 1)
                 .withThen(l => RepairsAction(f, NoCost, r, l, then))(_ => "Repair")

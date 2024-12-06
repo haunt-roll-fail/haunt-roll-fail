@@ -56,7 +56,7 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, AncientHoldings)
+    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, RailgunArrays, SeekerTorpedoes)
     def preset3 = $()
 }
 
