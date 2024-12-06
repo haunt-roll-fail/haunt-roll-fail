@@ -228,7 +228,6 @@ object CommonExpansion extends Expansion {
             Milestone(StartSetupAction)
 
         case CourtSetupAction =>
-            println("CourtSetupAction")
             ShuffleCourtDiscardAction(ReplenishMarketAction(FactionsSetupAction))
 
         case ShuffleCourtDiscardAction(then) =>
@@ -997,8 +996,10 @@ object CommonExpansion extends Expansion {
 
             val rp = f.lores.has(RepairDrones).??(1) + f.can(Resilient).??(systems.%(f.rules)./~(s => factions./~(_.at(s).starports.fresh)).num)
 
-            if (rp > 0)
-                XXSelectObjectsAction(f, f.damaged)
+            val ss = f.at(r).ships.damaged
+
+            if (rp > 0 && ss.any)
+                XXSelectObjectsAction(f, ss)
                 .withGroup(f, "repairs", rp.hl, "ships in", r, $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
                 .withRule(_.upTo(rp))
                 .withMultipleSelects(_ => 1)
