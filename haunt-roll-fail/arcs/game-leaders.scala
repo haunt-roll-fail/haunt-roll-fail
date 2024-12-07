@@ -94,7 +94,7 @@ case class AssignLoreAction(f : Faction, l : Lore, then : ForcedAction) extends 
 case object LeadersFactionsSetupAction extends ForcedAction
 
 
-case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 
@@ -211,6 +211,8 @@ object LeadersExpansion extends Expansion {
 
         // ELDER
         case BelovedAction(f, then) =>
+            soft()
+
             Ask(f).group("Influence".hl)
                 .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
                 .skip(then)
