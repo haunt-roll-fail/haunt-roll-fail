@@ -87,6 +87,7 @@ case class BattleProcessAction(self : Faction, r : System, e : Faction, skirmish
 case class BattleRaidAction(self : Faction, r : System, e : Faction, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, keys : Int, then : ForcedAction) extends ForcedAction
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
+case class BattleAfterAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 
 
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
@@ -102,6 +103,7 @@ case class BuildStarportAction(self : Faction, cost : Cost, r : System, then : F
 case class BuildShipAction(self : Faction, cost : Cost, r : System, then : ForcedAction) extends ForcedAction
 
 case class RepairMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class RepairsAction(self : Faction, cost : Cost, r : System, l : $[Figure], then : ForcedAction) extends ForcedAction
 case class RepairAction(self : Faction, cost : Cost, r : System, u : Figure, then : ForcedAction) extends ForcedAction
 
 case class InfluenceMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
@@ -781,7 +783,7 @@ object CommonExpansion extends Expansion {
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
-                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, then).as(e))
+                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, BattleAfterAction(f, r, e, then)).as(e))
                 .cancel
 
         case BattleFactionAction(f, x, r, e, then) =>
@@ -978,6 +980,35 @@ object CommonExpansion extends Expansion {
 
             next
 
+        case BattleAfterAction(f, r, e, then) =>
+            implicit val convert = (u : Figure, k : Int) => {
+                val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) - k
+
+                val prefix = (status < 2).??(u.faction.?./(_.short.toLowerCase + "-").|(""))
+                val suffix = (status == 1).??("-damaged") + (status == 2).??("-empty")
+
+                u.piece match {
+                    case City => Image(prefix + "city" + suffix, styles.qbuilding)
+                    case Starport => Image(prefix + "starport" + suffix, styles.qbuilding)
+                    case Ship => Image(prefix + "ship" + suffix, styles.qship)
+                }
+            }
+
+            val rp = f.lores.has(RepairDrones).??(1) + f.can(Resilient).??(systems.%(f.rules)./~(s => factions./~(_.at(s).starports.fresh)).num)
+
+            val ss = f.at(r).ships.damaged
+
+            if (rp > 0 && ss.any)
+                XXSelectObjectsAction(f, ss)
+                .withGroup(f, "repairs", rp.hl, "ships in", r, $(convert(Figure(e, Ship, 0), 0)).merge.div(xstyles.displayNone))
+                .withRule(_.upTo(rp))
+                .withMultipleSelects(_ => 1)
+                .withThen(l => RepairsAction(f, NoCost, r, l, then))(_ => "Repair")
+                .withExtras(then.as("Skip"))
+                .ask
+            else
+                NoAsk(f)(then)
+
         case OutrageAction(f, r, then) =>
             if (f.outraged.has(r).not) {
                 f.outraged :+= r
@@ -1104,6 +1135,17 @@ object CommonExpansion extends Expansion {
                 .group("Repair".hl)
                 .some(ll)(r => f.at(r).damaged./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
                 .cancel
+
+        case RepairsAction(f, x, r, l, then) =>
+            f.pay(x)
+
+            l.foreach { u =>
+                f.damaged :-= u
+            }
+
+            f.log("repaired", l, "in", r, x)
+
+            then
 
         case RepairAction(f, x, r, u, then) =>
             f.pay(x)
