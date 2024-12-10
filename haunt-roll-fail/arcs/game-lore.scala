@@ -25,7 +25,7 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
-case object RepairDrones      extends Lore("lore06", "Repair Drones")
+case object RepairDrones      extends Lore("lore07", "Repair Drones")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
 case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
 case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
@@ -56,7 +56,7 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides)
+    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, RailgunArrays, SeekerTorpedoes)
     def preset3 = $()
 }
 
@@ -64,7 +64,8 @@ case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) 
 case class NurtureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MartyrMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MartyrAction(self : Faction, cost : Cost, s : System, u : Figure, t : Figure, then : ForcedAction) extends ForcedAction
-
+// case class SeekerTorpedoesAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends ForcedAction
+// case class SeekerTorpedoesRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends RolledAction[$[BattleResult]]
 
 object LoreExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -82,6 +83,19 @@ object LoreExpansion extends Expansion {
             Ask(f).group(g)
                 .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
                 .cancel
+
+        // SEEKER TORPEDOES
+        // case SeekerTorpedoesAction(f, r, e, l1, l2, l3, q, used, then) =>
+        //     Roll[$[BattleResult]](q.num.times(Assault.die), n => SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then))
+
+        // case SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then) =>
+        //     f.log("rerolled",
+        //         q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+        //         "to",
+        //         n./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+        //         "with", SeekerTorpedoes)
+
+        //     BattleRerollAction(f, r, e, l1, l2 ++ n, l3, used, then)
 
         // SURVIVAL OVERRIDES
         case MartyrMainAction(f, x, then) =>
