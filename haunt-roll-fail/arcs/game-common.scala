@@ -77,18 +77,24 @@ case class MoveToAction(self : Faction, r : System, d : System, l : $[Figure], c
 case class MoveListAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction
 
 case class BattleMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class BattleHitBeforeAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class BattleSystemAction(self : Faction, cost : Cost, r : System, then : ForcedAction) extends ForcedAction with Soft
 case class BattleFactionAction(self : Faction, cost : Cost, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class BattleDiceAction(self : Faction, cost : Cost, r : System, e : Faction, skirmish : Int, assault : Int, raid : Int, then : ForcedAction) extends ForcedAction
 case class BattleRolledAction(self : Faction, r : System, e : Faction, rolled1 : $[$[BattleResult]], rolled2 : $[$[BattleResult]], rolled3 : $[$[BattleResult]], then : ForcedAction) extends Rolled3Action[$[BattleResult], $[BattleResult], $[BattleResult]]
 case class SkirmishersAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], then : ForcedAction) extends ForcedAction
 case class SkirmishersRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], then : ForcedAction) extends RolledAction[$[BattleResult]]
+case class BattleRerollAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], effects : $[Effect], then : ForcedAction) extends ForcedAction
 case class BattleProcessAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], then : ForcedAction) extends ForcedAction
 case class BattleRaidAction(self : Faction, r : System, e : Faction, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, keys : Int, then : ForcedAction) extends ForcedAction
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
-case class BattleAfterAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class BattleRepairAfterAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 
+
+
+case class SeekerTorpedoesAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends ForcedAction
+case class SeekerTorpedoesRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends RolledAction[$[BattleResult]]
 
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], raid : Int, then : ForcedAction) extends ForcedAction
@@ -783,8 +789,14 @@ object CommonExpansion extends Expansion {
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
-                .each(f.rivals.%(_.present(r)))(e => BattleFactionAction(f, x, r, e, BattleAfterAction(f, r, e, then)).as(e))
+                .each(f.rivals.%(_.present(r)))(e => BattleHitBeforeAction(f, r, e, BattleFactionAction(f, x, r, e, BattleRepairAfterAction(f, r, e, then))).as(e))
                 .cancel
+
+        case BattleHitBeforeAction(f, r, e, then) =>
+            if (e.lores.has(RailgunArrays) && e.at(r).ships.fresh.any)
+                AssignHitsAction(f, r, e, f, f.at(r).ships, 1, 0, 0, then)
+            else
+                then
 
         case BattleFactionAction(f, x, r, e, then) =>
             val ships = f.at(r).count(Ship) + (r.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
@@ -809,9 +821,12 @@ object CommonExpansion extends Expansion {
                 l3./(x => Image("raid-die-" + (Raid.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))
             )
 
-            val next = BattleProcessAction(f, r, e, l1, l2, l3, then)
+            BattleRerollAction(f, r, e, l1, l2, l3, $(), then)
 
-            if (l1.any && f.loyal.has(Skirmishers)) {
+        case BattleRerollAction(f, r, e, l1, l2, l3, used, then) =>
+            var ask = Ask(f)
+
+            if (l1.any && f.loyal.has(Skirmishers) && used.has(Skirmishers).not) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
                 val miss = $()
                 val hit = $(HitShip)
@@ -819,12 +834,20 @@ object CommonExpansion extends Expansion {
                 val hits = l1.count(hit)
                 val rerollable = 1.to(min(limit, misses)).reverse./(_.times(miss)) ++ 1.to(min(limit, hits))./(_.times(hit))
 
-                Ask(f).group(Skirmishers)
-                    .each(rerollable)(q => SkirmishersAction(f, r, e, l1.diff(q), l2, l3, q, then).as("Reroll", q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
-                    .skip(next)
+                ask = ask.group(Skirmishers)
+                    .each(rerollable)(q => SkirmishersAction(f, r, e, l1.diff(q), l2, l3, q, BattleRerollAction(f, r, e, l1, l2, l3, used :+ Skirmishers, then)).as("Reroll", q./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
             }
-            else
-                Then(next)
+
+            if (l2.any && f.lores.has(SeekerTorpedoes) && used.has(SeekerTorpedoes).not) {
+                val limit = f.at(r).ships.fresh.num
+                val rerollable = 1.to(limit).reverse./~(n => l2.combinations(n).$)
+
+                ask = ask.group(SeekerTorpedoes)
+                    .each(rerollable)(q => SeekerTorpedoesAction(f, r, e, l1, l2.diff(q), l3, q, used :+ SeekerTorpedoes, then).as("Reroll", q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token))))
+            }
+
+
+            ask.add(BattleProcessAction(f, r, e, l1, l2, l3, then).as("Done"))
 
         case SkirmishersAction(f, r, e, l1, l2, l3, q, then) =>
             Roll[$[BattleResult]](q.num.times(Skirmish.die), n => SkirmishersRolledAction(f, r, e, l1, l2, l3, q, n, then))
@@ -836,7 +859,21 @@ object CommonExpansion extends Expansion {
                 n./(x => Image("skirmish-die-" + (Skirmish.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
                 "with", Skirmishers)
 
-            BattleProcessAction(f, r, e, l1 ++ n, l2, l3, then)
+
+            BattleRerollAction(f, r, e, l1 ++ n, l2, l3, $, then)
+
+        // SEEKER TORPEDOES
+        case SeekerTorpedoesAction(f, r, e, l1, l2, l3, q, used, then) =>
+            Roll[$[BattleResult]](q.num.times(Assault.die), n => SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then))
+
+        case SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then) =>
+            f.log("rerolled",
+                q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+                "to",
+                n./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+                "with", SeekerTorpedoes)
+
+            BattleRerollAction(f, r, e, l1, l2 ++ n, l3, used, then)
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
             val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
@@ -980,7 +1017,7 @@ object CommonExpansion extends Expansion {
 
             next
 
-        case BattleAfterAction(f, r, e, then) =>
+        case BattleRepairAfterAction(f, r, e, then) =>
             implicit val convert = (u : Figure, k : Int) => {
                 val status = u.faction.as[Faction].?(_.damaged.has(u)).??(1) - k
 
@@ -1008,6 +1045,7 @@ object CommonExpansion extends Expansion {
                 .ask
             else
                 NoAsk(f)(then)
+
 
         case OutrageAction(f, r, then) =>
             if (f.outraged.has(r).not) {
