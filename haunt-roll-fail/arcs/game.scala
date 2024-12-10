@@ -914,6 +914,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     def repair(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
         + RepairMainAction(f, x, repeat).as("Repair".styled(f), x)(group).!(f.damaged.none)
+
+        if (f.lores.has(LivingStructures)) {
+            + PruneMainAction(f, x, repeat).as("Prune".styled(f), x)(group)
+        }
     }
 
     def move(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {

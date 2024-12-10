@@ -91,11 +91,6 @@ case class BattleRaidResourceAction(self : Faction, e : Faction, r : Resource, k
 case class BattleRaidCourtCardAction(self : Faction, e : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
 case class BattleRepairAfterAction(self : Faction, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 
-
-
-case class SeekerTorpedoesAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends ForcedAction
-case class SeekerTorpedoesRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends RolledAction[$[BattleResult]]
-
 case class AssignHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], hits : Int, bombardments : Int, raid : Int, then : ForcedAction) extends ForcedAction with Soft
 case class DealHitsAction(self : Faction, r : System, f : Faction, e : Faction, l : $[Figure], raid : Int, then : ForcedAction) extends ForcedAction
 case class OutrageAction(self : Faction, r : Resource, then : ForcedAction) extends ForcedAction
@@ -861,19 +856,6 @@ object CommonExpansion extends Expansion {
 
 
             BattleRerollAction(f, r, e, l1 ++ n, l2, l3, $, then)
-
-        // SEEKER TORPEDOES
-        case SeekerTorpedoesAction(f, r, e, l1, l2, l3, q, used, then) =>
-            Roll[$[BattleResult]](q.num.times(Assault.die), n => SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then))
-
-        case SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then) =>
-            f.log("rerolled",
-                q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
-                "to",
-                n./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
-                "with", SeekerTorpedoes)
-
-            BattleRerollAction(f, r, e, l1, l2 ++ n, l3, used, then)
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
             val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
