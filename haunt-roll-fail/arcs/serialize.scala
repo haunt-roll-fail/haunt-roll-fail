@@ -40,6 +40,8 @@ object Serialize extends Serializer {
         case EUnitRef(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseSymbol(b).get.asInstanceOf[Piece], c)
         case EUnitRefP(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseExpr(b).asInstanceOf[Piece], c)
 
+        case ESymbol("Intersept") => parseExpr(ESymbol("Intercept"))
+
         case _ => super.parseExpr(e)
     }
 
