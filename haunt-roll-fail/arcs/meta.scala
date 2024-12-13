@@ -152,12 +152,12 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("map-regions").makeLossless ::
         ImageAsset("map-regions-select").makeLossless ::
 
-        // ImageAsset("map-out-1") ::
+        ImageAsset("map-out-1") ::
         ImageAsset("map-out-2") ::
         ImageAsset("map-out-3") ::
-        // ImageAsset("map-out-4") ::
-        // ImageAsset("map-out-5") ::
-        // ImageAsset("map-out-6") ::
+        ImageAsset("map-out-4") ::
+        ImageAsset("map-out-5") ::
+        ImageAsset("map-out-6") ::
 
         ImageAsset("map-ambitions-3") ::
 
@@ -361,6 +361,20 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("cc13") ::
         ImageAsset("cc14") ::
         ImageAsset("cc15") ::
+    $) ::
+    ConditionalAssetsList((factions : $[F], options : $[O]) => true, "setup")(
+        ImageAsset("setup-2p-01") ::
+        ImageAsset("setup-2p-02") ::
+        ImageAsset("setup-2p-03") ::
+        ImageAsset("setup-2p-04") ::
+        ImageAsset("setup-3p-01") ::
+        ImageAsset("setup-3p-02") ::
+        ImageAsset("setup-3p-03") ::
+        ImageAsset("setup-3p-04") ::
+        ImageAsset("setup-4p-01") ::
+        ImageAsset("setup-4p-02") ::
+        ImageAsset("setup-4p-03") ::
+        ImageAsset("setup-4p-04") ::
     $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "leader")(
         ImageAsset("leader01") ::

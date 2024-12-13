@@ -858,18 +858,27 @@ object CommonExpansion extends Expansion {
             BattleRerollAction(f, r, e, l1 ++ n, l2, l3, $, then)
 
         case BattleProcessAction(f, r, e, l1, l2, l3, then) =>
-            val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intersept)
-            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.damaged.none).$(Intersept)
+            val ll = (l1 ++ l2 ++ l3).flatten
 
-            val l = (l1 ++ l2 ++ l3).flatten.diff(sb) ++ mp
+            val sb = (f.lores.has(SignalBreaker) && f.at(r).ships.damaged.none).$(Intercept)
+
+            if (ll.intersect(sb).any)
+                f.log("used", SignalBreaker, "to cancel one", "Intercept".hl)
+
+            val mp = (e.lores.has(MirrorPlating) && l2.any).$(Intercept)
+
+            if (mp.any)
+                e.log("used", MirrorPlating, "to add one", "Intercept".hl)
+
+            val l = ll.diff(sb) ++ mp
 
             val sd = l.count(OwnDamage)
-            var ic = l.has(Intersept).??(e.at(r).ships.fresh.num)
+            var ic = l.has(Intercept).??(e.at(r).ships.fresh.num)
             val hs = l.count(HitShip)
             val bb = l.count(HitBuilding)
             val rd = l.count(RaidKey)
 
-            if (l.has(Intersept) && e.can(Irregular)) {
+            if (l.has(Intercept) && e.can(Irregular)) {
                 ic = e.resources.count(Weapon) + e.loyal.of[GuildCard].count(_.suit == Weapon)
 
                 if (e.resources.has(Weapon)) {
@@ -982,8 +991,9 @@ object CommonExpansion extends Expansion {
 
             var next = then
 
-            if (destroyed.any && e.can(Beloved)) {
+            if (destroyed.any && e.can(Beloved) && e != self) {
                 e.log("triggered", Beloved)
+
                 next = BelovedAction(e, next)
             }
 

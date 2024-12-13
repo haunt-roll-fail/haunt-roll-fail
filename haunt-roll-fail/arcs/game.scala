@@ -48,7 +48,7 @@ object Resources {
 
 trait BattleResult extends Record
 case object OwnDamage extends BattleResult
-case object Intersept extends BattleResult
+case object Intercept extends BattleResult
 case object HitShip extends BattleResult
 case object HitBuilding extends BattleResult
 case object RaidKey extends BattleResult
@@ -61,10 +61,10 @@ case object Skirmish extends BattleDie {
     val die = Die.from($, $, $, $(HitShip), $(HitShip), $(HitShip))
 }
 case object Assault extends BattleDie {
-    val die = Die.from($, $(OwnDamage, HitShip), $(Intersept, HitShip), $(OwnDamage, HitShip, HitShip), $(HitShip, HitShip), $(OwnDamage, HitShip))
+    val die = Die.from($, $(OwnDamage, HitShip), $(Intercept, HitShip), $(OwnDamage, HitShip, HitShip), $(HitShip, HitShip), $(OwnDamage, HitShip))
 }
 case object Raid extends BattleDie {
-    val die = Die.from($(Intersept, RaidKey, RaidKey), $(OwnDamage, RaidKey), $(Intersept), $(OwnDamage, HitBuilding), $(HitBuilding, RaidKey), $(OwnDamage, HitBuilding))
+    val die = Die.from($(Intercept, RaidKey, RaidKey), $(OwnDamage, RaidKey), $(Intercept), $(OwnDamage, HitBuilding), $(HitBuilding, RaidKey), $(OwnDamage, HitBuilding))
 }
 
 
@@ -815,7 +815,6 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var lead : |[DeckCard] = None
     var zeroed : Boolean = false
     var seized : |[Faction] = None
-
 
     val markers : $[AmbitionMarker] = $(AmbitionMarker(2, 0), AmbitionMarker(3, 2), AmbitionMarker(5, 3), AmbitionMarker(4, 2), AmbitionMarker(6, 3), AmbitionMarker(9, 4), AmbitionMarker(4, 2))
 
