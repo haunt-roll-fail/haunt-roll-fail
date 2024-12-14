@@ -276,6 +276,11 @@ trait SelectSubset { self : Gaming =>
         def withBreak(f : Int => Elem) = copy()(config.copy(break = f))
         def withThenDone(f : T => ForcedAction) = withThenElem(f)("Done".hl)
         def withThenElem(f : T => ForcedAction)(e : Elem) = withThen(f)(_ => e)(e)
+        def withThen(f : T => UserAction)(a : Any*) = copy()(config.copy(thens = (value : $[T], selecting : |[Int]) => {
+            val o = selecting./(values.apply)
+
+            $(o./(f).|(Info(a.$)))
+        }))
         def withThen(f : T => ForcedAction)(m : T => Any)(a : Any*) = copy()(config.copy(thens = (value : $[T], selecting : |[Int]) => {
             val o = selecting./(values.apply)
             $(YYObjectsSelectedAction(self, o./(m).|(a.$), o./(f).|(null)))

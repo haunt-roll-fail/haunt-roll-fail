@@ -71,6 +71,7 @@ object colmat {
         def is[U : ClassTag] : Boolean = Some(o).collect({ case m : U => m }).any
         def tap[U](f : T => U) = { f(o) ; o }
         def use[U](f : T => U) = f(o)
+        def mut[U, R <: T](u : Option[U])(f : (T, U) => R) = u.map(u => f(o, u)).getOrElse(o)
     }
 
     implicit class ListElemUtils[T](val v : T) extends AnyVal {

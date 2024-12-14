@@ -333,6 +333,10 @@ trait Gaming extends Timelines {
         def explode(withSoft : Boolean) = withSoft.$(self)
     }
 
+    trait Key { self : Action => }
+
+    trait SoftKeys { self : Action => }
+
     trait OutOfTurn { self : Action => }
 
     trait Retry { self : Action => }
@@ -444,7 +448,8 @@ trait Gaming extends Timelines {
     case class Roll2[T, U](dice1 : $[Die[T]], dice2 : $[Die[U]], roll : ($[T], $[U]) => Rolled2Action[T, U], tag : Any = None) extends Continue
     case class Roll3[T, U, V](dice1 : $[Die[T]], dice2 : $[Die[U]], dice3 : $[Die[V]], roll : ($[T], $[U], $[V]) => Rolled3Action[T, U, V], tag : Any = None) extends Continue
     case class Shuffle[T](list : $[T], shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
-    case class ShuffleUntil[T](list : $[T], shuffle : $[T] => ShuffledAction[T], condition : $[T] => Boolean, tag : Any = None) extends Continue
+    case class ShuffleUntil[T](list : $[T], condition : $[T] => Boolean, shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
+    case class ShuffleTake[T](list : $[T], n : Int, shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
     case class Shuffle2[T, U](l1 : $[T], l2 : $[U], shuffle : ($[T], $[U]) => Shuffled2Action[T, U], tag : Any = None) extends Continue
     case class Shuffle3[T, U, V](l1 : $[T], l2 : $[U], l3 : $[V], shuffle : ($[T], $[U], $[V]) => Shuffled3Action[T, U, V], tag : Any = None) extends Continue
     case class Random[T](values : $[T], random : T => RandomAction[T], tag : Any = None) extends Continue
@@ -814,15 +819,16 @@ trait Gaming extends Timelines {
                 if (action.isSoft.not)
                     throw new Error("perform repeat non-soft action" + desc)
 
-                val l = performRaw(action, false).continue @@ {
+                val l : $[UserAction] = performRaw(action, false).continue @@ {
                     case ErrorContinue(e, m) => throw e
                     case Force(a) => performRepeat(a)
+                    case Then(a) => $(a.wrap)
                     case DelayedContinue(n, Force(a)) => performRepeat(a)
                     case Log(_, _, _) => throw new Error("log on explode from" + desc)
                     case Ask(_, Nil) => throw new Error("empty ask fro" + desc)
                     case Ask(_, l) => l
                     case MultiAsk(aa) => aa./~(_.actions)
-                    case _ => throw new Error("unknown continue in explode from" + desc)
+                    case x => throw new Error("unknown continue " + x + " in explode from" + desc)
                 }
 
                 l
@@ -917,8 +923,12 @@ trait Gaming extends Timelines {
                 case a : ShuffledAction[_] => action == x(a.shuffled) && a.shuffled.toSet == l.toSet
                 case _ => false
             }
-            case ShuffleUntil(l, x, p, _) => action @@ {
+            case ShuffleUntil(l, p, x, _) => action @@ {
                 case a : ShuffledAction[_] => action == x(a.shuffled) && a.shuffled.toSet == l.toSet && p(a.shuffled)
+                case _ => false
+            }
+            case ShuffleTake(l, n, x, _) => action @@ {
+                case a : ShuffledAction[_] => action == x(a.shuffled) && a.shuffled.num == n && a.shuffled.toSet.subsetOf(l.toSet)
                 case _ => false
             }
             case Shuffle2(l1, l2, x, _) => action @@ {

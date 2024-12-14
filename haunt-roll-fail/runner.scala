@@ -635,7 +635,7 @@ object Runner {
                     dirty = true
                     UIRecord("#shuffle3", c, shuffled(l1.shuffle, l2.shuffle, l3.shuffle))
 
-                case UIContinue(c @ ShuffleUntil(list, shuffled, condition, _), Nil) =>
+                case UIContinue(c @ ShuffleUntil(list, condition, shuffled, _), Nil) =>
                     dirty = true
 
                     var r = list.shuffle
@@ -644,6 +644,13 @@ object Runner {
                         r = list.shuffle
 
                     UIRecord("#shuffle until", c, shuffled(r))
+
+                case UIContinue(c @ ShuffleTake(list, n, shuffled, _), Nil) =>
+                    dirty = true
+
+                    var r = list.shuffle.take(n)
+
+                    UIRecord("#shuffle take", c, shuffled(r))
 
                 case UIContinue(c @ Random(list, chosen, _), Nil) =>
                     dirty = true
@@ -959,7 +966,7 @@ object Runner {
 
             state match {
                 case UIContinue(Log(_, _, _), Nil) if logged > 1 =>
-                    setTimeout(hrf.HRF.paramInt("speed").|(240)) { continueHandleState() }
+                    setTimeout(hrf.HRF.paramInt("speed").|(240*3)) { continueHandleState() }
                     false
 
                 case UIContinue(_, Nil) =>

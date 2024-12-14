@@ -37,6 +37,9 @@ trait BaseHost {
             case Milestone(_, action) =>
                 action
 
+            case Then(action) =>
+                action
+
             case DelayedContinue(_, continue) =>
                 askFaction(g, continue)
 
@@ -58,13 +61,21 @@ trait BaseHost {
             case Shuffle3(l1, l2, l3, shuffled, tag) =>
                 shuffled(l1.shuffle, l2.shuffle, l3.shuffle)
 
-            case ShuffleUntil(list, shuffled, condition, tag) =>
+            case ShuffleUntil(list, condition, shuffled, tag) =>
                 var r = list.shuffle
 
                 while (!condition(r))
                     r = list.shuffle
 
                 shuffled(r)
+
+            case ShuffleTake(list, n, shuffled, tag) =>
+                if (list.num < n)
+                    throw new Error("shuffle take " + n + " of " + list.num)
+
+                var r = list.shuffle
+
+                shuffled(r.take(n))
 
             case Random(list, chosen, tag) =>
                 chosen(list.shuffle(0))
@@ -95,6 +106,8 @@ trait BaseHost {
     def factionName(f : F) : String
 
     def factions : $[F]
+
+    val limit : Int = 3000
 
     def main(args : Array[String]) {
         var results : $[$[F]] = $
@@ -181,7 +194,7 @@ trait BaseHost {
                             case _ =>
                         }
 
-                        if (n > 3000)
+                        if (n > limit)
                             throw null
 
                         continue = game.performContinue(|(continue), a, true).continue

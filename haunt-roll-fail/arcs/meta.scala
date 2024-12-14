@@ -30,6 +30,12 @@ trait LeadersAndLoreOption extends GameOption with ToggleOption with ImportantOp
 
 case object LeadersAndLorePreset1 extends LeadersAndLoreOption {
     val valueOn = "Preset".hh ~ " " ~ "#1".hlb
+    override val explain = $(
+        "Preset of " ~ "five".hh ~ " leader cards and " ~ "five".hh ~ " lore cards.",
+        $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)./(_.elem).join(", "),
+        $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)./(_.elem).join(", "),
+        "Developed by " ~ "whichwit".hlb
+    )
 }
 
 case object LeadersAndLorePreset2 extends LeadersAndLoreOption {

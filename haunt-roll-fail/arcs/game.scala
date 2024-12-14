@@ -175,6 +175,7 @@ case class DeckCard(suit : Suit, strength : Int, pips : Int) extends Elementary 
     def imgid = suit + "-" + strength
     def img = Image(imgid, styles.card)
     def elem = (" " + suit + " " + strength + " ").pre.spn(xstyles.outlined).styled(suit)
+    def zeroed(b : Boolean) = (" " + suit + " " + b.?(0).|(strength) + " ").pre.spn(xstyles.outlined).styled(suit)
 }
 
 object DeckCards {
@@ -534,6 +535,11 @@ trait ViewLore extends ViewObject[Lore] { self : UserAction =>
     def obj = l
 }
 
+trait ViewSetup extends ViewObject[String] { self : UserAction =>
+    def s : String
+    def obj = s
+}
+
 
 trait Key
 
@@ -772,6 +778,7 @@ case object NoLeadersAndLores extends HiddenInfo
 case class ViewCardInfoAction(self : Faction, d : DeckCard) extends BaseInfo(Break ~ "Hand")(d.img) with ViewCard with OnClickInfo { def param = d }
 case class ViewLeaderInfoAction(l : Leader) extends BaseInfo(Break ~ "Leaders")(l.img) with ViewLeader with OnClickInfo { def param = l }
 case class ViewLoreInfoAction(l : Lore) extends BaseInfo(Break ~ "Lore")(l.img) with ViewLore with OnClickInfo { def param = l }
+case class ViewSetupInfoAction(s : String) extends BaseInfo(Break ~ "Setup")(Image(s, styles.setupCard)) with ViewSetup with OnClickInfo { def param = s }
 
 
 class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame with ContinueGame with LoggedGame {
@@ -853,7 +860,9 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
             actions.has(NoHand).not.??(viewHand(f))
         ) ++
         actions.has(NoLeadersAndLores).not.??(viewLeaders(leaders)) ++
-        actions.has(NoLeadersAndLores).not.??(viewLores(lores))
+        actions.has(NoLeadersAndLores).not.??(viewLores(lores)) ++
+        (chapter == 0 && setup.num == 3).$(ViewSetupInfoAction("setup-3p-02")) ++
+        (chapter == 0 && setup.num == 4).$(ViewSetupInfoAction("setup-4p-01"))
     }
 
     def convertForLog(s : $[Any]) : $[Any] = s./~{

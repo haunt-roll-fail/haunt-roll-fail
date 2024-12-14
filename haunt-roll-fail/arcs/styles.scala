@@ -80,6 +80,7 @@ package object elem {
         object leaderCard extends CustomStyle(display("block"), width("14.88ex"), height("25.50ex"))
         object courtCard extends CustomStyle(display("block"), width("20.00ex"), height("27.93ex"))
         object fateCard extends CustomStyle(display("block"), width("22.32ex"), height("37.75ex"))
+        object setupCard extends CustomStyle(display("block"), width("50ex"))
         object card0 extends CustomStyle(padding("5px"), padding("0.5vmin"), margin("0px"), margin("0.0vmin"), border.color("transparent"), border.style("solid"), border.width("0.3vmin"))
         object cardX extends CustomStyle(padding("5px"), padding("0.5vmin"), margin("8px"), margin("0.8vmin"), border.color("transparent"), border.style("solid"), border.width("0.3vmin"))
         object cardS extends CustomStyle(filter("brightness(1.1) saturate(1.1)"), border.color("#ffffff"))

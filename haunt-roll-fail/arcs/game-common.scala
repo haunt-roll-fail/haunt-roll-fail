@@ -453,7 +453,7 @@ object CommonExpansion extends Expansion {
 
             l --> r
 
-            f.log("placed", l, "in", r)
+            f.log("placed", l.comma, "in", r)
 
             then
 
@@ -1343,7 +1343,7 @@ object CommonExpansion extends Expansion {
 
         case FollowAction(f) =>
             YYSelectObjectsAction(f, f.hand)
-                .withGroup(f.elem ~ " follows " ~ lead.get.elem)
+                .withGroup(f.elem ~ " follows " ~ lead.get.zeroed(zeroed))
                 .withThens(d => $(
                     SurpassAction(f, d).as("Surpass".styled(lead.get.suit).styled(xstyles.bold), "with", d).!(d.suit != lead.get.suit, "wrong suit").!(d.strength < lead.get.strength && zeroed.not, "low strength"),
                     CopyAction(f, d).as("Copy".styled(lead.get.suit).styled(xstyles.bold), "with", d),
