@@ -1337,7 +1337,7 @@ object CommonExpansion extends Expansion {
                 ask = ask.each(f.rivals)(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
 
             if (f.can(Bold) && used.has(Bold).not)
-                ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold))
+                ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold).!(f.pool(Agents).not, "no agents"))
 
             ask.add(then.as("Done"))
 

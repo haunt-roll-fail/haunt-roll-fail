@@ -211,11 +211,18 @@ object LeadersExpansion extends Expansion {
 
         // ELDER
         case BelovedAction(f, then) =>
-            soft()
+            if (f.pool(Agent).not) {
+                f.log("had no", "Agents".styled(f), "for", Beloved)
 
-            Ask(f).group("Influence".hl)
-                .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
-                .skip(then)
+                then
+            }
+            else {
+                soft()
+
+                Ask(f).group("Influence".hl, "with", Beloved)
+                    .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
+                    .skip(then)
+            }
 
         // DEMAGOGUE
         case BoldMainAction(f, influenced, then) =>
