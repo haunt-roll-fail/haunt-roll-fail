@@ -1143,7 +1143,7 @@ object CommonExpansion extends Expansion {
             Ask(f).group("Secure".hl)
                 .each(market)(c => SecureAction(f, x, c, then).as(c)
                     .!(Influence(c).$.use(l => l.%(_.faction == f).num <= f.rivals./(e => l.%(_.faction == e).num).max))
-                    .!(f.can(Paranoid) && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
+                    .!(f.can(Paranoid) && c.is[GuildCard] && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
                 )
                 .cancel
 
@@ -1337,7 +1337,7 @@ object CommonExpansion extends Expansion {
                 ask = ask.each(f.rivals)(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
 
             if (f.can(Bold) && used.has(Bold).not)
-                ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold).!(f.pool(Agents).not, "no agents"))
+                ask = ask.add(BoldMainAction(f, $, AmbitionDeclaredAction(f, a, used :+ Bold, then)).as("Influence each card in court".hh)(Bold).!(f.pool(Agent).not, "no agents"))
 
             ask.add(then.as("Done"))
 

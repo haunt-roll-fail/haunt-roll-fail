@@ -458,7 +458,7 @@ case object Board3Frontiers extends BaseBoard {
 
     val starting : $[(System, System, $[System])] = $(
         (System(1, Hex), System(4, Hex), $(System(6, Gate))),
-        (System(5, Hex), System(1, Arrow), $(System(5, Gate))),
+        (System(5, Hex), System(1, Crescent), $(System(5, Gate))),
         (System(4, Crescent), System(6, Arrow), $(System(1, Gate))),
     )
 
@@ -945,7 +945,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def secure(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + SecureMainAction(f, x, repeat).as("Secure".styled(f), x)(group).!(market.exists(c => Influence(c).$.use(l => l.%(_.faction == f).num > f.rivals./(e => l.%(_.faction == e).num).max)).not)
+        + SecureMainAction(f, x, repeat).as("Secure".styled(f), x)(group).!!!
     }
 
     def influence(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
