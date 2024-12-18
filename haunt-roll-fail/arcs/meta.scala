@@ -120,7 +120,7 @@ object Meta extends MetaGame { mmm =>
     def factionName(f : Faction) = f.name
     def factionElem(f : Faction) = f.name.styled(f)
 
-    override def glyph(g : G) : |[String] = g.current.?./(_.style + "-glyph")
+    override def glyph(g : G) : |[String] = g.current./(_.style + "-glyph")
     override def glyph(f : F) : |[String] = |(f.style + "-glyph")
     override def glyph(g : G, f : F) : |[String] = glyph(f).%!(_ => g.highlightFaction.has(f) && hrf.HRF.uptime() / 1000 % 2 == 1)
 

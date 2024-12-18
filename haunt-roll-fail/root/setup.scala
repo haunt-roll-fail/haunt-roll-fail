@@ -168,31 +168,31 @@ object SetupExpansion extends MandatoryExpansion {
             Shuffle[Clearing](clearings, SaveMappingAction(_))
 
         case SetupMapAction if options.has(NoClustersClearings) =>
-            ShuffleUntil[Clearing](clearings, SaveMappingAction(_), l => {
+            ShuffleUntil[Clearing](clearings, l => {
                 val mapping = l.zip($(Fox, Fox, Fox, Fox, Rabbit, Rabbit, Rabbit, Rabbit, Mouse, Mouse, Mouse, Mouse)).toMap
 
                 def z(c : Clearing) = game.connected(c).%(mapping(_) == mapping(c)).num
 
                 clearings./(z).max == 0
-            })
+            }, SaveMappingAction(_))
 
         case SetupMapAction if options.has(SuitPairsClearings) =>
-            ShuffleUntil[Clearing](clearings, SaveMappingAction(_), l => {
+            ShuffleUntil[Clearing](clearings, l => {
                 val mapping = l.zip($(Fox, Fox, Fox, Fox, Rabbit, Rabbit, Rabbit, Rabbit, Mouse, Mouse, Mouse, Mouse)).toMap
 
                 def z(c : Clearing) = game.connected(c).%(mapping(_) == mapping(c)).num
 
                 clearings./(z).%(_ != 1).none
-            })
+            }, SaveMappingAction(_))
 
         case SetupMapAction if options.has(ConnectedClearings) =>
-            ShuffleUntil[Clearing](clearings, SaveMappingAction(_), l => {
+            ShuffleUntil[Clearing](clearings, l => {
                 val mapping = l.zip($(Fox, Fox, Fox, Fox, Rabbit, Rabbit, Rabbit, Rabbit, Mouse, Mouse, Mouse, Mouse)).toMap
 
                 def z(c : Clearing) = game.connected(c).%(mapping(_) == mapping(c)).num
 
                 clearings./(z).min > 0 && FoxRabbitMouse.%(s => board.clearings.%(mapping(_) == s)./(z).max < 2).none
-            })
+            }, SaveMappingAction(_))
 
         case SetupMapAction if options.has(ThreeFourFiveClearings) =>
             Shuffle[Clearing](clearings, ThreeFourFiveMappingAction(_))

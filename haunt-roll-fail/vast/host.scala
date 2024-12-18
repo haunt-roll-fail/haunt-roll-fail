@@ -42,7 +42,7 @@ object Host {
             case Shuffle3(l1, l2, l3, shuffled, tag) =>
                 shuffled(l1.shuffle, l2.shuffle, l3.shuffle)
 
-            case ShuffleUntil(list, shuffled, condition, tag) =>
+            case ShuffleUntil(list, condition, shuffled, tag) =>
                 var r = list.shuffle
 
                 while (!condition(r))

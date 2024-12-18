@@ -110,10 +110,10 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                     if (image == "river")
                         background.add(Sprite($(ImageRect(img, Rectangle(i*308, j*308-308, 308, 308*4), 1.0)), $))(0, 0)
                     else
-                        background.add(Sprite($(ImageRect(img, Rectangle(i*308, j*308, 308, 308), 1.0)), $(Rectangle(i*308, j*308, 308, 308)), |(Relative(i - game.board.center.x, j - game.board.center.y))))(0, 0)
+                        background.add(Sprite($(ImageRect(img, Rectangle(i*308, j*308, 308, 308), 1.0)), $(Rectangle(i*308, j*308, 308, 308)), $(Relative(i - game.board.center.x, j - game.board.center.y))))(0, 0)
                 }
                 else
-                    background.add(Sprite($, $(Rectangle(i*308, j*308, 308, 308)), |(Relative(i - game.board.center.x, j - game.board.center.y))))(0, 0)
+                    background.add(Sprite($, $(Rectangle(i*308, j*308, 308, 308)), $(Relative(i - game.board.center.x, j - game.board.center.y))))(0, 0)
 
                 if (highlightPeekTile.has(Relative(i - game.board.center.x, j - game.board.center.y)))
                     tile.as[HiddenTile].foreach { tile =>

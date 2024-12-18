@@ -17,7 +17,7 @@ case class XY(x : Double, y : Double)
 
 case class Rectangle(x : Double, y : Double, width : Double, height : Double) {
     def move(p : XY) = Rectangle(x + p.x, y + p.y, width, height)
-    def scale(s : Double) = Rectangle(x - width / 2 + width / 2 * s, y - height / 2 + height / 2 * s, width * s, height * s)
+    def scale(s : Double) = Rectangle(x * s, y * s, width * s, height * s)
 }
 
 
@@ -145,7 +145,7 @@ object ImageRect {
     def r180(image : dom.html.Image, dx : Int, dy : Int, scale : Double) : ImageRect = ImageRect(new RawImageRotated180(image), Rectangle(-dx*scale, -dy*scale, image.width*scale, image.height*scale), 1.0)
 }
 
-case class Sprite(images : $[ImageRect], hitboxes : $[Rectangle], tag : |[Any] = None)
+case class Sprite(images : $[ImageRect], hitboxes : $[Rectangle], tag : $[Any] = $)
 
 trait Renderable {
     def render(g : dom.CanvasRenderingContext2D) : Unit
@@ -177,13 +177,13 @@ trait Layer {
 
     def pick(x : Double, y : Double) : $[Any] = {
         renderables.%(_.sprite.tag.any)./~ { r =>
-            r.sprite.hitboxes.flatMap { box =>
-                if (x >= r.x + box.x * r.scale && x <= r.x + box.x * r.scale + box.width  * r.scale
-                 && y >= r.y + box.y * r.scale && y <= r.y + box.y * r.scale + box.height * r.scale)
-                    r.sprite.tag
-                else
-                    None
-            }
+            if (r.sprite.hitboxes.exists(box =>
+               (x >= r.x + box.x * r.scale && x <= r.x + box.x * r.scale + box.width  * r.scale &&
+                y >= r.y + box.y * r.scale && y <= r.y + box.y * r.scale + box.height * r.scale)
+            ))
+                r.sprite.tag
+            else
+                $
         }
     }
 }
@@ -221,7 +221,7 @@ class FitLayer[K, T](regions : Regions[K], options : FitOptions) extends Layer {
     }
 
     def addHint(key : K, tag : T)(x : Double, y : Double) {
-        curr += tag -> (key -> RenderableSprite(new Sprite($, $, None), x, y, 0, 1.0))
+        curr += tag -> (key -> RenderableSprite(new Sprite($, $, $), x, y, 0, 1.0))
     }
 
     def addFloat(key : K, tag : T, z : Double = 0)(sprite : Sprite, scale : Double = 1.0) : XY = {

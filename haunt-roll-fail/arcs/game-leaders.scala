@@ -133,7 +133,7 @@ object LeadersExpansion extends Expansion {
                     case Right(l) => l.img
                 }
 
-                game.current = f
+                game.current = |(f)
 
                 YYSelectObjectsAction(f, game.leaders./(Left(_)) ++ game.lores./(Right(_)))
                     .withGroup("Leaders and Lores".hl)

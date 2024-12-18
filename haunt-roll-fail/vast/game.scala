@@ -1066,17 +1066,9 @@ class CavePlayer(val game : Game, val faction : Cave.type) extends Player {
 }
 
 
-
-
-trait Key
-
-trait SoftKeys { self : Soft => }
-
-trait TileKey extends Key {
+trait TileKey extends Key { self : Action =>
     val position : Relative
 }
-
-
 
 trait ViewTile extends ViewObject[(Tile, Bearing)] { self : UserAction =>
     def tile : Tile

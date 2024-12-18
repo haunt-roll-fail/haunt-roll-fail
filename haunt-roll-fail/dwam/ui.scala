@@ -297,7 +297,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
             import hrf.ui.sprites._
 
 
-            pieces.addFixed(r, Figure(Troubles, Trouble, game.board.areas.indexOf(r) + 1000))(Sprite($, $(Rectangle(-120, -60, 240, 60)), |(Plaque(r))))(regions.centers(r).x, regions.centers(r).y)
+            pieces.addFixed(r, Figure(Troubles, Trouble, game.board.areas.indexOf(r) + 1000))(Sprite($, $(Rectangle(-120, -60, 240, 60)), $(Plaque(r))))(regions.centers(r).x, regions.centers(r).y)
 
             (extra ++ figures).foreach { p =>
                 def prefix = p.faction.?./(_.short.toLowerCase + "-").|("")
@@ -323,11 +323,11 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
 
                 var q = p.piece match {
-                    case Building => Sprite($(a), $(Rectangle(-60, -200, 124, 206)), |((r, p)))
-                    case Minion if p.faction == Demons => Sprite($(a), $(a.rect), |((r, p)))
-                    case Minion if p.faction == Trolls => Sprite($(a), $(a.rect), |((r, p)))
-                    case Minion => Sprite($(a), $(Rectangle(-50, -30, 100, 30), Rectangle(-20, -80, 40, 50)), |((r, p)))
-                    case Trouble => Sprite($(a), $(Rectangle(-44, -44, 88, 88)), |((r, p)))
+                    case Building => Sprite($(a), $(Rectangle(-60, -200, 124, 206)), $((r, p)))
+                    case Minion if p.faction == Demons => Sprite($(a), $(a.rect), $((r, p)))
+                    case Minion if p.faction == Trolls => Sprite($(a), $(a.rect), $((r, p)))
+                    case Minion => Sprite($(a), $(Rectangle(-50, -30, 100, 30), Rectangle(-20, -80, 40, 50)), $((r, p)))
+                    case Trouble => Sprite($(a), $(Rectangle(-44, -44, 88, 88)), $((r, p)))
                     case _ => Sprite($(a), $(a.rect))
                 }
 

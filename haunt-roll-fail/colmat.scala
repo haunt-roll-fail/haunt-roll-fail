@@ -221,6 +221,13 @@ object colmat {
         def all(p : (A, B) => Boolean) = l.forall { case (a, b) => p(a, b) }
     }
 
+    implicit class OptionTupleUtils[A, B](val l : Option[(A, B)]) extends AnyVal {
+        def left = l.map(_._1)
+        def right = l.map(_._2)
+        def /< = l.map(_._1)
+        def /> = l.map(_._2)
+    }
+
     case class IndexedList[T](l : List[(T, Int)]) {
         def foreach(f : (T, Int) => Unit) = l.foreach { case (e, i) => f(e, i) }
         def reverse = IndexedList(l.reverse)

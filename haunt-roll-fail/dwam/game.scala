@@ -806,70 +806,66 @@ trait ViewEvent extends ViewObject[EventCard] { self : UserAction =>
 }
 
 
-trait Key
-
-trait AssassinateKey extends Key {
+trait AssassinateKey extends Key { self : Action =>
     val color : Color
     val area : Area
     val index : Int
 }
 
-trait BurnKey extends Key {
+trait BurnKey extends Key { self : Action =>
     val color : Color
     val area : Area
 }
 
-trait BuyKey extends Key {
+trait BuyKey extends Key { self : Action =>
     val color : Color
     val area : Area
 }
 
-trait MoveKey extends Key {
+trait MoveKey extends Key { self : Action =>
     val color : Color
     val from : Area
     val index : Int
 }
 
-trait SelectedKey extends Key {
+trait SelectedKey extends Key { self : Action =>
     val sColor : Color
     val sArea : Area
     val sIndex : Int
 }
 
-trait RemoveTroubleKey extends Key {
+trait RemoveTroubleKey extends Key { self : Action =>
     val area : Area
 }
 
-trait RecruitKey extends Key {
+trait RecruitKey extends Key { self : Action =>
     val color : Color
     val area : Area
 }
 
-trait SpreadTroubleKey extends Key {
+trait SpreadTroubleKey extends Key { self : Action =>
     val area : Area
 }
 
-trait BuildKey extends Key {
+trait BuildKey extends Key { self : Action =>
     val color : Color
     val area : Area
 }
 
-trait UseBuildingKey extends Key {
+trait UseBuildingKey extends Key { self : Action =>
     val color : Color
     val area : Area
 }
 
-trait FactionKey extends Key {
+trait FactionKey extends Key { self : Action =>
     val self : Faction
     val target : Faction
     val verb : String
 }
 
-trait CardKey extends Key {
+trait CardKey extends Key { self : Action =>
     val card : DeckCard
 }
-
-trait SoftKeys { /* self : Soft => */ }
 
 
 case class StartAction(version : String) extends StartGameAction with GameVersion
@@ -1363,7 +1359,7 @@ class Game(val board : Board, val setup : $[Faction], val options : $[Meta.O])  
         implicit val action = a
 
         action match {
-
+            // INIT
             case StartAction(version) =>
                 log("HRF".hl, "version", gaming.version.hlb)
                 log("Discworld: Ankh-Morpork".hlb)
@@ -1929,7 +1925,7 @@ class Game(val board : Board, val setup : $[Faction], val options : $[Meta.O])  
                     .withGroup("Discard " ~ (max > 1).?("up to " ~ max.hl ~ " cards").|("a card") ~ (min > 1).?(", min " ~ min.hl ~ " cards"))
                     .withRule(_.upTo(max).atLeast(min))
                     .withThen(DiscardCardsAction(f, _, then))("Discard".hl ~ _./(" " ~ _.elem))
-                    .withExtra($(NoHand) ++ (min == 0).?(CancelAction))
+                    .withExtra($(NoHand) ++ (min == 0).?(CancelAction) ++ (min == 0 && max > 1).?(then.as("Discard No Cards")))
 
 
             // DISCARD TO

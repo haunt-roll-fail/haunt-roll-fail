@@ -56,7 +56,6 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
         def makeScene() : |[Scene]
 
         def adjustCenterZoomX() {
-
         }
 
         def drawMap() {
@@ -159,7 +158,6 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
                 val height = mapBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
 
                 moving = false
-                moved = false
 
                 mapSmall.attach.parent.style.cursor = "default"
             }
@@ -175,7 +173,8 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
             lastScene.foreach { scene =>
                 val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, dX, dY)
 
-                processTargetClick(scene.pick(xy), xy)
+                if (moved.not)
+                    processTargetClick(scene.pick(xy), xy)
 
                 moving = false
                 moved = false

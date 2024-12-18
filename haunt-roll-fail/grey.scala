@@ -16,6 +16,8 @@ import hrf.elem._
 import hrf.html._
 import hrf.meta._
 
+import hrf.ui.sprites._
+
 import org.scalajs.dom
 
 import scalajs.js.timers.setTimeout
@@ -69,6 +71,248 @@ trait GreyUI { self : Gaming =>
                     doDraw(bitmap)
                 }
             }
+        }
+
+        def newCanvasPaneX(name : String, upscale : Int)(draw : () => |[Scene])(highlight : ($[Any], XY) => Unit)(onClick : ($[Any], XY) => Unit) : CanvasPane = {
+            var zoomBase = 0.0
+
+            def zoom = math.pow(1.0007, zoomBase)
+
+            var dX = 0.0
+            var dY = 0.0
+
+            def processTargetClick(target : $[Any], xy : XY) : Unit = { onClick(target, xy) }
+            def processRightClick(target : $[Any], xy : XY) : Unit = {}
+            def processHighlight(target : $[Any], xy : XY) : Unit = { highlight(target, xy) }
+
+            var lastScene : |[Scene] = None
+            def makeScene() : |[Scene] = draw()
+
+            def adjustCenterZoomX() {
+                val width = 594
+                val height = 1285
+                val margins = Margins(0, 0, 0, 0)
+
+                zoomBase = zoomBase.clamp(0, 990*2)
+
+                val qX = (width + margins.left + margins.right) * (1 - 1 / zoom) / 2
+                val minX = -qX + margins.right - zoomBase / 5
+                val maxX = qX - margins.left + zoomBase / 5
+                dX = dX.clamp(minX, maxX)
+
+                val qY = (height + margins.top + margins.bottom) * (1 - 1 / zoom) / 2
+                val minY = -qY + margins.bottom - zoomBase / 5
+                val maxY = qY - margins.top + zoomBase / 5
+                dY = dY.clamp(minY, maxY)
+
+                // zoomBase = 0
+                // dX = 0
+                // dY = 0
+            }
+
+            var moving = false
+            var moved = false
+            var movingFrom : |[XY] = None
+
+            var zoomFrom : Double = 1.0
+            var touchFrom : $[XY] = $
+
+            val pane = newPane(name, Content)
+            val cachedBitmap = new hrf.canvas.CachedBitmap(pane.attach.parent)
+
+            val cp = new CanvasPane {
+                def container = pane
+                def draw() {
+                    makeScene().foreach { scene =>
+                        lastScene = |(scene)
+
+                        adjustCenterZoomX()
+
+                        val bitmap = {
+                            val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio
+                            val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio
+
+                            val b = cachedBitmap.get(width.~ * upscale, height.~ * upscale)
+
+                            b.canvas.style.width = "100%"
+                            b.canvas.style.height = "100%"
+                            b.canvas.style.touchAction = "none"
+                            b.canvas.style.pointerEvents = "none"
+
+                            b
+                        }
+
+                        if (resources.images.incomplete.none)
+                            scene.render(bitmap.context, bitmap.width, bitmap.height, zoom, dX, dY)
+                    }
+
+                    if (resources.images.incomplete.any)
+                        setTimeout(min(25, resources.images.incomplete.num) * 20)(draw())
+
+                    resources.images.incomplete = $
+                }
+            }
+
+            pane.attach.parent.onpointerdown = (e) => {
+                if (e.isPrimary) {
+                    val offsetX = e.offsetX * dom.window.devicePixelRatio
+                    val offsetY = e.offsetY * dom.window.devicePixelRatio
+
+                    val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio * upscale
+                    val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
+
+                    lastScene.foreach { scene =>
+                        pane.attach.parent.style.cursor = "grab"
+
+                        val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, dX, dY)
+
+                        processHighlight(scene.pick(xy), xy)
+
+                        cp.draw()
+
+                        moving = true
+                        moved = false
+                        movingFrom = |(xy)
+                    }
+                }
+            }
+
+            pane.attach.parent.onpointermove = (e) => {
+                if (e.isPrimary) {
+                    val offsetX = e.offsetX * dom.window.devicePixelRatio
+                    val offsetY = e.offsetY * dom.window.devicePixelRatio
+
+                    val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio * upscale
+                    val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
+
+                    lastScene.foreach { scene =>
+                        if (moving) {
+                            val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, 0, 0)
+
+                            val movingTo = xy
+
+                            dX = movingTo.x - movingFrom.get.x
+                            dY = movingTo.y - movingFrom.get.y
+
+                            moved = true
+                        }
+                        else {
+                            pane.attach.parent.style.cursor = "default"
+
+                            val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, dX, dY)
+
+                            processHighlight(scene.pick(xy), xy)
+                        }
+
+                        cp.draw()
+                    }
+                }
+
+            }
+
+            pane.attach.parent.onpointerup = (e) => {
+                if (e.isPrimary) {
+                    val offsetX = e.offsetX * dom.window.devicePixelRatio
+                    val offsetY = e.offsetY * dom.window.devicePixelRatio
+
+                    val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio * upscale
+                    val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
+
+                    moving = false
+
+                    pane.attach.parent.style.cursor = "default"
+                }
+            }
+
+            pane.attach.parent.onclick = (e) => {
+                val offsetX = e.offsetX * dom.window.devicePixelRatio
+                val offsetY = e.offsetY * dom.window.devicePixelRatio
+
+                val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio * upscale
+                val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
+
+                lastScene.foreach { scene =>
+                    val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, dX, dY)
+
+                    if (moved.not)
+                        processTargetClick(scene.pick(xy), xy)
+
+                    moving = false
+                    moved = false
+
+                    pane.attach.parent.style.cursor = "default"
+                }
+            }
+
+            pane.attach.parent.onpointerout = (e) => {
+                if (e.isPrimary) {
+                    moving = false
+                    moved = false
+
+                    pane.attach.parent.style.cursor = "default"
+                }
+            }
+
+            pane.attach.parent.ontouchmove = (e) => {
+                lastScene.foreach { scene =>
+                    val touchTo = e.targetTouches.iterator.$./(t => XY(t.clientX, t.clientY))
+
+                    def expanse(l : $[XY]) = {
+                        val cx = l./(_.x).sum / l.num
+                        val cy = l./(_.y).sum / l.num
+
+                        math.sqrt(l./(p => (p.x - cx)*(p.x - cx) + (p.y - cy)*(p.y - cy)).sum)
+                    }
+
+                    if (touchTo.num != touchFrom.num) {
+                        touchFrom = touchTo
+                        zoomFrom = zoomBase
+                    }
+                    else {
+                        if (expanse(touchTo) > 16)
+                            zoomBase = zoomFrom - math.log(expanse(touchFrom) / expanse(touchTo)) / math.log(1.0007)
+
+                        cp.draw()
+                    }
+                }
+            }
+
+            pane.attach.parent.ontouchstart = (e) => {
+                touchFrom = e.targetTouches.iterator.$./(t => XY(t.clientX, t.clientY))
+                zoomFrom = zoomBase
+            }
+
+            pane.attach.parent.onwheel = (e) => {
+                lastScene.foreach { scene =>
+                    zoomBase += e.deltaY
+
+                    cp.draw()
+                }
+            }
+
+            pane.attach.parent.oncontextmenu = (e) => {
+                e.preventDefault()
+
+                val offsetX = e.offsetX * dom.window.devicePixelRatio
+                val offsetY = e.offsetY * dom.window.devicePixelRatio
+
+                val width = cachedBitmap.node.clientWidth * dom.window.devicePixelRatio * upscale
+                val height = cachedBitmap.node.clientHeight * dom.window.devicePixelRatio * upscale
+
+                lastScene.foreach { scene =>
+                    val xy = scene.toSceneCoordinates(offsetX, offsetY, width.~, height.~, zoom, dX, dY)
+
+                    if (moved.not)
+                        processRightClick(scene.pick(xy), xy)
+
+                    moving = false
+                    moved = false
+
+                    pane.attach.parent.style.cursor = "default"
+                }
+            }
+
+            cp
         }
 
         val actionPane = newPane("action", Content.div(xlo.column)(xlo.fullheight), xstyles.pane.action)
@@ -492,7 +736,7 @@ trait GreyUI { self : Gaming =>
         }
 
         def alog(e : Elem, n : Int, onClick : Any => Unit, delayed : Boolean = false) : LazyBlock = {
-            val line = e == DoubleLine || e == SingleLine
+            val line = e == DottedLine || e == SingleLine || e == DoubleLine
 
             val fs = hrf.elem.FigureSpace.toString
 

@@ -11,6 +11,8 @@ object xlo {
     object prewrap extends CustomStyle(white.space("pre-wrap"))
     object pre extends CustomStyle(white.space("pre"))
 
+    object flexBasis100 extends CustomStyle(flex.basis("100%"))
+
     object break extends CustomStyle(flex.basis("100%"), width("0px"), height("0px"), overflow.x("hidden"), overflow.y("hidden"), display("inline-block"))
     object gap extends CustomStyle(min.height("0.4ex"))
 

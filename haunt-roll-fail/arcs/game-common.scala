@@ -171,7 +171,7 @@ case class BuryCourtCardAction(self : Faction, c : CourtCard, then : ForcedActio
 case class UsedEffectCardAction(self : Faction, c : Effect, then : ForcedAction) extends ForcedAction
 
 case class EndPreludeAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction
-case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction with Soft
+case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction // with Soft
 case class EndTurnAction(self : Faction) extends ForcedAction
 case object EndRoundAction extends ForcedAction
 case object TransferRoundAction extends ForcedAction
@@ -217,7 +217,7 @@ object CommonExpansion extends Expansion {
 
             game.factions = game.seating
 
-            game.current = l.first
+            game.current = l.starting
 
             l.first.log("randomly took initiative")
 
@@ -1564,6 +1564,8 @@ object CommonExpansion extends Expansion {
             NoAsk(f)(EndTurnAction(f))
 
         case MainTurnAction(f, s, i, n) =>
+            soft()
+
             implicit val ask = builder
             implicit val repeat = MainTurnAction(f, s, i + 1, n)
             implicit val group = f.elem ~ " " ~ "Actions" ~ " " ~ (n - i).times(0x2726.toChar.toString.styled(s))
@@ -1605,7 +1607,7 @@ object CommonExpansion extends Expansion {
             val next = factions.dropWhile(_ != f).drop(1).%(_.hand.any).starting
 
             if (next.any) {
-                game.current = next.get
+                game.current = next
 
                 FollowAction(next.get)
             }
@@ -1613,6 +1615,17 @@ object CommonExpansion extends Expansion {
                 EndRoundAction
 
         case EndRoundAction =>
+            val next =
+                if (game.seized.any)
+                    game.seized.get
+                else
+                    factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
+
+            if (current.has(next))
+                next.log("took the initiative")
+            else
+                next.log("held the initiative")
+
             factions.foreach { f =>
                 f.taking.foreach { d =>
                     d --> f.hand
@@ -1629,39 +1642,25 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            Milestone(TransferRoundAction)
-
-        case TransferRoundAction =>
-            val next =
-                if (game.seized.any)
-                    game.seized.get
-                else
-                    factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
-
-            if (next != current)
-                next.log("took the initiative")
-            else
-                next.log("held the initiative")
+            game.lead = None
+            game.zeroed = false
+            game.seized = None
 
             factions.foreach { f =>
+                f.played --> options.has(SplitDiscardPile).?(discard).|(deck)
+                f.blind --> deck
                 f.lead = false
                 f.surpass = false
                 f.copy = false
                 f.pivot = false
             }
 
-            game.current = next
+            game.current = |(next)
 
-            game.factions = factions.dropWhile(_ != current) ++ factions.takeWhile(_ != current)
+            Milestone(TransferRoundAction)
 
-            factions.foreach { f =>
-                f.played --> (if (options.has(SplitDiscardPile)) discard else deck)
-                f.blind --> deck
-            }
-
-            game.lead = None
-            game.zeroed = false
-            game.seized = None
+        case TransferRoundAction =>
+            game.factions = factions.dropWhile(current.has(_).not) ++ factions.takeWhile(current.has(_).not)
 
             if (factions.exists(_.hand.any))
                 Milestone(StartRoundAction)
@@ -1798,7 +1797,7 @@ object CommonExpansion extends Expansion {
             val winners = $(winner)
 
             game.seized = |(winner)
-            game.current = winner
+            game.current = |(winner)
             game.isOver = true
 
             winners.foreach(f => f.log("won"))

@@ -847,7 +847,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     def freeSlots(s : System) = board.slots(s) - figures.get(s).%(_.piece.is[Building]).num
 
-    var current : Faction = null
+    var current : |[Faction] = None
 
     var highlightFaction : $[Faction] = $
 
