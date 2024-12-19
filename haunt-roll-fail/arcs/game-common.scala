@@ -696,10 +696,16 @@ object CommonExpansion extends Expansion {
 
             val wc = f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)
 
-            Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
-                .some(systems.%(f.rules))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
-                .cancel
+            if (f.can(Inspiring))
+                Ask(f).group(g)
+                    .some(systems)(s => f.at(s).slots./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g)))
+                    .some(systems.%(f.present))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
+                    .cancel
+            else
+                Ask(f).group(g)
+                    .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
+                    .some(systems.%(f.rules))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
+                    .cancel
 
         case TaxAction(f, x, r, c, loyal, then) =>
             var next = then
@@ -1188,8 +1194,13 @@ object CommonExpansion extends Expansion {
 
         // INFLUENCE
         case InfluenceMainAction(f, x, then) =>
+            var next = then
+
+            if (f.can(Influential) && (f.pivot || f.copy) && x == Pip)
+                next = InfluentialAction(f, x, then)
+
             Ask(f).group("Influence".hl)
-                .each(market)(c => InfluenceAction(f, x, c, then).as(c))
+                .each(market)(c => InfluenceAction(f, x, c, next).as(c))
                 .cancel
 
         case InfluenceAction(f, x, c, then) =>
@@ -1390,7 +1401,20 @@ object CommonExpansion extends Expansion {
             if (zero)
                 game.zeroed = true
 
-            AmbitionDeclaredAction(f, a, $, then)
+
+            if (f.can(Connected) && game.declared.get(a).|($).num == 1) {
+                val c = court.take(1).first
+
+                c --> f.loyal
+
+                f.used :+= c
+
+                f.log("secured", c, "with", Connected)
+
+                GainCourtCardAction(f, c, None, AmbitionDeclaredAction(f, a, $, then))
+            }
+            else
+                AmbitionDeclaredAction(f, a, $, then)
 
         case AmbitionDeclaredAction(f, a, used, then) =>
             var ask = Ask(f)
@@ -1772,8 +1796,10 @@ object CommonExpansion extends Expansion {
                         first.foreach { f =>
                             var p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
 
-                            if (f.can(Just) && ambition == Tyrant)
-                                p = low
+                            $((Just, Tyrant), (Academic, Tycoon)).foreach { case (t, a) =>
+                                if (f.can(t) && ambition == a)
+                                    p = low
+                            }
 
                             f.power += p
                             f.log("scored first place", ambition, "for", p.power)
@@ -1783,8 +1809,18 @@ object CommonExpansion extends Expansion {
                         second.foreach { f =>
                             var p = low
 
-                            if (f.can(Just) && ambition == Tyrant)
-                                p = 0
+                            $(
+                                (Just, Tyrant),
+                                (Academic, Tycoon),
+                                (Proud, Tycoon),
+                                (Proud, Tyrant),
+                                (Proud, Warlord),
+                                (Proud, Keeper),
+                                (Proud, Empath),
+                            ).foreach { case (t, a) =>
+                                if (f.can(t) && ambition == a)
+                                    p = 0
+                            }
 
                             f.power += p
                             f.log("scored second place", ambition, "for", p.power)

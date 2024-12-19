@@ -34,11 +34,40 @@ case object Disorganized extends LeaderEffect
 case object Bold extends LeaderEffect
 case object Paranoid extends LeaderEffect
 
+case object Learned extends LeaderEffect
+case object Academic extends LeaderEffect
+
+case object Connected extends LeaderEffect
+case object Influential extends LeaderEffect
+case object Proud extends LeaderEffect
+
+case object Ambitious extends LeaderEffect
+case object Callow extends LeaderEffect
+
 case object Firebrand extends LeaderEffect
 case object Irregular extends LeaderEffect
 
 case object Resilient extends LeaderEffect
 case object Greedy extends LeaderEffect
+
+case object Tactical extends LeaderEffect
+case object Violent extends LeaderEffect
+
+case object Mythic extends LeaderEffect
+case object Ancient extends LeaderEffect
+
+case object Ruthless extends LeaderEffect
+case object Hated extends LeaderEffect
+
+case object Tricky extends LeaderEffect
+case object Wary extends LeaderEffect
+
+case object Charismatic extends LeaderEffect
+case object Generous extends LeaderEffect
+
+case object Decentralized extends LeaderEffect
+case object Inspiring extends LeaderEffect
+case object Principled extends LeaderEffect
 
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
@@ -49,17 +78,17 @@ abstract class Leader(val id : String, val name : String, val effects : $[Effect
 case object Elder         extends Leader("leader01", "Elder",         $(Beloved, Just), $(Relic, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Mystic        extends Leader("leader02", "Mystic",        $(Attuned, Cryptic), $(Psionic, Relic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(Insatiable, Lavish), $(Fuel, Fuel), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship)) { override val name = "Fuel Drinker" }
-case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
+case object Upstart       extends Leader("leader04", "Upstart",       $(Ambitious, Callow), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Rebel         extends Leader("leader05", "Rebel",         $(Committed, Disorganized), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
-case object Warrior       extends Leader("leader06", "Warrior",       $, $, $, $, $)
-case object Feastbringer  extends Leader("leader07", "Feastbringer",  $, $, $, $, $)
+case object Warrior       extends Leader("leader06", "Warrior",       $(Tactical, Violent), $(Weapon, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
+case object Feastbringer  extends Leader("leader07", "Feastbringer",  $(Charismatic, Generous), $(Relic, Material), $(City, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship, Ship))
 case object Demagogue     extends Leader("leader08", "Demagogue",     $(Bold, Paranoid), $(Psionic, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
-case object Archivist     extends Leader("leader09", "Archivist",     $, $, $, $, $)
-case object Overseer      extends Leader("leader10", "Overseer",      $, $, $, $, $)
-case object Corsair       extends Leader("leader11", "Corsair",       $, $, $, $, $)
-case object Noble         extends Leader("leader12", "Noble",         $(), $(Psionic, Psionic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
-case object Anarchist     extends Leader("leader13", "Anarchist",     $, $, $, $, $)
-case object Shaper        extends Leader("leader14", "Shaper",        $, $, $, $, $)
+case object Archivist     extends Leader("leader09", "Archivist",     $(Learned, Academic), $(Relic, Relic), $(City, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship))
+case object Overseer      extends Leader("leader10", "Overseer",      $(Ruthless, Hated), $(Fuel, Material), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
+case object Corsair       extends Leader("leader11", "Corsair",       $(Tricky, Wary), $(Fuel, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
+case object Noble         extends Leader("leader12", "Noble",         $(Connected, Influential, Proud), $(Psionic, Psionic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
+case object Anarchist     extends Leader("leader13", "Anarchist",     $(Decentralized, Inspiring, Principled), $(Relic, Weapon), $(Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
+case object Shaper        extends Leader("leader14", "Shaper",        $(Mythic, Ancient), $(Relic, Material), $(City, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship, Ship))
 case object Agitator      extends Leader("leader15", "Agitator",      $(Firebrand, Irregular), $(Fuel, Material), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Quartermaster extends Leader("leader16", "Quartermaster", $(Resilient, Greedy), $(Fuel, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
 
@@ -85,7 +114,7 @@ object Leaders {
     )
 
     def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
-    def preset2 = $(Agitator, Quartermaster, FuelDrinker, Demagogue)
+    def preset2 = $(Agitator, Quartermaster, Noble, Anarchist)
     def preset3 = $()
 }
 
@@ -100,7 +129,7 @@ case object LeadersFactionsSetupAction extends ForcedAction
 case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
-
+case class InfluentialAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 
 object LeadersExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -108,6 +137,7 @@ object LeadersExpansion extends Expansion {
         case LeadersLoresShuffledAction(l1, l2) =>
             game.leaders = l1.take(factions.num + 1)
             game.lores = l2.take(factions.num + 1)
+            game.loresX = l2.take(5)
 
             log("Leaders".hh, "and", "Lores".hh, "were shuffled")
 
@@ -208,6 +238,12 @@ object LeadersExpansion extends Expansion {
                     f.extraKeys = $(4) ++ f.extraKeys
                     f.resources = $(Nothingness) ++ f.resources
                 }
+
+                if (f.can(Decentralized)) {
+                    f.reserve --> City.of(f) --> f.void
+                    f.reserve --> City.of(f) --> f.void
+                }
+
             }
 
             StartChapterAction
@@ -229,6 +265,14 @@ object LeadersExpansion extends Expansion {
                 )
                 .cancelIf(influenced.none)
                 .done(influenced.any.?(then))
+
+        // NOBLE
+        case InfluentialAction(f, x, then) =>
+            val next = then
+
+            Ask(f).group("Influence".hl)
+                .each(market)(c => InfluenceAction(f, NoCost, c, next).as(c))
+                .add(next.as("Skip"))
 
         case _ => UnknownContinue
     }

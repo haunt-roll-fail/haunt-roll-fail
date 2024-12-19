@@ -327,6 +327,7 @@ case class Outrage(f : Faction) extends SpecialRegion
 case class Trophies(f : Faction) extends SpecialRegion
 case class Captives(f : Faction) extends SpecialRegion
 case class Influence(c : CourtCard) extends SpecialRegion
+case class Blackhole(f : Faction) extends SpecialRegion
 
 
 trait Symbol extends NamedToString with Record
@@ -505,6 +506,7 @@ object Figure {
         def sub(n : Int, p : Piece) = sublist(n.times(p))
 
         def buildings = l.%(u => u.piece.building.any)
+        def slots = l.%(u => u.piece == Slot)
         def ships = l.%(u => u.piece == Ship)
         def cities = l.%(u => u.piece == City)
         def starports = l.%(u => u.piece == Starport)
@@ -637,6 +639,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
         1.to(15)./(Figure(faction, Ship, _)) ++
         1.to(10)./(Figure(faction, Agent, _))
     )
+    val void : Region = figures.register(Blackhole(faction))
 
     var outraged : $[Resource] = $
 
@@ -794,6 +797,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     var leaders : $[Leader] = $
     var lores : $[Lore] = $
+    var loresX : $[Lore] = $
 
     implicit val cards = new IdentityTracker[DeckCardLocation, DeckCard]
     implicit val courtiers = new IdentityTracker[CourtLocation, CourtCard]
