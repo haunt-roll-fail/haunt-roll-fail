@@ -554,18 +554,26 @@ object Runner {
 
                 case UIContinue(c @ Ask(_, List(a : UserAction)), Nil) =>
                     dirty = true
-                    UIRecord("#unchoice", c, a)
+                    UIRecord("#unchoice 1", c, a)
 
                 case UIContinue(c @ Ask(_, l), Nil) if c.choice.not =>
                     UIContinue(c.copy(actions = l.%(_.is[Info].not).single.$), Nil)
 
+                case UIContinue(c @ Ask(_, List(a : UserAction, h : Hidden)), Nil) if h != HiddenOkAction && a.isSoft =>
+                    dirty = true
+                    UIPerform(a, $)
+
                 case UIContinue(c @ Ask(_, List(a : UserAction, h : Hidden)), Nil) if h != HiddenOkAction =>
                     dirty = true
-                    UIRecord("#unchoice", c, a)
+                    UIRecord("#unchoice 2", c, a)
+
+                case UIContinue(c @ Ask(_, List(h : Hidden, a : UserAction)), Nil) if h != HiddenOkAction && a.isSoft =>
+                    dirty = true
+                    UIPerform(a, $)
 
                 case UIContinue(c @ Ask(_, List(h : Hidden, a : UserAction)), Nil) if h != HiddenOkAction =>
                     dirty = true
-                    UIRecord("#unchoice", c, a)
+                    UIRecord("#unchoice 3", c, a)
 
                 case UIContinue(c @ Ask(faction, actions), Nil) =>
                     auto(game, faction) match {

@@ -17,7 +17,10 @@ import hrf.elem._
 import arcs.elem._
 
 
-trait LeaderEffect extends Effect with NamedToString with Elementary
+trait LeaderEffect extends Effect with NamedToString with Elementary {
+    override def elem = name.styled(styles.title).hl
+}
+
 
 case object Beloved extends LeaderEffect
 case object Just extends LeaderEffect
@@ -30,6 +33,9 @@ case object Lavish extends LeaderEffect
 
 case object Committed extends LeaderEffect
 case object Disorganized extends LeaderEffect
+
+case object Charismatic extends LeaderEffect
+case object Generous extends LeaderEffect
 
 case object Bold extends LeaderEffect
 case object Paranoid extends LeaderEffect
@@ -49,7 +55,7 @@ case object FuelDrinker   extends Leader("leader03", "Fuel-Drinker",  $(Insatiab
 case object Upstart       extends Leader("leader04", "Upstart",       $(), $(Psionic, Material), $(City, Ship, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Rebel         extends Leader("leader05", "Rebel",         $(Committed, Disorganized), $(Material, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship, Ship), $(Ship, Ship))
 case object Warrior       extends Leader("leader06", "Warrior",       $, $, $, $, $)
-case object Feastbringer  extends Leader("leader07", "Feastbringer",  $, $, $, $, $)
+case object Feastbringer  extends Leader("leader07", "Feastbringer",  $(Charismatic, Generous), $(Relic, Material), $(City, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship, Ship))
 case object Demagogue     extends Leader("leader08", "Demagogue",     $(Bold, Paranoid), $(Psionic, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Archivist     extends Leader("leader09", "Archivist",     $, $, $, $, $)
 case object Overseer      extends Leader("leader10", "Overseer",      $, $, $, $, $)
@@ -82,7 +88,7 @@ object Leaders {
     )
 
     def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
-    def preset2 = $(Agitator)
+    def preset2 = $(Agitator, Feastbringer)
     def preset3 = $()
 }
 
@@ -97,6 +103,7 @@ case object LeadersFactionsSetupAction extends ForcedAction
 case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
+case class GiveGuildCardAction(self : Faction, e : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
 
 
 object LeadersExpansion extends Expansion {
@@ -211,18 +218,7 @@ object LeadersExpansion extends Expansion {
 
         // ELDER
         case BelovedAction(f, then) =>
-            if (f.pool(Agent).not) {
-                f.log("had no", "Agents".styled(f), "for", Beloved)
-
-                then
-            }
-            else {
-                soft()
-
-                Ask(f).group("Influence".hl, "with", Beloved)
-                    .each(market)(c => InfluenceAction(f, NoCost, c, then).as(c))
-                    .skip(then)
-            }
+            MayInfluenceAction(f, |(Beloved), then)
 
         // DEMAGOGUE
         case BoldMainAction(f, influenced, then) =>
@@ -233,6 +229,14 @@ object LeadersExpansion extends Expansion {
                 )
                 .cancelIf(influenced.none)
                 .done(influenced.any.?(then))
+
+        // FEASTBRINGER
+        case GiveGuildCardAction(f, e, c, then) =>
+            f.loyal --> c --> e.loyal
+
+            f.log("gave", c, "to", e)
+
+            GainCourtCardAction(e, c, None, then)
 
         case _ => UnknownContinue
     }

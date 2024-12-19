@@ -174,8 +174,8 @@ case class Loyal(faction : Faction) extends CourtLocation
 case class DeckCard(suit : Suit, strength : Int, pips : Int) extends Elementary with Record {
     def imgid = suit + "-" + strength
     def img = Image(imgid, styles.card)
-    def elem = (" " + suit + " " + strength + " ").pre.spn(xstyles.outlined).styled(suit)
-    def zeroed(b : Boolean) = (" " + suit + " " + b.?(0).|(strength) + " ").pre.spn(xstyles.outlined).styled(suit)
+    def elem = (" " + suit + " " + strength + " ").pre.spn(styles.outlined).styled(suit)
+    def zeroed(b : Boolean) = (" " + suit + " " + b.?(0).|(strength) + " ").pre.spn(styles.outlined).styled(suit)
 }
 
 object DeckCards {
@@ -220,6 +220,7 @@ trait CourtCard extends Effect with Record with Elementary {
     def id(implicit game : Game) = campaign.?(cid).|(bid)
     def name : String
     def elem = name.styled(styles.title).hl
+    def img(implicit game : Game) = Image(id, styles.card)
 }
 
 abstract class GuildCard(val bid : String, val cid : String, val name : String, val suit : Resource, val keys : Int) extends CourtCard
@@ -944,15 +945,15 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         }
     }
 
-    def secure(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + SecureMainAction(f, x, repeat).as("Secure".styled(f), x)(group).!!!
+    def secure(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
+        + SecureMainAction(f, x, None, false, true, then | repeat).as("Secure".styled(f), x)(group).!!!
     }
 
-    def influence(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + InfluenceMainAction(f, x, repeat).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
+    def influence(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
+        + InfluenceMainAction(f, x, None, false, true, then | repeat).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
 
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
-            + ExecuteMainAction(f, x, repeat).as("Execute".styled(f), x)(group)
+            + ExecuteMainAction(f, x, then | repeat).as("Execute".styled(f), x)(group)
         }
     }
 

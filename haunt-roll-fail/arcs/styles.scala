@@ -134,6 +134,8 @@ package object elem {
         object infoStatus extends CustomStyle(line.height("100%"))
 
         object notDoneYet extends CustomStyle(color("darkred"), text.decoration.line("line-through"), text.decoration.style("wavy"))
+
+        object outlined extends CustomStyle(border.width("2px"), border.width("0.2ex"), border.style("solid"), background.color("#222222"), margin("0.1ex"), display("inline-block"), text.indent("0"))
     }
 
     implicit class ElemString(val s : String) extends AnyVal {

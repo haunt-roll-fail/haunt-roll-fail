@@ -436,6 +436,7 @@ trait Gaming extends Timelines {
         def refuse(then : ForcedAction) = add(RefuseAction(then))
         def back(then : ForcedAction) = add(BackAction(then))
         def skip(then : ForcedAction) = add(SkipAction(then))
+        def skip(then : |[ForcedAction]) = add(then./(x => SkipAction(x)))
 
         val exploded = scala.collection.mutable.Map[G, $[Action]]()
     }

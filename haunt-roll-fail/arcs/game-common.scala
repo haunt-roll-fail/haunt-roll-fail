@@ -104,11 +104,13 @@ case class BuildShipAction(self : Faction, cost : Cost, r : System, then : Force
 case class RepairMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class RepairAction(self : Faction, cost : Cost, r : System, u : Figure, then : ForcedAction) extends ForcedAction
 
-case class InfluenceMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class InfluenceMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class InfluenceAction(self : Faction, cost : Cost, c : CourtCard, then : ForcedAction) extends ForcedAction
+case class MayInfluenceAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
 
-case class SecureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class SecureMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class SecureAction(self : Faction, cost : Cost, c : CourtCard, then : ForcedAction) extends ForcedAction
+case class MustSecureAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
 
 case class AddBattleOptionAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction
 
@@ -168,7 +170,8 @@ case class GainCourtCardAction(self : Faction, c : CourtCard, from : |[Faction],
 case class DiscardCourtCardAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
 case class BuryCourtCardAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
 
-case class UsedEffectCardAction(self : Faction, c : Effect, then : ForcedAction) extends ForcedAction
+case class UseEffectAction(self : Faction, c : Effect, then : ForcedAction) extends ForcedAction
+case class ClearEffectAction(self : Faction, c : Effect, then : ForcedAction) extends ForcedAction
 
 case class EndPreludeAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction
 case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction // with Soft
@@ -177,6 +180,13 @@ case object EndRoundAction extends ForcedAction
 case object TransferRoundAction extends ForcedAction
 case object EndChapterAction extends ForcedAction
 case object CleanUpChapterAction extends ForcedAction
+
+case class SecureWith(e : |[Effect]) extends Message {
+    def elem(implicit game : Game) = game.desc("Secure".hl, e./("with" -> _))
+}
+
+case class DeadlockAction(self : Faction, message : Message, then : ForcedAction) extends HiddenChoice
+case class CheatAction(self : Faction, message : Message, then : ForcedAction) extends BaseAction(self, "made an illegal move, must", message, "but cannot", Break, "Please", "UNDO".hlb, "your move")(Empty) with Choice
 
 
 case class GameOverAction(winner : Faction) extends ForcedAction
@@ -302,6 +312,19 @@ object CommonExpansion extends Expansion {
             }
 
             StartChapterAction
+
+        // DEADLOCK
+        case DeadlockAction(f, message, then) =>
+            f.log("could not", message)
+
+            Ask(f)
+                .add(CheatAction(f, message, then))
+                .needOk
+
+        case CheatAction(f, message, then) =>
+            f.log("cheated and continued playing")
+
+            then
 
         // ADJUST
         case AdjustResourcesAction(then) =>
@@ -682,8 +705,13 @@ object CommonExpansion extends Expansion {
 
             then
 
-        case UsedEffectCardAction(f, c, then) =>
+        case UseEffectAction(f, c, then) =>
             f.used :+= c
+
+            then
+
+        case ClearEffectAction(f, c, then) =>
+            f.used :-= c
 
             then
 
@@ -1125,10 +1153,12 @@ object CommonExpansion extends Expansion {
             then
 
         // INFLUENCE
-        case InfluenceMainAction(f, x, then) =>
-            Ask(f).group("Influence".hl)
+        case InfluenceMainAction(f, x, effect, skip, cancel, then) =>
+            Ask(f).group("Influence".hl, effect./("with" -> _))
                 .each(market)(c => InfluenceAction(f, x, c, then).as(c))
-                .cancel
+                .skip(skip.?(then))
+                .cancelIf(cancel)
+                .needOk
 
         case InfluenceAction(f, x, c, then) =>
             f.pay(x)
@@ -1139,13 +1169,25 @@ object CommonExpansion extends Expansion {
 
             then
 
-        case SecureMainAction(f, x, then) =>
-            Ask(f).group("Secure".hl)
+        case MayInfluenceAction(f, effect, then) =>
+            if (f.pool(Agent).not) {
+                f.log("had no", "Agents".styled(f), "for", effect)
+
+                then
+            }
+            else
+                InfluenceMainAction(f, NoCost, effect, true, false, then)
+
+        // SECURE
+        case SecureMainAction(f, x, effect, skip, cancel, then) =>
+            Ask(f).group("Secure".hl, effect./("with" -> _))
                 .each(market)(c => SecureAction(f, x, c, then).as(c)
                     .!(Influence(c).$.use(l => l.%(_.faction == f).num <= f.rivals./(e => l.%(_.faction == e).num).max))
                     .!(f.can(Paranoid) && c.is[GuildCard] && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
                 )
-                .cancel
+                .skip(skip.?(then))
+                .cancelIf(cancel)
+                .needOk
 
         case SecureAction(f, x, c, then) =>
             f.pay(x)
@@ -1167,6 +1209,11 @@ object CommonExpansion extends Expansion {
             }
 
             GainCourtCardAction(f, c, None, ReplenishMarketAction(then))
+
+        case MustSecureAction(f, effect, then) =>
+            Ask(f)
+                .add(SecureMainAction(f, NoCost, effect, false, false, then).as("Secure").!!!)
+                .add(DeadlockAction(f, SecureWith(effect), then))
 
         // MANUFACTURE
         case ManufactureMainAction(f, x, then) =>
@@ -1318,6 +1365,16 @@ object CommonExpansion extends Expansion {
                 .add(s.in(6, 7).?(DeclareAmbitionAction(f, Empath,  f.loyal.has(SecretOrder).not, next))./(a => a.as(a.ambition)))
                 .add(next.as("Skip"))
 
+        case DeclareAmbitionAction(f, a, zero, then) if f.can(Generous) =>
+            val l = factions.but(f).%(_.power == factions.but(f)./(_.power).min)
+
+            implicit def convert(c : GuildCard) = c.img
+
+            YYSelectObjectsAction(f, f.loyal.of[GuildCard])
+                .withGroup("Give a card with", Generous)
+                .withThensInfo(c => l./(e => UseEffectAction(f, Generous, GiveGuildCardAction(f, e, c, DeclareAmbitionAction(f, a, zero, ClearEffectAction(f, Generous, then)))).as("Give", c, "to", e)))(l./(e => Info("Give to", e)))
+                .withExtras(then.as("Forfeit declaring", a))
+
         case DeclareAmbitionAction(f, a, zero, then) =>
             f.log("declared", a, "ambition")
 
@@ -1391,7 +1448,7 @@ object CommonExpansion extends Expansion {
 
         case CheckSeizeAction(f, then) =>
             if (zeroed.not && game.ambitionable.any && f.played.any && f.can(GalacticBards)) {
-                val next = UsedEffectCardAction(f, GalacticBards, CheckSeizeAction(f, then))
+                val next = UseEffectAction(f, GalacticBards, CheckSeizeAction(f, then))
                 val s = f.played.single.get.strength
 
                 Ask(f).group("Declare Ambition".hl)
@@ -1528,7 +1585,7 @@ object CommonExpansion extends Expansion {
                     if (r != Nothingness) {
                         val cost = PayResource(r, |(k))
 
-                        + FenceResourceAction(f, Relic, cost, UsedEffectCardAction(f, RelicFence, repeat)).as("Gain", ResourceRef(Relic, None), cost)(RelicFence)
+                        + FenceResourceAction(f, Relic, cost, UseEffectAction(f, RelicFence, repeat)).as("Gain", ResourceRef(Relic, None), cost)(RelicFence)
                     }
                 }
             }
@@ -1580,7 +1637,14 @@ object CommonExpansion extends Expansion {
                 case Aggression =>
                     game.battle(f, cost)
                     game.move(f, cost)
-                    game.secure(f, cost)
+
+                    if (f.can(Charismatic) && (f.copy || f.pivot)) {
+                        game.secure(f, cost, |(MayInfluenceAction(f, |(Charismatic), repeat)))
+                        game.influence(f, cost, |(MustSecureAction(f, |(Charismatic), repeat)))
+                    }
+                    else
+                        game.secure(f, cost)
+
                 case Construction =>
                     game.build(f, cost)
                     game.repair(f, cost)
