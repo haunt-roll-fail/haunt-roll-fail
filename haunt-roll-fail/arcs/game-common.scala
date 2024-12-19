@@ -1179,7 +1179,7 @@ object CommonExpansion extends Expansion {
                 f.damaged :-= u
             }
 
-            f.log("repaired", l, "in", r, x)
+            f.log("repaired", l.comma, "in", r, x)
 
             then
 
