@@ -104,6 +104,7 @@ object LoreExpansion extends Expansion {
 
             if (f.damaged.has(u))
                 f.damaged :+= u2
+                f.damaged :-= u
 
             u --> f.reserve
             u2 --> s
@@ -119,6 +120,7 @@ object LoreExpansion extends Expansion {
 
             if (f.damaged.has(u))
                 f.damaged :+= u2
+                f.damaged :-= u
 
             u --> f.reserve
             u2 --> s
