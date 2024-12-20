@@ -897,12 +897,6 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     def build(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
         + BuildMainAction(f, x, repeat).as("Build".styled(f), x)(group).!!!
-            // .!{
-            //     val ll = systems.%(f.present)
-            //     val bb = ll.%(c => freeSlots(c) > 0)
-            //     val ss = ll.%(f.at(_).hasA(Starport)).%(s => f.at(s).exists(u => u.piece == Starport && u.faction == f && f.built.has(u).not))
-            //     (bb.none || (f.pool(City).not && f.pool(Starport).not)) && ss.none
-            // }
 
         if (f.loyal.has(MiningInterest)) {
             + ManufactureMainAction(f, x, repeat).as("Manufacture".styled(f), x)(group)
@@ -917,7 +911,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         }
 
         if (f.lores.has(LivingStructures)) {
-            + NurtureMainAction(f, x, repeat).as("Nurture".styled(f), x)(group)
+            + NurtureMainAction(f, x, repeat).as("Nurture".styled(f), x)(group).!!!
         }
     }
 
@@ -925,20 +919,20 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         + RepairMainAction(f, x, repeat).as("Repair".styled(f), x)(group).!(f.damaged.none)
     }
 
-    def move(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + MoveMainAction(f, x, repeat).as("Move".styled(f), x)(group).!!!
+    def move(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
+        + MoveMainAction(f, x, None, false, true, then | repeat).as("Move".styled(f), x)(group).!!!
 
         if (f.can(SurvivalOverrides)) {
             + MartyrMainAction(f, x, repeat).as("Martyr".styled(f), x)(group).!!!
         }
     }
 
-    def battle(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + BattleMainAction(f, x, repeat).as("Battle".styled(f), x)(group).!!!
-
-        val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
+    def battle(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
+        + BattleMainAction(f, x, None, false, true, then | repeat).as("Battle".styled(f), x)(group).!!!
 
         if (f.loyal.has(CourtEnforcers)) {
+            val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
+
             val l = market.%(c => Influence(c).%(_.faction != f).use(l => l.any && l.num < limit))
 
             + AbductMainAction(f, l, x, repeat).as("Abduct".styled(f), x)(group).!(l.none)
@@ -953,7 +947,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         + InfluenceMainAction(f, x, None, false, true, then | repeat).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
 
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
-            + ExecuteMainAction(f, x, then | repeat).as("Execute".styled(f), x)(group)
+            + ExecuteMainAction(f, x, repeat).as("Execute".styled(f), x)(group)
         }
     }
 

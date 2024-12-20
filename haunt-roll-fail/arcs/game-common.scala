@@ -71,12 +71,15 @@ case class TaxAction(self : Faction, cost : Cost, r : System, c : Figure, loyal 
 case class TaxBonusAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 
-case class MoveMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class MayMoveAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MoveMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
 case class MoveToAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveListAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction
 
-case class BattleMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class MayBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MustBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class BattleMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class BattleSystemAction(self : Faction, cost : Cost, r : System, then : ForcedAction) extends ForcedAction with Soft
 case class BattleFactionAction(self : Faction, cost : Cost, r : System, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class BattleDiceAction(self : Faction, cost : Cost, r : System, e : Faction, skirmish : Int, assault : Int, raid : Int, then : ForcedAction) extends ForcedAction
@@ -183,6 +186,10 @@ case object CleanUpChapterAction extends ForcedAction
 
 case class SecureWith(e : |[Effect]) extends Message {
     def elem(implicit game : Game) = game.desc("Secure".hl, e./("with" -> _))
+}
+
+case class BattleWith(e : |[Effect]) extends Message {
+    def elem(implicit game : Game) = game.desc("Battle".hl, e./("with" -> _))
 }
 
 case class DeadlockAction(self : Faction, message : Message, then : ForcedAction) extends HiddenChoice
@@ -717,13 +724,11 @@ object CommonExpansion extends Expansion {
 
         // TAX
         case TaxMainAction(f, x, then) =>
-            val g = "Tax".hl
-
             val wc = f.lores.has(WarlordsCruelty) && game.declared.contains(Warlord)
 
-            Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed")))
-                .some(systems.%(f.rules))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
+            Ask(f).group("Tax".hl, x)
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token)))).!(f.taxed.has(c) && wc.not, "taxed")))
+                .some(systems.%(f.rules))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token)))).!(f.taxed.has(c) && wc.not, "taxed"))))
                 .cancel
 
         case TaxAction(f, x, r, c, loyal, then) =>
@@ -764,14 +769,19 @@ object CommonExpansion extends Expansion {
             then
 
         // MOVE
-        case MoveMainAction(f, x, then) =>
+        case MayMoveAction(f, effect, then) =>
+            MoveMainAction(f, NoCost, effect, true, false, then)
+
+        case MoveMainAction(f, x, effect, skip, cancel, then) =>
             val pp = systems.%(f.at(_).hasA(Starport))
             val ss = systems./(r => r -> f.at(r).ships).%>(_.any).toMap
 
-            Ask(f).group("Move from")
+            Ask(f).group("Move", effect./("with" -> _), x, "from")
                 .each(ss.keys.% (pp.has).$)(r => MoveFromAction(f, r, ss(r), true,  x, CancelAction, then).as(r))
                 .each(ss.keys.%!(pp.has).$)(r => MoveFromAction(f, r, ss(r), false, x, CancelAction, then).as(r))
-                .cancel
+                .skip(skip.?(then))
+                .cancelIf(cancel)
+                .needOk
 
         case MoveFromAction(f, r, l, cascade, x, alt, then) =>
             Ask(f).group("Move from", r, "to")
@@ -802,10 +812,20 @@ object CommonExpansion extends Expansion {
                 Force(then)
 
         // BATTLE
-        case BattleMainAction(f, x, then) =>
-            Ask(f).group(f, "battles in", x)
+        case MustBattleAction(f, effect, then) =>
+            Ask(f)
+                .add(BattleMainAction(f, NoCost, effect, false, false, then).as("Battle").!!!)
+                .add(DeadlockAction(f, BattleWith(effect), then))
+
+        case MayBattleAction(f, effect, then) =>
+            BattleMainAction(f, NoCost, effect, true, false, then)
+
+        case BattleMainAction(f, x, effect, skip, cancel, then) =>
+            Ask(f).group(f, "battles", effect./("with" -> _), x, "in")
                 .each(systems.%(f.at(_).hasA(Ship)).%(r => f.rivals.exists(_.present(r))))(r => BattleSystemAction(f, x, r, then).as(r))
-                .cancel
+                .skip(skip.?(then))
+                .cancelIf(cancel)
+                .needOk
 
         case BattleSystemAction(f, x, r, then) =>
             Ask(f).group(f, "battles in", r, x)
@@ -1084,7 +1104,7 @@ object CommonExpansion extends Expansion {
             def suffix(s : System) = f.rivals.exists(_.rules(s)).??("-damaged")
 
             Ask(f)
-                .group("Build".hl)
+                .group("Build".hl, x)
                 .each(f.pool(City).??(bb))(s => BuildCityAction(f, x, s, then).as(City.of(f), Image(prefix + "city" + suffix(s), styles.qbuilding), "in", s))
                 .each(f.pool(Starport).??(bb))(s => BuildStarportAction(f, x, s, then).as(Starport.of(f), Image(prefix + "starport" + suffix(s), styles.qbuilding), "in", s))
                 .each(f.pool(Ship).??(ss))(s => BuildShipAction(f, x, s, then).as(Ship.of(f), Image(prefix + "ship" + suffix(s), styles.qship), "in", s).!(f.at(s).exists(u => u.piece == Starport && u.faction == f && f.built.has(u).not).not, "built"))
@@ -1139,7 +1159,7 @@ object CommonExpansion extends Expansion {
             val ll = systems.%(f.present)
 
             Ask(f)
-                .group("Repair".hl)
+                .group("Repair".hl, x)
                 .some(ll)(r => f.at(r).damaged./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
                 .cancel
 
@@ -1154,7 +1174,7 @@ object CommonExpansion extends Expansion {
 
         // INFLUENCE
         case InfluenceMainAction(f, x, effect, skip, cancel, then) =>
-            Ask(f).group("Influence".hl, effect./("with" -> _))
+            Ask(f).group("Influence".hl, effect./("with" -> _), x)
                 .each(market)(c => InfluenceAction(f, x, c, then).as(c))
                 .skip(skip.?(then))
                 .cancelIf(cancel)
@@ -1180,7 +1200,7 @@ object CommonExpansion extends Expansion {
 
         // SECURE
         case SecureMainAction(f, x, effect, skip, cancel, then) =>
-            Ask(f).group("Secure".hl, effect./("with" -> _))
+            Ask(f).group("Secure".hl, effect./("with" -> _), x)
                 .each(market)(c => SecureAction(f, x, c, then).as(c)
                     .!(Influence(c).$.use(l => l.%(_.faction == f).num <= f.rivals./(e => l.%(_.faction == e).num).max))
                     .!(f.can(Paranoid) && c.is[GuildCard] && Influence(c).%(_.faction == f).num <= 1, "Paranoid")
@@ -1635,8 +1655,14 @@ object CommonExpansion extends Expansion {
                     game.repair(f, cost)
                     game.influence(f, cost)
                 case Aggression =>
-                    game.battle(f, cost)
-                    game.move(f, cost)
+                    if (f.can(Tactical) && (f.copy || f.pivot)) {
+                        game.battle(f, cost, |(MayMoveAction(f, |(Tactical), repeat)))
+                        game.move(f, cost, |(MayBattleAction(f, |(Tactical), repeat)))
+                    }
+                    else {
+                        game.battle(f, cost)
+                        game.move(f, cost)
+                    }
 
                     if (f.can(Charismatic) && (f.copy || f.pivot)) {
                         game.secure(f, cost, |(MayInfluenceAction(f, |(Charismatic), repeat)))
@@ -1653,8 +1679,14 @@ object CommonExpansion extends Expansion {
                     game.influence(f, cost)
             }
 
-            if (s != Aggression && f.anyBattle)
-                game.battle(f, cost)
+            if (s != Aggression && f.anyBattle) {
+                if (f.can(Tactical) && (f.copy || f.pivot)) {
+                    game.battle(f, cost, |(MayMoveAction(f, |(Tactical), repeat)))
+                    game.move(f, cost, |(MustBattleAction(f, |(Tactical), repeat)))
+                }
+                else
+                    game.battle(f, cost)
+            }
 
             + EndTurnAction(f).as("Forfeit", (n - i).hl, "actions")(group)
 
@@ -1773,8 +1805,14 @@ object CommonExpansion extends Expansion {
                         first.foreach { f =>
                             var p = high + (f.pooled(City) < 2).??(2) + (f.pooled(City) < 1).??(3)
 
-                            if (f.can(Just) && ambition == Tyrant)
-                                p = low
+                            $(
+                                (Just, Tyrant),
+                                (Academic, Tycoon),
+                                (Violent, Empath),
+                            ).foreach { case (t, a) =>
+                                if (f.can(t) && ambition == a)
+                                    p = low
+                            }
 
                             f.power += p
                             f.log("scored first place", ambition, "for", p.power)
@@ -1784,8 +1822,19 @@ object CommonExpansion extends Expansion {
                         second.foreach { f =>
                             var p = low
 
-                            if (f.can(Just) && ambition == Tyrant)
-                                p = 0
+                            $(
+                                (Just, Tyrant),
+                                (Academic, Tycoon),
+                                (Violent, Empath),
+                                (Proud, Tycoon),
+                                (Proud, Tyrant),
+                                (Proud, Warlord),
+                                (Proud, Keeper),
+                                (Proud, Empath),
+                            ).foreach { case (t, a) =>
+                                if (f.can(t) && ambition == a)
+                                    p = 0
+                            }
 
                             f.power += p
                             f.log("scored second place", ambition, "for", p.power)

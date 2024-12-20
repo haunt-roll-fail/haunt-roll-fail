@@ -25,7 +25,7 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
-case object RepairDrones      extends Lore("lore06", "Repair Drones")
+case object RepairDrones      extends Lore("lore07", "Repair Drones")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
 case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
 case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
@@ -56,7 +56,7 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides)
+    def preset2 = $(LivingStructures, SurvivalOverrides, LivingStructures, SurvivalOverrides, LivingStructures, SurvivalOverrides)
     def preset3 = $()
 }
 
@@ -77,17 +77,15 @@ object LoreExpansion extends Expansion {
 
         // LIVING STRUCTURES
         case NurtureMainAction(f, x, then) =>
-            val g = "Tax".hl
-
-            Ask(f).group(g)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c), "taxed")))
+            Ask(f).group("Nurture".hl, x)
+                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token)))).!(f.taxed.has(c), "taxed")))
                 .cancel
 
         // SURVIVAL OVERRIDES
         case MartyrMainAction(f, x, then) =>
             def convert(u : Figure) = game.showFigure(u, u.damaged.??(1))
 
-            Ask(f).group("Martyr".hl)
+            Ask(f).group("Martyr".hl, x)
                 .some(systems./~(s => f.at(s).ships.fresh.take(1)./(s -> _))) { case (s, u) =>
                     f.others./~(_.at(s).ships./(t => MartyrAction(f, x, s, u, t, then).as(convert(t))("Martyr".hh, "in", s)))
                 }
