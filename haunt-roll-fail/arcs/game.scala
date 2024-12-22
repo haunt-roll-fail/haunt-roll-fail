@@ -506,7 +506,6 @@ object Figure {
         def sub(n : Int, p : Piece) = sublist(n.times(p))
 
         def buildings = l.%(u => u.piece.building.any)
-        def slots = l.%(u => u.piece == Slot)
         def ships = l.%(u => u.piece == Ship)
         def cities = l.%(u => u.piece == City)
         def starports = l.%(u => u.piece == Starport)
@@ -673,6 +672,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     val discardAfterRound = courtiers.register(DiscardAfterRound(faction))
 
     var taxed : $[Figure] = $
+    var taxedSlots : $[System] = $
     var built : $[Figure] = $
     var used : $[Effect] = $
 

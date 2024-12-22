@@ -698,7 +698,7 @@ object CommonExpansion extends Expansion {
 
             if (f.can(Inspiring))
                 Ask(f).group(g)
-                    .some(systems)(s => f.at(s).slots./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g)))
+                    .some(systems.%(f.present))(s => $(s)./(c => InspiringAction(f, x, c, then).as(s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxedSlots.%(l => l == c).num < game.freeSlots(s), "taxed")))
                     .some(systems.%(f.present))(s => f.rivals./~(e => e.at(s).cities./(c => TaxAction(f, x, s, c, false, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token))))(g).!(f.taxed.has(c) && wc.not, "taxed"))))
                     .cancel
             else
@@ -716,7 +716,10 @@ object CommonExpansion extends Expansion {
 
             f.log("taxed", c, "in", r, x)
 
-            f.taxed :+= c
+            if (f.can(Inspiring))
+                f.taxedSlots :+= r
+            else
+                f.taxed :+= c
 
             if (loyal.not)
                 c.faction.as[Faction].but(f).foreach { e =>
@@ -1682,6 +1685,7 @@ object CommonExpansion extends Expansion {
 
         case EndTurnAction(f) =>
             f.taxed = $
+            f.taxedSlots = $
             f.built = $
             f.used = $
             f.anyBattle = false

@@ -130,6 +130,7 @@ case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedActi
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 case class InfluentialAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class InspiringAction(self : Faction, cost : Cost, r : System, then : ForcedAction) extends ForcedAction
 
 object LeadersExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -273,6 +274,24 @@ object LeadersExpansion extends Expansion {
             Ask(f).group("Influence".hl)
                 .each(market)(c => InfluenceAction(f, NoCost, c, next).as(c))
                 .add(next.as("Skip"))
+
+        // ANARCHIST
+        case InspiringAction(f, x, r, then) =>
+            var next = then
+
+            next = AdjustResourcesAction(next)
+
+            f.pay(x)
+
+            f.log("taxed", r, x)
+
+            f.taxedSlots :+= r
+
+            f.gain(board.resource(r), $)
+
+            next
+
+
 
         case _ => UnknownContinue
     }
