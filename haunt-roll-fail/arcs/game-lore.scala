@@ -56,7 +56,7 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides, LivingStructures, SurvivalOverrides, LivingStructures, SurvivalOverrides)
+    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, RailgunArrays, SeekerTorpedoes)
     def preset3 = $()
 }
 
@@ -64,6 +64,11 @@ case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) 
 case class NurtureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MartyrMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MartyrAction(self : Faction, cost : Cost, s : System, u : Figure, t : Figure, then : ForcedAction) extends ForcedAction
+case class SeekerTorpedoesAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends ForcedAction
+case class SeekerTorpedoesRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends RolledAction[$[BattleResult]]
+case class PruneMainAction(self: Faction, cost: Cost, then: ForcedAction) extends ForcedAction with Soft
+case class PruneCityAction(self: Faction, cost: Cost, s : System, u : Figure, then: ForcedAction) extends ForcedAction
+case class PruneStarportAction(self: Faction, cost: Cost, s : System, u : Figure, then: ForcedAction) extends ForcedAction
 
 
 object LoreExpansion extends Expansion {
@@ -101,6 +106,61 @@ object LoreExpansion extends Expansion {
             f.log("martyred", t, "in", s, "with", u)
 
             then
+
+        case PruneMainAction(f, x, then) =>
+            val prefix = f.short + "-"
+            def suffix(s : System) = f.rivals.exists(_.rules(s)).??("-damaged")
+
+            Ask(f)
+                .group("Prune".hl)
+                .some(systems)(s => f.pool(Starport).??(f.at(s).cities)./(u => PruneCityAction(f, x, s, u, then).as(City.of(f), Image(prefix + "city" + f.damaged.has(u).??("-damaged"), styles.qbuilding), "in", s)))
+                .some(systems)(s => f.at(s).starports./(u => PruneStarportAction(f, x, s, u, then).as(Starport.of(f), Image(prefix + "starport" + f.damaged.has(u).??("-damaged"), styles.qbuilding), "in", s)))
+                .cancel
+
+        case PruneCityAction(f, x, s, u, then) =>
+            f.pay(x)
+
+            val u2 = f.reserve --> Starport.of(f)
+
+            if (f.damaged.has(u))
+                f.damaged :+= u2
+                             f.damaged :-= u
+
+            u --> f.reserve
+            u2 --> s
+
+            f.log("pruned", u, "in", s, x)
+
+            then
+
+        case PruneStarportAction(f, x, s, u, then) =>
+            f.pay(x)
+
+            val u2 = f.reserve --> City.of(f)
+
+            if (f.damaged.has(u))
+                f.damaged :+= u2
+                f.damaged :-= u
+
+            u --> f.reserve
+            u2 --> s
+
+            f.log("pruned", u, "in", s, x)
+
+            then
+
+        // SEEKER TORPEDOES
+        case SeekerTorpedoesAction(f, r, e, l1, l2, l3, q, used, then) =>
+            Roll[$[BattleResult]](q.num.times(Assault.die), n => SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then))
+
+        case SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then) =>
+            f.log("rerolled",
+                q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+                "to",
+                n./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
+                "with", SeekerTorpedoes)
+
+            BattleRerollAction(f, r, e, l1, l2 ++ n, l3, used, then)
 
         case _ => UnknownContinue
     }

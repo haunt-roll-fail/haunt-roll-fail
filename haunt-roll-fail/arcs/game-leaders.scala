@@ -117,7 +117,7 @@ object Leaders {
     )
 
     def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
-    def preset2 = $(Agitator, Feastbringer, Warrior, Feastbringer, Warrior)
+    def preset2 = $(Agitator, Feastbringer, Warrior, Quartermaster, Noble)
     def preset3 = $()
 }
 
@@ -133,7 +133,7 @@ case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedActi
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 case class GiveGuildCardAction(self : Faction, e : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
-
+case class InfluentialAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 
 object LeadersExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -266,6 +266,14 @@ object LeadersExpansion extends Expansion {
             f.log("gave", c, "to", e)
 
             GainCourtCardAction(e, c, None, then)
+
+        // NOBLE
+        case InfluentialAction(f, x, then) =>
+            val next = then
+
+            Ask(f).group("Influence".hl)
+                .each(market)(c => InfluenceAction(f, NoCost, c, next).as(c))
+                .add(next.as("Skip"))
 
         case _ => UnknownContinue
     }
