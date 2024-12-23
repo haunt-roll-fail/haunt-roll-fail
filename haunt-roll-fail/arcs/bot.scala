@@ -52,6 +52,29 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
             case EndTurnAction(_) =>
                 true |=> -1000 -> "dont skip actions"
 
+            case DeclareAmbitionAction(f, ambition, zero, _) =>
+                val marker = game.ambitionable.last
+
+                val high = marker.high
+                val low = marker.low
+
+                val records = factions./(f => f -> ambition @@ {
+                    case Tycoon =>
+                        f.resources.count(Material) +
+                        f.resources.count(Fuel) +
+                        f.loyal.of[GuildCard].count(_.suit == Material) +
+                        f.loyal.of[GuildCard].count(_.suit == Fuel) +
+                        f.loyal.has(MaterialCartel).??(game.availableNum(Material)) +
+                        f.loyal.has(FuelCartel).??(game.availableNum(Fuel))
+                    case Tyrant => f.captives.num
+                    case Warlord => f.trophies.num
+                    case Keeper => f.resources.count(Relic) + f.loyal.of[GuildCard].count(_.suit == Relic)
+                    case Empath => f.resources.count(Psionic) + f.loyal.of[GuildCard].count(_.suit == Psionic)
+                }).toMap
+
+                true |=> (records(f) - f.rivals./(records).max) * 1000 -> "current record"
+                true |=> (records(f) - f.rivals./(records).sum - f.rivals.num) * 10 -> "current record sum"
+
             case BattleFactionAction(f, cost, effect, s, e, _) =>
                 true |=> -appraise(cost) -> "cost"
 

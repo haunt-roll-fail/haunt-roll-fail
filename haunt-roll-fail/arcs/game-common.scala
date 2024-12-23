@@ -1539,8 +1539,8 @@ object CommonExpansion extends Expansion {
                     ask = ask.add(GainResourcesAction(f, $(r), AmbitionDeclaredAction(f, a, used :+ Ambitious, then)).as("Gain".hh, r)(Ambitious).!(game.available(r).not, "not in supply"))
                 }
 
-            if (f.can(Connected) && used.has(Connected).not)
-                ask = ask.add(ConnectedAction(f, AmbitionDeclaredAction(f, a, used :+ Connected, then)).as("Draw and secure a court card".hh)(Bold).!(game.court.none, "deck empty"))
+            if (f.can(Connected) && used.has(Connected).not && game.declared.get(a).|($).num == 1)
+                ask = ask.add(ConnectedAction(f, AmbitionDeclaredAction(f, a, used :+ Connected, then)).as("Draw and secure a court card".hh)(Connected).!(game.court.none, "deck empty"))
 
             if (f.can(Farseers) && used.has(Farseers).not)
                 ask = ask.each(f.rivals)(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))

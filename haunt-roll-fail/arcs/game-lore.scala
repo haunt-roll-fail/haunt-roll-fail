@@ -136,7 +136,10 @@ object LoreExpansion extends Expansion {
 
             f.log("pruned", u, "in", s, x)
 
-            then
+            if (f.pooled(City) > 2)
+                f.adjust = true
+
+            AdjustResourcesAction(then)
 
         case PruneStarportAction(f, x, s, u, then) =>
             f.pay(x)
@@ -155,7 +158,7 @@ object LoreExpansion extends Expansion {
             f.log("pruned", u, "in", s, x)
 
             then
+
         case _ => UnknownContinue
     }
 }
-

@@ -27,7 +27,12 @@ object Host extends hrf.host.BaseHost {
         def allSeatings(factions : $[Faction]) = factions.permutations.$
         def randomSeating(factions : $[Faction]) = allSeatings(factions).shuffle.head
 
-        val base = repeat./(l => () => new G(l, $(LeadersAndLorePreset1, LeadersAndLorePreset2))).$
+        val base = repeat./(l => () => new G(l, $(
+            RandomPlayerOrder,
+            LeadersAndLorePreset1,
+            LeadersAndLorePreset2,
+            LeadersAndLorePreset3
+        ))).$
 
         base
     }
