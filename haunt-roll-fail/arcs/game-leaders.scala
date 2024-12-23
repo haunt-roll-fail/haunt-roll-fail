@@ -117,8 +117,8 @@ object Leaders {
     )
 
     def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
-    def preset2 = $(Agitator, Feastbringer, Warrior, Quartermaster, Noble)
-    def preset3 = $()
+    def preset2 = $(Agitator, Feastbringer, Warrior, Noble, Upstart)
+    def preset3 = $(Quartermaster, Quartermaster, Quartermaster, Quartermaster, Quartermaster)
 }
 
 
@@ -131,9 +131,11 @@ case object LeadersFactionsSetupAction extends ForcedAction
 
 case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
+case class ConnectedAction(self : Faction, then : ForcedAction) extends ForcedAction
+
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 case class GiveGuildCardAction(self : Faction, e : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
-case class InfluentialAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+
 
 object LeadersExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
@@ -237,6 +239,9 @@ object LeadersExpansion extends Expansion {
                 if (f.can(Cryptic))
                     f.outraged ++= $(Material, Fuel)
 
+                if (f.can(Greedy))
+                    f.outraged ++= $(Material)
+
                 if (f.can(AncientHoldings)) {
                     f.extraKeys = $(4) ++ f.extraKeys
                     f.resources = $(Nothingness) ++ f.resources
@@ -248,6 +253,14 @@ object LeadersExpansion extends Expansion {
         // ELDER
         case BelovedAction(f, then) =>
             MayInfluenceAction(f, |(Beloved), then)
+
+        // NOBLE
+        case ConnectedAction(f, then) =>
+            val c = court.first
+
+            c --> market
+
+            SecureAction(f, NoCost, |(Connected), c, then)
 
         // DEMAGOGUE
         case BoldMainAction(f, influenced, then) =>
@@ -266,14 +279,6 @@ object LeadersExpansion extends Expansion {
             f.log("gave", c, "to", e)
 
             GainCourtCardAction(e, c, None, then)
-
-        // NOBLE
-        case InfluentialAction(f, x, then) =>
-            val next = then
-
-            Ask(f).group("Influence".hl)
-                .each(market)(c => InfluenceAction(f, NoCost, c, next).as(c))
-                .add(next.as("Skip"))
 
         case _ => UnknownContinue
     }

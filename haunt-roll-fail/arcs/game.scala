@@ -555,6 +555,8 @@ trait SoftKeys
 
 
 trait GameImplicits {
+    type Rolled = $[$[BattleResult]]
+
     implicit def factionToState(f : Faction)(implicit game : Game) : FactionState = game.states(f).as[FactionState].get
     implicit def blightsToState(f : Blights.type)(implicit game : Game) : BlightsState = game.states(f).as[BlightsState].get
     implicit def empireToState(f : Empire.type)(implicit game : Game) : EmpireState = game.states(f).as[EmpireState].get
@@ -591,7 +593,6 @@ trait GameImplicits {
     def lead(implicit game : Game) = game.lead
     def zeroed(implicit game : Game) = game.zeroed
     def seized(implicit game : Game) = game.seized
-
 
     implicit def cards(implicit game : Game) = game.cards
     implicit def courtiers(implicit game : Game) = game.courtiers
@@ -697,7 +698,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     override def pool(p : Piece) = (p == Agent).?(pooled(p) > 0).|(super.pool(p))
 
     def remove(x : ResourceRef) {
-        val i = 0.until(resources.num).reverse.%(i => resources(i) == x.resource && x.lock./(_ == keys(i)).|(true)).$.starting
+        val i = 0.until(resources.num).reverse.%(i => resources(i) == x.resource && x.lock./(_ == keys(i)).|(true)).sortBy(i => keys(i)).$.starting
 
         if (i.none)
             throw new Error("resource ref " + x + " not found")
@@ -895,71 +896,86 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         }
     }
 
-    def build(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + BuildMainAction(f, x, repeat).as("Build".styled(f), x)(group).!!!
+    def build(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + BuildMainAction(f, x, then).as("Build".styled(f), x)(group).!!!
+    }
 
+    def buildAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.loyal.has(MiningInterest)) {
-            + ManufactureMainAction(f, x, repeat).as("Manufacture".styled(f), x)(group)
+            + ManufactureMainAction(f, x, then).as("Manufacture".styled(f), x)(group)
         }
 
         if (f.loyal.has(ShippingInterest)) {
-            + SynthesizeMainAction(f, x, repeat).as("Synthesize".styled(f), x)(group)
+            + SynthesizeMainAction(f, x, then).as("Synthesize".styled(f), x)(group)
         }
 
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
-            + PressgangMainAction(f, x, repeat).as("Press Gang".styled(f), x)(group)
+            + PressgangMainAction(f, x, then).as("Press Gang".styled(f), x)(group)
         }
 
         if (f.lores.has(LivingStructures)) {
-            + NurtureMainAction(f, x, repeat).as("Nurture".styled(f), x)(group).!!!
+            + NurtureMainAction(f, x, then).as("Nurture".styled(f), x)(group).!!!
         }
     }
 
-    def repair(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + RepairMainAction(f, x, repeat).as("Repair".styled(f), x)(group).!(f.damaged.none)
+    def repair(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + RepairMainAction(f, x, then).as("Repair".styled(f), x)(group).!(f.damaged.none)
+    }
 
+    def repairAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.lores.has(LivingStructures)) {
-            + PruneMainAction(f, x, repeat).as("Prune".styled(f), x)(group)
+            + PruneMainAction(f, x, then).as("Prune".styled(f), x)(group)
         }
     }
 
-    def move(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + MoveMainAction(f, x, None, false, true, then | repeat).as("Move".styled(f), x)(group).!!!
+    def move(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + MoveMainAction(f, x, None, false, true, then).as("Move".styled(f), x)(group).!!!
+    }
 
+    def moveAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.can(SurvivalOverrides)) {
-            + MartyrMainAction(f, x, repeat).as("Martyr".styled(f), x)(group).!!!
+            + MartyrMainAction(f, x, then).as("Martyr".styled(f), x)(group).!!!
         }
     }
 
-    def battle(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + BattleMainAction(f, x, None, false, true, then | repeat).as("Battle".styled(f), x)(group).!!!
+    def battle(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + BattleMainAction(f, x, None, false, true, then).as("Battle".styled(f), x)(group).!!!
+    }
 
+    def battleAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.loyal.has(CourtEnforcers)) {
             val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
 
             val l = market.%(c => Influence(c).%(_.faction != f).use(l => l.any && l.num < limit))
 
-            + AbductMainAction(f, l, x, repeat).as("Abduct".styled(f), x)(group).!(l.none)
+            + AbductMainAction(f, l, x, then).as("Abduct".styled(f), x)(group).!(l.none)
         }
     }
 
-    def secure(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + SecureMainAction(f, x, None, false, true, then | repeat).as("Secure".styled(f), x)(group).!!!
+    def secure(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + SecureMainAction(f, x, None, false, true, then).as("Secure".styled(f), x)(group).!!!
     }
 
-    def influence(f : Faction, x : Cost, then : |[ForcedAction] = None)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + InfluenceMainAction(f, x, None, false, true, then | repeat).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
+    def secureAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+    }
 
+    def influence(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + InfluenceMainAction(f, x, None, false, true, then).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
+    }
+
+    def influenceAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.loyal.has(PrisonWardens) && f.captives.any) {
-            + ExecuteMainAction(f, x, repeat).as("Execute".styled(f), x)(group)
+            + ExecuteMainAction(f, x, then).as("Execute".styled(f), x)(group)
         }
     }
 
-    def tax(f : Faction, x : Cost)(implicit builder : ActionCollector, group : Elem, repeat : ForcedAction) {
-        + TaxMainAction(f, x, repeat).as("Tax".styled(f), x)(group).!!!
+    def tax(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
+        + TaxMainAction(f, x, None, then).as("Tax".styled(f), x)(group).!!!
+    }
 
+    def taxAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
         if (f.loyal.has(ElderBroker) && systems.exists(r => f.rules(r) && f.rivals.exists(e => e.at(r).cities.any))) {
-            + TradeMainAction(f, x, repeat).as("Trade".styled(f), x)(group)
+            + TradeMainAction(f, x, then).as("Trade".styled(f), x)(group)
         }
     }
 

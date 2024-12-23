@@ -40,6 +40,12 @@ case object LeadersAndLorePreset1 extends LeadersAndLoreOption {
 
 case object LeadersAndLorePreset2 extends LeadersAndLoreOption {
     val valueOn = "Preset".hh ~ " " ~ "#2".hlb
+    override val explain = $(
+        "Preset of " ~ "five".hh ~ " leader cards and " ~ "five".hh ~ " lore cards.",
+        $(Agitator, Feastbringer, Warrior, Noble, Upstart)./(_.elem).join(", "),
+        $(LivingStructures, SurvivalOverrides, GatePorts, SprinterDrives, ToolPriests)./(_.elem).join(", "),
+        "Developed by " ~ "whichwit".hlb ~ " and " ~ "JT".hlb
+    )
 }
 
 case object LeadersAndLorePreset3 extends LeadersAndLoreOption {

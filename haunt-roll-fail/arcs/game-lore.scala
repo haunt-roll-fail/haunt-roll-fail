@@ -22,10 +22,13 @@ abstract class Lore(val id : String, val name : String) extends Record with Effe
     def elem = name.styled(styles.title).hl
 }
 
+case object ToolPriests       extends Lore("lore01", "Tool Priests")
+case object SprinterDrives    extends Lore("lore03", "Sprinter Drives")
 case object MirrorPlating     extends Lore("lore04", "Mirror Plating")
 case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
 case object RepairDrones      extends Lore("lore07", "Repair Drones")
+case object GatePorts         extends Lore("lore08", "Gate Ports")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
 case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
 case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
@@ -56,19 +59,20 @@ object Lores {
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
-    def preset2 = $(LivingStructures, SurvivalOverrides, RepairDrones, RailgunArrays, SeekerTorpedoes)
-    def preset3 = $()
+    def preset2 = $(LivingStructures, SurvivalOverrides, GatePorts, SprinterDrives, ToolPriests)
+    def preset3 = $(RepairDrones, RailgunArrays, SeekerTorpedoes, SignalBreaker, RepairDrones, RailgunArrays, SeekerTorpedoes)
 }
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
+
 case class NurtureMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+
+case class PruneMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
+case class PruneCityAction(self : Faction, cost : Cost, s : System, u : Figure, then : ForcedAction) extends ForcedAction
+case class PruneStarportAction(self : Faction, cost : Cost, s : System, u : Figure, then : ForcedAction) extends ForcedAction
+
 case class MartyrMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MartyrAction(self : Faction, cost : Cost, s : System, u : Figure, t : Figure, then : ForcedAction) extends ForcedAction
-case class SeekerTorpedoesAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], reroll : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends ForcedAction
-case class SeekerTorpedoesRolledAction(self : Faction, r : System, e : Faction, skirmish : $[$[BattleResult]], assault : $[$[BattleResult]], raid : $[$[BattleResult]], old : $[$[BattleResult]], rolled : $[$[BattleResult]], used: $[Effect], then : ForcedAction) extends RolledAction[$[BattleResult]]
-case class PruneMainAction(self: Faction, cost: Cost, then: ForcedAction) extends ForcedAction with Soft
-case class PruneCityAction(self: Faction, cost: Cost, s : System, u : Figure, then: ForcedAction) extends ForcedAction
-case class PruneStarportAction(self: Faction, cost: Cost, s : System, u : Figure, then: ForcedAction) extends ForcedAction
 
 
 object LoreExpansion extends Expansion {
@@ -80,11 +84,6 @@ object LoreExpansion extends Expansion {
 
             then
 
-        // LIVING STRUCTURES
-        case NurtureMainAction(f, x, then) =>
-            Ask(f).group("Nurture".hl, x)
-                .some(systems)(s => f.at(s).cities./(c => TaxAction(f, x, s, c, true, then).as(c, "in", s, |(board.resource(s)).%(game.available)./(r => ("for", r, Image(r.name, styles.token)))).!(f.taxed.has(c), "taxed")))
-                .cancel
 
         // SURVIVAL OVERRIDES
         case MartyrMainAction(f, x, then) =>
@@ -107,6 +106,10 @@ object LoreExpansion extends Expansion {
 
             then
 
+        // LIVING STRUCTURES
+        case NurtureMainAction(f, x, then) =>
+            TaxMainAction(f, x, |(LivingStructures), then)
+
         case PruneMainAction(f, x, then) =>
             val prefix = f.short + "-"
             def suffix(s : System) = f.rivals.exists(_.rules(s)).??("-damaged")
@@ -114,7 +117,7 @@ object LoreExpansion extends Expansion {
             Ask(f)
                 .group("Prune".hl)
                 .some(systems)(s => f.pool(Starport).??(f.at(s).cities)./(u => PruneCityAction(f, x, s, u, then).as(City.of(f), Image(prefix + "city" + f.damaged.has(u).??("-damaged"), styles.qbuilding), "in", s)))
-                .some(systems)(s => f.at(s).starports./(u => PruneStarportAction(f, x, s, u, then).as(Starport.of(f), Image(prefix + "starport" + f.damaged.has(u).??("-damaged"), styles.qbuilding), "in", s)))
+                .some(systems)(s => f.pool(City).??(f.at(s).starports)./(u => PruneStarportAction(f, x, s, u, then).as(Starport.of(f), Image(prefix + "starport" + f.damaged.has(u).??("-damaged"), styles.qbuilding), "in", s)))
                 .cancel
 
         case PruneCityAction(f, x, s, u, then) =>
@@ -122,11 +125,13 @@ object LoreExpansion extends Expansion {
 
             val u2 = f.reserve --> Starport.of(f)
 
-            if (f.damaged.has(u))
+            if (f.damaged.has(u)) {
                 f.damaged :+= u2
-                             f.damaged :-= u
+                f.damaged :-= u
+            }
 
             u --> f.reserve
+
             u2 --> s
 
             f.log("pruned", u, "in", s, x)
@@ -138,30 +143,18 @@ object LoreExpansion extends Expansion {
 
             val u2 = f.reserve --> City.of(f)
 
-            if (f.damaged.has(u))
+            if (f.damaged.has(u)) {
                 f.damaged :+= u2
                 f.damaged :-= u
+            }
 
             u --> f.reserve
+
             u2 --> s
 
             f.log("pruned", u, "in", s, x)
 
             then
-
-        // SEEKER TORPEDOES
-        case SeekerTorpedoesAction(f, r, e, l1, l2, l3, q, used, then) =>
-            Roll[$[BattleResult]](q.num.times(Assault.die), n => SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then))
-
-        case SeekerTorpedoesRolledAction(f, r, e, l1, l2, l3, q, n, used, then) =>
-            f.log("rerolled",
-                q./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
-                "to",
-                n./(x => Image("assault-die-" + (Assault.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)),
-                "with", SeekerTorpedoes)
-
-            BattleRerollAction(f, r, e, l1, l2 ++ n, l3, used, then)
-
         case _ => UnknownContinue
     }
 }

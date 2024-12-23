@@ -52,13 +52,12 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
             case EndTurnAction(_) =>
                 true |=> -1000 -> "dont skip actions"
 
-            case BattleDiceAction(f, cost, s, e, n1, n2, n3, _) =>
+            case BattleFactionAction(f, cost, effect, s, e, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-                val k = f.at(s).ships.num
-                true |=> k * (n1 + n2 + n3) * 100 -> "battle"
+                true |=> min(f.at(s).ships.num * 25, e.at(s).ships.num * 100) -> "battle"
 
-            case SecureAction(f, cost, c, _) =>
+            case SecureAction(f, cost, effect, c, _) =>
                 true |=> -appraise(cost) -> "cost"
 
                 val own = Influence(c).$.%(_.faction == f).num
@@ -83,13 +82,13 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
             case BuildStarportAction(f, cost, s, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-            case BuildShipAction(f, cost, s, _) =>
+            case BuildShipAction(f, cost, s, b, _) =>
                 true |=> -appraise(cost) -> "cost"
 
             case RepairAction(f, cost, s, u, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-            case TaxAction(f, cost, s, u, loyal, _) =>
+            case TaxAction(f, cost, effect, s, u, loyal, _) =>
                 true |=> -appraise(cost) -> "cost"
                 loyal.not |=> 100 -> "capture"
 
