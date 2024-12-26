@@ -124,16 +124,16 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
             case PassAction(f) =>
                 true |=> -100 -> "dont pass"
 
-            case SurpassAction(f, DeckCard(suit, str, pips)) =>
+            case SurpassAction(f, ActionCard(suit, str, pips)) =>
                 true |=> pips * 100 -> "actions"
 
-            case CopyAction(f, DeckCard(suit, str, pips)) =>
+            case CopyAction(f, ActionCard(suit, str, pips)) =>
                 true |=> (2 * str + pips) * -100 -> "lost card"
 
-            case PivotAction(f, DeckCard(suit, str, pips)) =>
+            case PivotAction(f, ActionCard(suit, str, pips)) =>
                 true |=> (2 * str + pips) * -100 -> "lost card"
 
-            case SeizeAction(f, DeckCard(suit, str, pips), _) =>
+            case SeizeAction(f, ActionCard(suit, str, pips), _) =>
                 true |=> (2 * str + pips) * -100 -> "lost card"
 
             case _ =>

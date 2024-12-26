@@ -120,6 +120,8 @@ case object Aggression extends Suit
 case object Construction extends Suit
 case object Mobilization extends Suit
 
+case object Event extends Suit
+
 trait StandardAction extends Record
 case object Tax extends StandardAction
 case object Build extends StandardAction
@@ -180,43 +182,58 @@ case class DiscardAfterRound(faction : Faction) extends CourtLocation
 case class Loyal(faction : Faction) extends CourtLocation
 
 
-case class DeckCard(suit : Suit, strength : Int, pips : Int) extends Elementary with Record {
-    def imgid = suit + "-" + strength
+trait DeckCard extends Elementary with Record {
+    def suit : Suit
+    def imgid : ImageId
     def img = Image(imgid, styles.card)
+    def strength : Int
+    def pips : Int
+}
+
+case class ActionCard(suit : Suit, strength : Int, pips : Int) extends DeckCard {
+    def imgid = suit + "-" + strength
     def elem = (" " + suit + " " + strength + " ").pre.spn(styles.outlined).styled(suit)
     def zeroed(b : Boolean) = (" " + suit + " " + b.?(0).|(strength) + " ").pre.spn(styles.outlined).styled(suit)
 }
 
+case class EventCard(index : Int) extends DeckCard {
+    def suit = Event
+    def imgid = "event"
+    def elem = (" " + suit + " ").pre.spn(styles.outlined)
+    def strength = 0
+    def pips = 0
+}
+
 object DeckCards {
     def deck = $(
-        DeckCard(Administration, 1, 4),
-        DeckCard(Administration, 2, 4),
-        DeckCard(Administration, 3, 3),
-        DeckCard(Administration, 4, 3),
-        DeckCard(Administration, 5, 3),
-        DeckCard(Administration, 6, 2),
-        DeckCard(Administration, 7, 1),
-        DeckCard(Aggression, 1, 3),
-        DeckCard(Aggression, 2, 3),
-        DeckCard(Aggression, 3, 2),
-        DeckCard(Aggression, 4, 2),
-        DeckCard(Aggression, 5, 2),
-        DeckCard(Aggression, 6, 2),
-        DeckCard(Aggression, 7, 1),
-        DeckCard(Construction, 1, 4),
-        DeckCard(Construction, 2, 4),
-        DeckCard(Construction, 3, 3),
-        DeckCard(Construction, 4, 3),
-        DeckCard(Construction, 5, 2),
-        DeckCard(Construction, 6, 2),
-        DeckCard(Construction, 7, 1),
-        DeckCard(Mobilization, 1, 4),
-        DeckCard(Mobilization, 2, 4),
-        DeckCard(Mobilization, 3, 3),
-        DeckCard(Mobilization, 4, 3),
-        DeckCard(Mobilization, 5, 2),
-        DeckCard(Mobilization, 6, 2),
-        DeckCard(Mobilization, 7, 1),
+        ActionCard(Administration, 1, 4),
+        ActionCard(Administration, 2, 4),
+        ActionCard(Administration, 3, 3),
+        ActionCard(Administration, 4, 3),
+        ActionCard(Administration, 5, 3),
+        ActionCard(Administration, 6, 2),
+        ActionCard(Administration, 7, 1),
+        ActionCard(Aggression, 1, 3),
+        ActionCard(Aggression, 2, 3),
+        ActionCard(Aggression, 3, 2),
+        ActionCard(Aggression, 4, 2),
+        ActionCard(Aggression, 5, 2),
+        ActionCard(Aggression, 6, 2),
+        ActionCard(Aggression, 7, 1),
+        ActionCard(Construction, 1, 4),
+        ActionCard(Construction, 2, 4),
+        ActionCard(Construction, 3, 3),
+        ActionCard(Construction, 4, 3),
+        ActionCard(Construction, 5, 2),
+        ActionCard(Construction, 6, 2),
+        ActionCard(Construction, 7, 1),
+        ActionCard(Mobilization, 1, 4),
+        ActionCard(Mobilization, 2, 4),
+        ActionCard(Mobilization, 3, 3),
+        ActionCard(Mobilization, 4, 3),
+        ActionCard(Mobilization, 5, 2),
+        ActionCard(Mobilization, 6, 2),
+        ActionCard(Mobilization, 7, 1),
     )
 }
 
@@ -348,14 +365,14 @@ case object Crescent extends Symbol
 case object Hex extends Symbol
 
 case class System(cluster : Int, symbol : Symbol) extends Region with Elementary with Record {
-    def name = (symbol.name + " " + cluster + "" + symbol @@ {
-        case Gate => 0x2726.toChar.toString
+    def name = (symbol.name + " " + cluster)
+
+    def elem = name.hlb ~ (symbol @@ {
+        case Gate => 0x2727.toChar.toString
         case Arrow => 0x2B9D.toChar.toString
         case Crescent => 0x263E.toChar.toString
         case Hex => 0x2B22.toChar.toString
-    })
-
-    def elem = name.hlb
+    }).hh
 }
 
 
@@ -689,11 +706,14 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var loyal = game.courtiers.register(Loyal(faction))
     val discardAfterRound = courtiers.register(DiscardAfterRound(faction))
 
-    var taxed : $[Figure] = $
-    var built : $[Figure] = $
-    var used : $[Effect] = $
+    object taxed {
+        var cities : $[Figure] = $
+        var slots : $[System] = $
+    }
 
-    var taxedSlots : $[System] = $
+    var worked : $[Figure] = $
+
+    var used : $[Effect] = $
 
     var lead : Boolean = false
     var surpass : Boolean = false
@@ -827,7 +847,11 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     implicit val cards = new IdentityTracker[DeckCardLocation, DeckCard]
     implicit val courtiers = new IdentityTracker[CourtLocation, CourtCard]
 
-    val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
+    val deck = cards.register(Deck, content =
+        DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)) ++
+        campaign.$(EventCard(1), EventCard(2), EventCard(3)).take(factions.num - 1)
+    )
+
     val discard = cards.register(DeckDiscard)
 
     var seen : $[(Int, Faction, |[DeckCard])] = $
@@ -840,7 +864,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var round : Int = 0
     var passed : Int = 0
 
-    var lead : |[DeckCard] = None
+    var lead : |[ActionCard] = None
     var zeroed : Boolean = false
     var seized : |[Faction] = None
 

@@ -745,12 +745,12 @@ object CommonExpansion extends Expansion {
             var loyal = systems./~(s => f.at(s).cities./(_ -> s))
             var rival = systems.%(f.rules)./~(s => f.rivals./~(e => e.at(s).cities./(_ -> s)))
             var slots = systems.%(_ => false)
-            var taxed = f.taxed
+            var taxed = f.taxed.cities
 
             if (f.can(Inspiring)) {
                 rival = systems.%(f.at(_).ships.any)./~(s => f.rivals./~(e => e.at(s).cities./(_ -> s)))
 
-                slots = systems.%(f.at(_).ships.any)./~(s => game.freeSlots(s).times(s)).diff(f.taxedSlots)
+                slots = systems.%(f.at(_).ships.any)./~(s => game.freeSlots(s).times(s)).diff(f.taxed.slots)
             }
 
             if (f.can(Principled))
@@ -768,7 +768,7 @@ object CommonExpansion extends Expansion {
             Ask(f).group("Tax".hl, x)
                 .each(loyal) { case (c, s) => TaxAction(f, x, effect, s, |(c), true,  then).as(c, "in", s, res(s)).!(taxed.has(c), "taxed") }
                 .each(rival) { case (c, s) => TaxAction(f, x, effect, s, |(c), false, then).as(c, "in", s, res(s)).!(taxed.has(c), "taxed") }
-                .each(slots) { s =>           TaxAction(f, x, effect, s, None, true,  then).as(s,          res(s)).!(f.taxedSlots.count(s) >= game.freeSlots(s), "taxed") }
+                .each(slots) { s =>           TaxAction(f, x, effect, s, None, true,  then).as(s,          res(s)).!(f.taxed.slots.count(s) >= game.freeSlots(s), "taxed") }
                 .cancel
 
         case TaxAction(f, x, effect, s, c, loyal, then) =>
@@ -776,10 +776,10 @@ object CommonExpansion extends Expansion {
 
             f.log("taxed", c, "in", s, x)
 
-            f.taxed ++= c
+            f.taxed.cities ++= c
 
             if (c.none)
-                f.taxedSlots :+= s
+                f.taxed.slots :+= s
 
             if (loyal.not)
                 c./~(_.faction.as[Faction]).but(f).foreach { e =>
@@ -1159,6 +1159,9 @@ object CommonExpansion extends Expansion {
                 next = BattleRaidAction(f, s, e, k, next)
 
             destroyed.cities.foreach { u =>
+                if (game.unslotted.has(u))
+                    game.unslotted :-= u
+
                 if (e.can(Beloved).not)
                     next = RansackMainAction(f, e, next)
 
@@ -1283,7 +1286,7 @@ object CommonExpansion extends Expansion {
             var yards = present./~(s => f.at(s).starports./(_ -> s))
 
             if (f.can(ToolPriests))
-                if (f.built.cities.none)
+                if (f.worked.cities.none)
                     yards ++= present.%(f.rules)./~(s => s.$.cities./(_ -> s))
 
             if (f.pool(City).not)
@@ -1310,7 +1313,7 @@ object CommonExpansion extends Expansion {
                 .each(starports)(s => BuildStarportAction(f, x, s, then).as(Starport.of(f), Image(prefix + "starport" + suffix(s), styles.qbuilding), "in", s))
                 .each(yards) { case (b, s) =>
                     BuildShipAction(f, x, s, b, None, then).as(Ship.of(f), Image(prefix + "ship" + f.can(HiddenHarbors).not.??(suffix(s)), styles.qship), "in", s, "with", b)
-                        .!(f.built.has(b), "built")
+                        .!(f.worked.has(b), "built this turn")
                 }
                 .cancel
 
@@ -1327,7 +1330,8 @@ object CommonExpansion extends Expansion {
             if (effect.has(CloudCities))
                 game.unslotted :+= u
 
-            f.taxedSlots :-= s
+            if (f.taxed.slots.has(s))
+                f.taxed.slots :-= s
 
             f.log("built", u, "in", s, effect./("with" -> _), x)
 
@@ -1343,7 +1347,8 @@ object CommonExpansion extends Expansion {
 
             u --> s
 
-            f.taxedSlots :-= s
+            if (f.taxed.slots.has(s))
+                f.taxed.slots :-= s
 
             f.log("built", u, "in", s, x)
 
@@ -1359,7 +1364,7 @@ object CommonExpansion extends Expansion {
 
             u --> s
 
-            f.built :+= b
+            f.worked :+= b
 
             f.log("built", u, "in", s, effect./("with" -> _), x)
 
@@ -1553,11 +1558,12 @@ object CommonExpansion extends Expansion {
             LeadMainAction(factions.first)
 
         case LeadMainAction(f) =>
-            if (f.hand.none)
+            if (f.hand.notOf[EventCard].none)
                 NoAsk(f)(PassAction(f))
             else
                 YYSelectObjectsAction(f, f.hand)
                     .withGroup(f.elem ~ " leads")
+                    .withRule(_.is[EventCard].not)
                     .withThen(LeadAction(f, _))("Play " ~ _.elem)("Play")
                     .withExtras(NoHand, PassAction(f).as("Pass".hh))
 
@@ -1573,6 +1579,8 @@ object CommonExpansion extends Expansion {
             else {
                 game.factions = factions.drop(1).dropWhile(_.hand.none) ++ factions.take(1) ++ factions.drop(1).takeWhile(_.hand.none)
 
+                game.current = |(factions.first)
+
                 f.log("passed initative to", factions.first)
 
                 Milestone(StartRoundAction)
@@ -1581,7 +1589,7 @@ object CommonExpansion extends Expansion {
         case LeadAction(f, d) =>
             game.passed = 0
 
-            game.lead = |(d)
+            game.lead = d.as[ActionCard]
 
             f.log("led with", d)
 
@@ -1652,11 +1660,14 @@ object CommonExpansion extends Expansion {
         case FollowAction(f) =>
             YYSelectObjectsAction(f, f.hand)
                 .withGroup(f.elem ~ " follows " ~ lead.get.zeroed(zeroed))
-                .withThens(d => $(
-                    SurpassAction(f, d).as("Surpass".styled(lead.get.suit).styled(xstyles.bold), "with", d).!(d.suit != lead.get.suit, "wrong suit").!(d.strength < lead.get.strength && zeroed.not, "low strength"),
-                    CopyAction(f, d).as("Copy".styled(lead.get.suit).styled(xstyles.bold), "with", d),
-                    PivotAction(f, d).as("Pivot".styled(d.suit).styled(xstyles.bold), "with", d).!(d.suit == lead.get.suit, "same suit"),
-                ))
+                .withThens {
+                    case d : ActionCard => $(
+                        SurpassAction(f, d).as("Surpass".styled(lead.get.suit).styled(xstyles.bold), "with", d).!(d.suit != lead.get.suit, "wrong suit").!(d.strength < lead.get.strength && zeroed.not, "low strength"),
+                        CopyAction(f, d).as("Copy".styled(lead.get.suit).styled(xstyles.bold), "with", d),
+                        PivotAction(f, d).as("Pivot".styled(d.suit).styled(xstyles.bold), "with", d).!(d.suit == lead.get.suit, "same suit"),
+                    )
+                    case d : EventCard => $(/*....................................*/)
+                }
                 .withExtras(NoHand)
 
         case SurpassAction(f, d) =>
@@ -1712,9 +1723,10 @@ object CommonExpansion extends Expansion {
                     .add(next.as("Skip"))
             }
             else
-            if (seized.none && (f.hand.any || f.loyal.has(LatticeSpies))) {
+            if (seized.none && (f.hand.notOf[EventCard].any || f.loyal.has(LatticeSpies))) {
                 YYSelectObjectsAction(f, f.hand)
                     .withGroup(f.elem ~ " can seize initiative")
+                    .withRule(_.suit != Event)
                     .withThen(SeizeAction(f, _, then))("Seize with " ~ _.elem)("Seize")
                     .withExtras(NoHand, f.loyal.has(LatticeSpies).?(LatticeSeizeAction(f, LatticeSpies, then).as("Seize with", LatticeSpies)).|(NoHand), then.as("Skip".hh))
             }
@@ -1976,9 +1988,9 @@ object CommonExpansion extends Expansion {
             ask(f).needOk
 
         case EndTurnAction(f) =>
-            f.taxed = $
-            f.taxedSlots = $
-            f.built = $
+            f.taxed.cities = $
+            f.taxed.slots = $
+            f.worked = $
             f.used = $
             f.anyBattle = false
 

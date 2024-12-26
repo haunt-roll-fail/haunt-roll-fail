@@ -248,6 +248,8 @@ object Meta extends MetaGame { mmm =>
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "action")(
         ImageAsset("card-back") ::
 
+        ImageAsset("event") ::
+
         ImageAsset("administration-1") ::
         ImageAsset("administration-2") ::
         ImageAsset("administration-3") ::
@@ -521,8 +523,10 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("y-ship-damaged") ::
         ImageAsset("imperial-ship") ::
         ImageAsset("imperial-ship-damaged") ::
+        ImageAsset("imperial-ship-empty") ::
         ImageAsset("blight") ::
         ImageAsset("blight-damaged") ::
+        ImageAsset("blight-empty") ::
     $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "figure", scale = 11)(
         ImageAsset("agent-empty") ::
