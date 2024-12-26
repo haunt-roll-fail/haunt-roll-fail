@@ -89,7 +89,7 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
                 true |=> own * 10 -> "return agents"
                 true |=> enemy * 100 -> "capture agents"
 
-            case InfluenceAction(f, cost, c, _) =>
+            case InfluenceAction(f, cost, c, effect, _) =>
                 true |=> -appraise(cost) -> "cost"
 
                 val own = Influence(c).$.%(_.faction == f).num

@@ -288,7 +288,7 @@ object LeadersExpansion extends Expansion {
         // DEMAGOGUE
         case BoldMainAction(f, influenced, then) =>
             Ask(f).group("Influence".hl)
-                .each(market)(c => InfluenceAction(f, NoCost, c, BoldMainAction(f, influenced :+ c, then)).as(c)
+                .each(market)(c => InfluenceAction(f, NoCost, c, |(Bold), BoldMainAction(f, influenced :+ c, then)).as(c)
                     .!(influenced.has(c), "influenced")
                     .!(f.pool(Agent).not, "no agents")
                 )

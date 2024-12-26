@@ -117,7 +117,7 @@ case class RepairMainAction(self : Faction, cost : Cost, then : ForcedAction) ex
 case class RepairAction(self : Faction, cost : Cost, r : System, u : Figure, then : ForcedAction) extends ForcedAction
 
 case class InfluenceMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
-case class InfluenceAction(self : Faction, cost : Cost, c : CourtCard, then : ForcedAction) extends ForcedAction
+case class InfluenceAction(self : Faction, cost : Cost, c : CourtCard, effect : |[Effect], then : ForcedAction) extends ForcedAction
 case class MayInfluenceAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
 
 case class SecureMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
@@ -1401,17 +1401,17 @@ object CommonExpansion extends Expansion {
         // INFLUENCE
         case InfluenceMainAction(f, x, effect, skip, cancel, then) =>
             Ask(f).group("Influence".hl, effect./("with" -> _), x)
-                .each(market)(c => InfluenceAction(f, x, c, then).as(c))
+                .each(market)(c => InfluenceAction(f, x, c, effect, then).as(c))
                 .skip(skip.?(then))
                 .cancelIf(cancel)
                 .needOk
 
-        case InfluenceAction(f, x, c, then) =>
+        case InfluenceAction(f, x, c, effect, then) =>
             f.pay(x)
 
             f.reserve --> Agent --> Influence(c)
 
-            f.log("influenced", c, x)
+            f.log("influenced", c, effect./("with" -> _), x)
 
             then
 
@@ -1965,7 +1965,12 @@ object CommonExpansion extends Expansion {
                         game.move(f, cost, then)
 
                     game.moveAlt(f, cost, then)
-                    game.influence(f, cost, then)
+
+                    if (one && f.can(Influential))
+                        game.influence(f, cost, MayInfluenceAction(f, |(Influential), then))
+                    else
+                        game.influence(f, cost, then)
+
                     game.influenceAlt(f, cost, then)
 
             }
