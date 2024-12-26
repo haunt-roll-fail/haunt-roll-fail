@@ -99,13 +99,13 @@ class GameEvaluation(val self : Faction)(implicit val game : Game) {
                 enemy - own ==  0 |=> 150 -> "break out"
                 enemy - own == -1 |=> 50 -> "out do"
 
-            case BuildCityAction(f, cost, s, _) =>
+            case BuildCityAction(f, cost, s, effect, _) =>
                 true |=> -appraise(cost) -> "cost"
 
             case BuildStarportAction(f, cost, s, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-            case BuildShipAction(f, cost, s, b, _) =>
+            case BuildShipAction(f, cost, s, b, effect, _) =>
                 true |=> -appraise(cost) -> "cost"
 
             case RepairAction(f, cost, s, u, _) =>

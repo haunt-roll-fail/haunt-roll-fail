@@ -29,7 +29,9 @@ case object HiddenHarbors     extends Lore("lore05", "Hidden Harbors")
 case object SignalBreaker     extends Lore("lore06", "Signal Breaker")
 case object RepairDrones      extends Lore("lore07", "Repair Drones")
 case object GatePorts         extends Lore("lore08", "Gate Ports")
+case object CloudCities       extends Lore("lore09", "Cloud Cities")
 case object LivingStructures  extends Lore("lore10", "Living Structures")
+case object GateStations      extends Lore("lore11", "Gate Stations")
 case object RailgunArrays     extends Lore("lore12", "Railgun Arrays")
 case object SeekerTorpedoes   extends Lore("lore14", "Seeker Torpedoes")
 case object AncientHoldings   extends Lore("lore13", "Ancient Holdings")
@@ -60,7 +62,8 @@ object Lores {
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
     def preset2 = $(LivingStructures, SurvivalOverrides, GatePorts, SprinterDrives, ToolPriests)
-    def preset3 = $(RepairDrones, RailgunArrays, SeekerTorpedoes, SignalBreaker, RepairDrones, RailgunArrays, SeekerTorpedoes)
+    def preset3 = $(RepairDrones, RailgunArrays, SeekerTorpedoes, CloudCities, GateStations)
+    def preset4 = $()
 }
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
@@ -130,6 +133,11 @@ object LoreExpansion extends Expansion {
                 f.damaged :-= u
             }
 
+            if (game.unslotted.has(u)) {
+                game.unslotted :+= u2
+                game.unslotted :-= u
+            }
+
             u --> f.reserve
 
             u2 --> s
@@ -149,6 +157,11 @@ object LoreExpansion extends Expansion {
             if (f.damaged.has(u)) {
                 f.damaged :+= u2
                 f.damaged :-= u
+            }
+
+            if (game.unslotted.has(u)) {
+                game.unslotted :+= u2
+                game.unslotted :-= u
             }
 
             u --> f.reserve

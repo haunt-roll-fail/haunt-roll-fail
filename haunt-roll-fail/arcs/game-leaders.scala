@@ -72,6 +72,13 @@ case object Irregular extends LeaderEffect
 case object Resilient extends LeaderEffect
 case object Greedy extends LeaderEffect
 
+case object AttackerResilient extends LeaderEffect {
+    override def name = "Resilient"
+}
+case object DefenderResilient extends LeaderEffect {
+    override def name = "Resilient"
+}
+
 abstract class Leader(val id : String, val name : String, val effects : $[Effect], val resources : $[Resource], val setupA : $[Piece], val setupB : $[Piece], val setupC : $[Piece]) extends Record with Elementary {
     def img = Image(id, styles.leaderCard)
     def elem = name.styled(styles.title).hl
@@ -87,8 +94,8 @@ case object Warrior       extends Leader("leader06", "Warrior",       $(Tactical
 case object Feastbringer  extends Leader("leader07", "Feastbringer",  $(Charismatic, Generous), $(Relic, Material), $(City, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship, Ship))
 case object Demagogue     extends Leader("leader08", "Demagogue",     $(Bold, Paranoid), $(Psionic, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Archivist     extends Leader("leader09", "Archivist",     $(Learned, Academic), $(Relic, Relic), $(City, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship))
-case object Overseer      extends Leader("leader10", "Overseer",      $(Ruthless, Hated), $(Fuel, Material), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
-case object Corsair       extends Leader("leader11", "Corsair",       $(Tricky, Wary), $(Fuel, Weapon), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
+case object Overseer      extends Leader("leader10", "Overseer",      $(Ruthless, Hated), $(Fuel, Material), $(Starport, Ship, Ship, Ship), $(City, Ship, Ship, Ship), $(Ship, Ship))
+case object Corsair       extends Leader("leader11", "Corsair",       $(Tricky, Wary), $(Fuel, Weapon), $(Starport, Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
 case object Noble         extends Leader("leader12", "Noble",         $(Connected, Influential, Proud), $(Psionic, Psionic), $(City, Ship, Ship, Ship), $(Starport, Ship, Ship, Ship), $(Ship, Ship))
 case object Anarchist     extends Leader("leader13", "Anarchist",     $(Decentralized, Inspiring, Principled), $(Relic, Weapon), $(Ship, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship))
 case object Shaper        extends Leader("leader14", "Shaper",        $(Mythic, Ancient), $(Relic, Material), $(City, Ship, Ship, Ship), $(Ship, Ship, Ship), $(Ship, Ship, Ship))
@@ -118,7 +125,8 @@ object Leaders {
 
     def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
     def preset2 = $(Agitator, Feastbringer, Warrior, Noble, Upstart)
-    def preset3 = $(Quartermaster, Quartermaster, Quartermaster, Quartermaster, Quartermaster)
+    def preset3 = $(Overseer, Corsair, Anarchist, Shaper, Quartermaster)
+    def preset4 = $(Archivist)
 }
 
 
@@ -132,6 +140,8 @@ case object LeadersFactionsSetupAction extends ForcedAction
 case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class ConnectedAction(self : Faction, then : ForcedAction) extends ForcedAction
+
+case class MythicAction(self : Faction, s : System, r : Resource, k : Int, then : ForcedAction) extends ForcedAction
 
 case class BoldMainAction(self : Faction, influenced : $[CourtCard], then : ForcedAction) extends ForcedAction with Soft
 case class GiveGuildCardAction(self : Faction, e : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
@@ -246,6 +256,19 @@ object LeadersExpansion extends Expansion {
                     f.extraKeys = $(4) ++ f.extraKeys
                     f.resources = $(Nothingness) ++ f.resources
                 }
+
+                if (f.can(Decentralized)) {
+                    f.reserve --> City.of(f) --> game.scrap
+                    f.reserve --> City.of(f) --> game.scrap
+                }
+
+                if (f.can(Hated)) {
+                    f.reserve --> Ship.of(f) --> game.scrap
+                    f.reserve --> Ship.of(f) --> game.scrap
+                    f.reserve --> Agent.of(f) --> game.scrap
+                    f.reserve --> Agent.of(f) --> game.scrap
+                    f.reserve --> Agent.of(f) --> game.scrap
+                }
             }
 
             StartChapterAction
@@ -279,6 +302,16 @@ object LeadersExpansion extends Expansion {
             f.log("gave", c, "to", e)
 
             GainCourtCardAction(e, c, None, then)
+
+        // SHAPER
+        case MythicAction(f, s, r, k, then) =>
+            game.overrides += s -> r
+
+            f.remove(ResourceRef(r, |(k)))
+
+            f.log("changed", s, "type to", r, "with", Mythic)
+
+            then
 
         case _ => UnknownContinue
     }

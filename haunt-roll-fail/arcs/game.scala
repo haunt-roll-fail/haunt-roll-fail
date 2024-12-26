@@ -99,7 +99,7 @@ case class Figure(faction : Color, piece : Piece, index : Int) extends GameEleme
     override def toString = "" + faction + "/" + piece + "/" + index
     def fresh(implicit game : Game) = faction.damaged.has(this).not
     def damaged(implicit game : Game) = faction.damaged.has(this)
-    def elem(implicit game : Game) = (damaged.??("Damaged ") + faction.name + " " + piece.name).styled(faction)
+    def elem(implicit game : Game) = (damaged.??("Damaged ") + game.unslotted.has(this).??("Cloud ") + faction.name + " " + piece.name).styled(faction)
 }
 
 
@@ -149,6 +149,15 @@ case object AlreadyPaid extends Cost {
 case class PayResource(resource : Resource, lock : |[Int]) extends Cost {
     def elem = "with " ~ ResourceRef(resource, lock).elem
     override def elemLog = "with " ~ resource.elem
+}
+
+case class MultiCost(l : $[Cost]) extends Cost {
+    def elem = l./(_.elem).commaAnd.join(" ")
+    override def elemLog = "with " ~ elem
+}
+
+object MultiCost {
+    def apply(l : Cost*) : MultiCost = MultiCost(l.$.but(NoCost))
 }
 
 case class ResourceRef(resource : Resource, lock : |[Int]) extends Elementary {
@@ -328,6 +337,7 @@ case class Reserve(f : Color) extends SpecialRegion
 case class Outrage(f : Faction) extends SpecialRegion
 case class Trophies(f : Faction) extends SpecialRegion
 case class Captives(f : Faction) extends SpecialRegion
+case object Scrap extends SpecialRegion
 case class Influence(c : CourtCard) extends SpecialRegion
 
 
@@ -659,13 +669,15 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     var power = 0
 
+    var resources : $[Resource] = $
+    var spent : $[Resource] = $
+
     val cityKeys : $[Int] = $(3, 1, 1, 2, 1, 3)
     var extraKeys : $[Int] = $
     def keys = extraKeys ++ cityKeys
     def resourceSlots = extraKeys.num + $(6, 6, 6, 4, 3, 2)(pooled(City))
 
-    var resources : $[Resource] = $
-    var spent : $[Resource] = $
+    def resKeys = resources.lazyZip(keys).toList.%<(_ != Nothingness)
 
     var anyBattle : Boolean = false
 
@@ -680,6 +692,8 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var taxed : $[Figure] = $
     var built : $[Figure] = $
     var used : $[Effect] = $
+
+    var taxedSlots : $[System] = $
 
     var lead : Boolean = false
     var surpass : Boolean = false
@@ -758,6 +772,9 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
                 resources = resources.updated(i.get, Nothingness)
                 spent :+= r
 
+            case MultiCost(l) =>
+                l.foreach(pay)
+
             case _ =>
                 // println("skipping payment " + cost)
         }
@@ -804,14 +821,16 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var leaders : $[Leader] = $
     var lores : $[Lore] = $
 
+    implicit val figures = new IdentityTracker[Region, Figure]
+    val scrap = game.figures.register(Scrap)
+
     implicit val cards = new IdentityTracker[DeckCardLocation, DeckCard]
     implicit val courtiers = new IdentityTracker[CourtLocation, CourtCard]
-    implicit val figures = new IdentityTracker[Region, Figure]
 
     val deck = cards.register(Deck, content = DeckCards.deck.%(d => factions.num == 4 || (d.strength > 1 && d.strength < 7)))
     val discard = cards.register(DeckDiscard)
-    var seen : $[DeckCard] = $
-    var seenX : $[(Int, Faction, |[DeckCard])] = $
+
+    var seen : $[(Int, Faction, |[DeckCard])] = $
 
     val court = courtiers.register(CourtDeck, content = campaign.?(CourtCards.campaign).|(CourtCards.base))
     val market = courtiers.register(CourtMarket)
@@ -841,13 +860,22 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     court.$./(c => figures.register(Influence(c)))
 
 
-    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum
+    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum - overrides.values.$.count(r)
 
     def available(r : Resource) = availableNum(r) > 0
 
+
     def at(s : System) = figures.get(s)
 
-    def freeSlots(s : System) = board.slots(s) - figures.get(s).%(_.piece.is[Building]).num
+    var overrides : Map[System, Resource] = Map()
+
+    def resources(s : System) : $[Resource] = overrides.get(s)./($(_)) ||
+        (s.symbol == Gate).?(systems.%(_.cluster == s.cluster).but(s)./~(resources)) |
+        $(board.resource(s))
+
+    var unslotted : $[Figure] = $
+
+    def freeSlots(s : System) = board.slots(s) - figures.get(s).%(_.piece.is[Building]).diff(unslotted).num
 
     var current : |[Faction] = None
 

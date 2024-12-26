@@ -323,14 +323,14 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     pieces.addFixed(s, p, z + 8)(q)(highlightCoordinates.get.x, highlightCoordinates.get.y)
                 }
                 else
-                if (p.piece == Starport && gates.any) {
+                if (p.piece == Starport && gates.any && game.unslotted.has(p).not) {
                     gates.starting.foreach { g =>
                         pieces.addFixed(s, p, z)(q)(g.x, g.y)
                     }
                     gates = gates.dropFirst
                 }
                 else
-                if (p.piece.is[Building] && gates.any) {
+                if (p.piece.is[Building] && gates.any && game.unslotted.has(p).not) {
                     gates.ending.foreach { g =>
                         pieces.addFixed(s, p, z)(q)(g.x, g.y)
                     }
@@ -345,6 +345,34 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         highlighted.clear()
 
         ambTokens.clear()
+
+        systems.reverse.foreach { s =>
+            game.overrides.get(s).foreach { r =>
+                val (x, y) = s @@ {
+                    case System(1, Arrow) => (1045, 125)
+                    case System(1, Crescent) => (1455, 120)
+                    case System(1, Hex) => (1860, 115)
+                    case System(2, Arrow) => (2100, 390)
+                    case System(2, Crescent) => (2405, 585)
+                    case System(2, Hex) => (2300, 880)
+                    case System(3, Arrow) => (2290, 1175)
+                    case System(3, Crescent) => (1955, 1315)
+                    case System(3, Hex) => (1955, 1670)
+                    case System(4, Arrow) => (1445, 1645)
+                    case System(4, Crescent) => (1050, 1690)
+                    case System(4, Hex) => (685, 1580)
+                    case System(5, Arrow) => (160, 1525)
+                    case System(5, Crescent) => (330, 1130)
+                    case System(5, Hex) => (140, 800)
+                    case System(6, Arrow) => (330, 660)
+                    case System(6, Crescent) => (255, 310)
+                    case System(6, Hex) => (610, 185)
+                    case _ => (1150 + random(100), 800 + random(100) )
+                }
+
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img(r.id)), Rectangle(-32, -32, 64, 64), 1.0)), $), 1.0, 10)(x, y)
+            }
+        }
 
         1.to(6).diff(game.board.clusters).intersect($(3)).$.starting.foreach { i =>
             val x1 = 1724
@@ -790,14 +818,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 game.discard./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
-        case "showndeck" =>
-            showOverlay(overlayScrollX(Div("Played Cards Pile") ~
-                game.seen./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
-            ).onClick, onClick)
-
         case "seen" =>
             showOverlay(overlayScrollX(Div("Played Action Cards".hl) ~
-                game.seenX.groupBy(_._1).$.sortBy(_._1)./{ case (n, l) =>
+                game.seen.groupBy(_._1).$.sortBy(_._1)./{ case (n, l) =>
                     Div("Round " ~ n.hh) ~
                     l./{ case (_, f, d) =>
                         OnClick(d, Div(Image(d./(_.imgid).|("card-back"), styles.card), xstyles.choice, xstyles.xx, styles.cardI, elem.borders.get(f), styles.inline, xlo.pointer))
@@ -817,7 +840,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     $(
                     game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.txt).larger.styled(xstyles.bold),
                     HGap,
-                    game.desc((s.symbol != Gate).?(game.board.resource(s).use(r => ResourceRef(r, None)))).div,
+                    game.desc(game.resources(s)./(r => ResourceRef(r, None)).intersperse(" ")).div,
                     HGap
                     ) ++
                     game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_.sortBy(_.piece.is[Building].not)./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.token3x))))./(game.desc(_).div(styles.figureLine)) ++
@@ -899,7 +922,6 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
             (options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("discard") }).copy(clear = false)) ++
-            // $(ZBasic(Break ~ Break, "Played Cards Pile".hh, () => { onClick("showndeck") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Played Action Cards".hh, () => { onClick("seen") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
