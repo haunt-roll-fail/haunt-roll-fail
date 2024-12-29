@@ -722,6 +722,8 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     var adjust : Boolean = false
 
+    var seen : $[DeckCard] = $
+
     def rivals = game.factions.but(faction)
     def others = game.colors.but(faction)
 

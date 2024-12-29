@@ -18,21 +18,20 @@ object Meta extends MetaGame { mmm =>
 
     type F = Faction
 
-
     def tagF = implicitly
 
     val name = "coup"
     val label = "Coup"
 
-    val factions = List(Amalthea, Thebe, Io, Europa, Ganymede, Callisto)
+    val factions = $(Amalthea, Thebe, Io, Europa, Ganymede, Callisto)
 
     val minPlayers = 2
 
-    val options = Nil
+    val options = $
 
     override val gradualFactions : Boolean = true
 
-    val quickMin = 6
+    val quickMin = 3
     val quickMax = 6
 
     def randomGameName() = {

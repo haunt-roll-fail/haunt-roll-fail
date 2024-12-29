@@ -1,6 +1,6 @@
 name := "HRF"
 
-version := "0.8.111"
+version := "0.8.117"
 
 scalaVersion := "2.13.15"
 
@@ -32,6 +32,8 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "dwam"
 Compile / unmanagedSourceDirectories += baseDirectory.value / "vast"
 
 Compile / unmanagedSourceDirectories += baseDirectory.value / "arcs"
+
+Compile / unmanagedSourceDirectories += baseDirectory.value / "doms"
 
 Compile / unmanagedSourceDirectories += baseDirectory.value / "coup"
 

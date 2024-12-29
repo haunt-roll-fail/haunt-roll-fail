@@ -119,7 +119,7 @@ object Meta extends MetaGame { mmm =>
 
     override val gradualFactions : Boolean = true
 
-    val quickMin = 4
+    val quickMin = 3
     val quickMax = 4
 
     def randomGameName() = {
@@ -148,7 +148,7 @@ object Meta extends MetaGame { mmm =>
     def getBots(f : Faction) = $("Easy")
 
     def getBot(f : Faction, b : String) = (f, b) match {
-        case (f : Faction, "Easy") => new BotXX(f)
+        case (f : Faction, "Easy") => new BotYY(f)
         case (f : Faction, _) => new BotXX(f)
     }
 

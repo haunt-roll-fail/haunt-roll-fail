@@ -69,7 +69,7 @@ package object web {
             dom.window.history.forward()
         }
         catch {
-            case e => available = false
+            case e : Throwable => available = false
         }
 
         var ignore : Int = 0
@@ -122,7 +122,12 @@ package object web {
             states +:= url -> onPop
 
             if (available) {
-                dom.window.history.pushState(url, "", (url == null).?(null).|(url + query + hash))
+                try {
+                    dom.window.history.pushState(url, "", (url == null).?(null).|(url + query + hash))
+                }
+                catch {
+                    case e : Throwable => available = false
+                }
             }
         }
     }

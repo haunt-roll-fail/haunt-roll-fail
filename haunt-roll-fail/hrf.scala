@@ -42,7 +42,7 @@ object HRF {
     def glyph(s : String) = getElem("icon").asInstanceOf[dom.html.Link].href = s
 
     val imageCache = new CachedBlobImageLoader("hrf-image-cache-" + imageDataVersion)
-    val stringCache = new CachedStringLoader("hrf-string-cache-" + version)
+    val stringCache = StringLoader
 
     private val settings = getElem("settings").?
 
@@ -90,6 +90,8 @@ object HRF {
 
     val html = dom.window.location.origin + "/play/"
     val script = dom.document.getElementById("script").asInstanceOf[dom.html.Script].src
+
+    var originalOuterHtml : String = ""
 
     def onKey(filter : dom.KeyboardEvent => Boolean)(process : => Unit) {
         val old = dom.document.onkeyup
@@ -211,6 +213,7 @@ case class HotseatGame(time : Double, version : String, meta : String, title : S
 
 
 class HRFUI {
+    HRF.originalOuterHtml = "<!doctype html>\n<html>\n    " + dom.document.documentElement.innerHTML + "\n<html>"
 
     implicit val zr = Resources(ImageResources(Map(), Map(
         "question-mark" -> "/hrf/question-mark.png",
@@ -438,8 +441,6 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
         }
     }
 
-    case class Setup(seating : $[meta.F], difficulty : Map[meta.F, Difficulty])
-
     def withMeta() {
         ui.logger.alog(meta.label.spn.div)
 
@@ -469,7 +470,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 (user, new ServerJournal[String](meta, server, user, secret, lobby, identity, identity))
             }
 
-            var setup : Setup = null
+            var started = false
 
             var enteredNames = Map[String, String]()
             var preNames = Map[String, String]()
@@ -636,12 +637,13 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     askName(getCookie("name", ""))
                 }
                 else
-                if (setup == null) {
+                if (started.not) {
+                    started = true
+
                     dom.document.title = (self./(meta.factionName) :+ title.|("%untitled%") :+ meta.label).join(" - ")
 
-                    setup = Setup(seating, seating./(_ -> HRF.param("debug")./(bot => BotDebug(bot)).|(Human)).toMap)
+                    var difficulties = seating./(_ -> HRF.param("debug")./(bot => BotDebug(bot)).|(Human)).toMap ++ bots./{ case (f, d) => f -> Bot(d) }
                     val state = OptionsState(meta.options, options, $)
-                    setup = setup.copy(difficulty = setup.difficulty ++ bots./{ case (f, d) => f -> Bot(d) })
 
                     def names : Map[meta.F, String] = users.flatMap {
                         case (f, i) => preNames.get(i)./(f -> _)
@@ -667,9 +669,12 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                         if (HRF.flag("replay"))
                             new ReplayPhantomJournal[meta.gaming.ExternalAction](meta, getElem("replay").textContent, s => meta.parseActionExternal(s), HRF.paramInt("at") | 999999)
                         else
+                        if (HRF.flag("phantom"))
+                            new ServerPhantomJournal[meta.gaming.ExternalAction](meta, HRF.param("server").get, HRF.param("user").get, HRF.param("secret").get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
+                        else
                             new ServerJournal[meta.gaming.ExternalAction](meta, HRF.param("server").get, HRF.param("user").get, HRF.param("secret").get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
 
-                    startGame(setup, state.selected, self, journal, title.|("%untitled%"), () => names, ServerSwitches)
+                    startGame(seating, difficulties, state.selected, self, journal, title.|("%untitled%"), () => names, ServerSwitches)
 
                     reread()
 
@@ -731,11 +736,12 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
             val factions = generateFactions()
 
-            var setup = Setup(factions, factions./(_ -> Bot(meta.defaultBots(0))).toMap)
+            var difficulties = factions./(_ -> Bot(meta.defaultBots(0))).toMap[meta.F, Difficulty]
+
             var options = OptionsState(meta.optionsFor(factions.num, factions), $, meta.defaultsFor(factions.num, factions)).checkDimmed()
 
             HRF.paramList("human")./(meta.parseFaction(_).get).some.|($(factions.shuffle.head)).foreach { h =>
-                setup = setup.copy(difficulty = setup.difficulty + (h -> HRF.flag("debug").?(BotDebug(meta.defaultBots(0))).|(Human)))
+                difficulties += h -> HRF.flag("debug").?(BotDebug(meta.defaultBots(0))).|(Human)
             }
 
             HRF.paramList("options")./~(meta.parseOption).use { o =>
@@ -744,7 +750,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
             val journal = new MemoryJournal[meta.gaming.ExternalAction](meta)
 
-            startGame(setup, options.selected, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
+            startGame(factions, difficulties, options.selected, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
         }
         else
             if (hrf.HRF.flag("fastsetup"))
@@ -807,8 +813,8 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
             HRF.segments = $
     }
 
-    def miscellaneous() {
-        val versions = $("0.8.105", "0.8.103")
+    def miscellaneous(download : Boolean = false) {
+        val versions = $("0.8.102", "0.8.100").take(0)
 
         ui.action.asker.zask(
             versions./(v => ZBasic("Previous Stable Versions", "HRF " + v, () => {
@@ -823,7 +829,37 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     miscellaneous()
                 }
             }, ZBasic.choice ++ $(xlo.fullwidth))) ++
-            $(ZBasic("Local Storage", "Clear All Data", () => {
+            $(ZBasic("Offline Version", download.not.?("Download".styled(xstyles.warning)).|("Preparing Download".hh ~ " (may take a few minutes)"), download.not.??(() => {
+                val assets = meta.assets./~(_.get)
+
+                val sources = assets./(a => a.name -> ("webp2/" + meta.path + "/images/" + a.copy(ext = "webp").src)).toMap
+                val preload = HRF.embedded.?(assets./(a => a.name -> a.name)).|(assets.%(_.lzy == Laziness.Immediate)./(a => a.name -> sources(a.name)))
+                val loader = HRF.embedded.?(new WrappedEmbeddedImageLoader(s => "asset-" + s)).|(HRF.imageCache)
+
+                ui.logger.alog("Loading assets".spn.div)
+
+                var i = 0
+
+                loader.onLoad = (url, result) => {
+                    i += 1
+
+                    if (i % (preload.num / 23 + 1) == 0)
+                        ui.logger.alog("*".spn)
+                }
+
+                loader.wait(preload.rights) {
+                    val loaded = preload./((key, url) => key -> loader.get(url)).toMap
+
+                    val resources = Resources(ImageResources(loaded, sources, HRF.imageCache), () => Map())
+
+                    val filename = "hrf--" + meta.name + "--" + HRF.version + "--offline"
+
+                    hrf.quine.Quine.save(meta)(meta.name, $, $, resources, new MemoryJournal[meta.gaming.ExternalAction](meta), filename, false, miscellaneous())
+                }
+
+                miscellaneous(true)
+            }), ZBasic.choice ++ $(xlo.fullwidth))) ++
+            $(ZBasic("Local Storage", "Clear All Data".styled(xstyles.error), () => {
                 hrf.web.Local.clear()
                 settings = $
                 applySettings(settings)
@@ -848,6 +884,18 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
     }
 
     def quickGame() {
+        HRF.segments = $
+
+        val journal = new MemoryJournal[meta.gaming.ExternalAction](meta)
+
+        val (f, l, d, o) = meta.randomQuickGame()
+
+        val bots = d.view.mapValues(s => Bot(s)).toMap + (f -> Human)
+
+        startGame(l, bots, o, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
+    }
+
+    def quickGameOld() {
         HRF.segments = $
 
         ui.action.asker.zask(meta.factions./(faction => ZBasic(meta.factionGroup(faction).|("Play as".txt), meta.factionElem(faction).spn(xstyles.bold) ~ meta.factionNote(faction), () => {
@@ -884,12 +932,11 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     ZBasic("", v.ok.?("Start Game".hl ~ v.message.any.??(" | ")).|(Empty) ~ v.message.styled(v.style), v.ok.??(() => {
                         val seating = factions
 
-                        var setup = Setup(seating, seating./(_ -> Bot(meta.defaultBots(0))).toMap)
-                        setup = setup.copy(difficulty = setup.difficulty + (faction -> Human))
+                        val difficulties = seating./(_ -> Bot(meta.defaultBots(0))).toMap + (faction -> Human)
 
                         val journal = new MemoryJournal[meta.gaming.ExternalAction](meta)
 
-                        startGame(setup, options, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
+                        startGame(seating, difficulties, options, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
                     })).? ++
                     ff.diff(factions)./(f => ZOption(Div(meta.factionGroup(f).|("Factions".txt)), OnClick(Div(Text(meta.factionName(f)), ZBasic.infoch)), _ => {
                         factions :+= f
@@ -1047,11 +1094,13 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
             (title, included, excluded, options)
         }
 
-        var setup = Setup(factions, factions.map(_ -> Human).toMap)
+        var seating = factions
+        var difficulties : Map[meta.F, Difficulty] = factions.map(_ -> Human).toMap
+
         var notes = Map[meta.F, String]()
 
         def setupQuestions(page : Int) {
-            val v = meta.validateFactionSeatingOptions(setup.seating, options.selected)
+            val v = meta.validateFactionSeatingOptions(seating, options.selected)
             val maxname = factions./(meta.factionName(_).length).max
 
             def padding(f : meta.F) = "".padTo(maxname - meta.factionName(f).length, ' ').pre.spn(xstyles.compressed)
@@ -1060,28 +1109,28 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
             ui.action.asker.zask(
                 (page == 0).?? {
-                    setup.seating./(f => ZOption("Setup Factions".styled(xstyles.larger125), Div(Empty ~ online.?(Input(notes.get(f).|(""), "Player #" + (setup.seating.indexOf(f) + 1), s => notes += f -> s.sanitize(32), 9, 16, ZBasic.inputT, ZBasic.inputD)) ~ " " ~ (padding(f) ~ meta.factionElem(f) ~ padding(f)).div(xstyles.width18ch) ~ " " ~
-                        Parameter("difficulty", OnClick(Span((setup.difficulty(f) match {
+                    seating./(f => ZOption("Setup Factions".styled(xstyles.larger125), Div(Empty ~ online.?(Input(notes.get(f).|(""), "Player #" + (seating.indexOf(f) + 1), s => notes += f -> s.sanitize(32), 9, 16, ZBasic.inputT, ZBasic.inputD)) ~ " " ~ (padding(f) ~ meta.factionElem(f) ~ padding(f)).div(xstyles.width18ch) ~ " " ~
+                        Parameter("difficulty", OnClick(Span((difficulties(f) match {
                             case Human  => " Human ".pre.hl
                             case Bot(s) => " Bot / ".pre ~ (s + " ").pre.hl
                         }).div(xstyles.width14ex), xstyles.outlined))) ~
                         Div(
-                            (setup.seating.head == f).?("   ".pre.spn(xstyles.larger125)).|(OnClick("up",   Span(" ▲ ".pre.spn(xstyles.larger125), xstyles.outlined))) ~
-                            (setup.seating.last == f).?("   ".pre.spn(xstyles.larger125)).|(OnClick("down", Span(" ▼ ".pre.spn(xstyles.larger125), xstyles.outlined))),
+                            (seating.head == f).?("   ".pre.spn(xstyles.larger125)).|(OnClick("up",   Span(" ▲ ".pre.spn(xstyles.larger125), xstyles.outlined))) ~
+                            (seating.last == f).?("   ".pre.spn(xstyles.larger125)).|(OnClick("down", Span(" ▼ ".pre.spn(xstyles.larger125), xstyles.outlined))),
                         xstyles.updown)
                         , ZBasic.choice :+ xstyles.player), {
                         case "difficulty" =>
-                            setup = setup.copy(difficulty = setup.difficulty + (f -> ($(Human) ++ meta.getBots(f)./(Bot) ++ $(Human)).dropWhile(_ != setup.difficulty(f)).drop(1).head))
+                            difficulties += f -> ($(Human) ++ meta.getBots(f)./(Bot) ++ $(Human)).dropWhile(_ != difficulties(f)).drop(1).head
                             setupQuestions(page)
                         case "up" =>
-                            val a = setup.seating.takeWhile(_ != f)
-                            val b = setup.seating.dropWhile(_ != f)
-                            setup = setup.copy(seating = a.dropRight(1) ++ b.take(1) ++ a.takeRight(1) ++ b.drop(1))
+                            val a = seating.takeWhile(_ != f)
+                            val b = seating.dropWhile(_ != f)
+                            seating = a.dropRight(1) ++ b.take(1) ++ a.takeRight(1) ++ b.drop(1)
                             setupQuestions(page)
                         case "down" =>
-                            val a = setup.seating.takeWhile(_ != f)
-                            val b = setup.seating.dropWhile(_ != f)
-                            setup = setup.copy(seating = a ++ b.drop(1).take(1) ++ b.take(1) ++ b.drop(2))
+                            val a = seating.takeWhile(_ != f)
+                            val b = seating.dropWhile(_ != f)
+                            seating = a ++ b.drop(1).take(1) ++ b.take(1) ++ b.drop(2)
                             setupQuestions(page)
                     })) ++
                     presets./{ case (title, included, excluded, neu) =>
@@ -1092,7 +1141,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                         })
                     }
                 } ++
-                meta.optionsFor(setup.seating.num, setup.seating).diff(meta.hiddenOptions).intersect(pages(page))./({ o =>
+                meta.optionsFor(seating.num, seating).diff(meta.hiddenOptions).intersect(pages(page))./({ o =>
                     val state = options.selected.has(o)
                     val enabled = options.enabled(o)
                     val active = enabled
@@ -1133,11 +1182,11 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                             history.destroy(pages.length - 1)
 
                             if (online)
-                                arrangeOnlineGame(setup, options.selected, Map(), notes, false, meta.randomGameName(), HRF.now(), $(meta.start), None, g => {})
+                                arrangeOnlineGame(seating, difficulties, options.selected, Map(), notes, false, meta.randomGameName(), HRF.now(), $(meta.start), None, g => {})
                             else {
                                 val journal = new MemoryJournal[meta.gaming.ExternalAction](meta)
 
-                                startGame(setup, options.selected, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
+                                startGame(seating, difficulties, options.selected, $, journal, meta.randomGameName(), () => Map(), NoSwitches)
                             }
                         })
                     ) ++
@@ -1167,12 +1216,12 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
         ui.action.scroll.scrollTop = 0
     }
 
-    def startGame(setup : Setup, options : $[meta.O], self : $[meta.F], journal : Journal[meta.gaming.ExternalAction], title : String, names : () => Map[meta.F, String], swt : Switches) {
+    def startGame(seatingX : $[meta.F], difficulties : Map[meta.F, Difficulty], options : $[meta.O], self : $[meta.F], journal : Journal[meta.gaming.ExternalAction], title : String, names : () => Map[meta.F, String], swt : Switches) {
         val delay = HRF.paramInt("delay") | 30
 
-        val seating = setup.seating.%(f => setup.difficulty(f) != Off)
+        val seating = seatingX.%(f => difficulties(f) != Off)
 
-        val assets = meta.assets.%(_.condition(seating, options))./~(_.get)
+        val assets = meta.assets.%(_.condition(seating, options) || true)./~(_.get)
 
         val sources = assets./(a => a.name -> ("webp2/" + meta.path + "/images/" + a.copy(ext = "webp").src)).toMap
         val preload = HRF.embedded.?(assets./(a => a.name -> a.name)).|(assets.%(_.lzy == Laziness.Immediate)./(a => a.name -> sources(a.name)))
@@ -1200,20 +1249,24 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
             val callbacks = new Callbacks {
                 def switches = swt
-                def saveReplay(onSave : => Unit) = hrf.quine.Quine.save(meta)(title, seating, options, resources, journal, HRF.startAt, onSave)
+                def saveReplay(onSave : => Unit) = {
+                    val filename = "hrf--" + meta.name + "--" + HRF.version + "--replay--" + HRF.startAt.toISOString().take(16).replace("T", "--")
+
+                    hrf.quine.Quine.save(meta)(title, seating, options, resources, journal, filename, true, onSave)
+                }
                 def saveReplayOnline(replaceBots : Boolean, mergeHumans : Boolean)(onSave : String => Unit) = {
                     journal.read(0) { actions =>
-                        val factions = setup.seating.%(f => setup.difficulty(f) != Off)
+                        val factions = seating.%(f => difficulties(f) != Off)
 
                         val ss =
                             if (replaceBots)
-                                Setup(factions, factions./(_ -> Human).toMap)
+                                factions./(_ -> Human).toMap
                             else
-                                setup
+                                difficulties
 
-                        val humans = factions.%(f => ss.difficulty(f) == Human)
+                        val humans = factions.%(f => ss(f) == Human)
 
-                        arrangeOnlineGame(ss, options, Map(), humans./(_ -> "Player").toMap, mergeHumans, title, HRF.startAt, actions./(_.unwrap), |("SLG"), g => {
+                        arrangeOnlineGame(factions, ss, options, Map(), humans./(_ -> "Player").toMap, mergeHumans, title, HRF.startAt, actions./(_.unwrap), |("SLG"), g => {
                             val l = dom.document.location
                             val url = "/play/" + meta.name + "/online/lobby/" + g.lobby + l.search + l.hash
                             println("reload " + url)
@@ -1224,7 +1277,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 def canPlayAgain = journal.is[MemoryJournal[_]]
                 def playAgain() = {
                     ui.guir.clear()
-                    startGame(setup : Setup, options : $[meta.O], self : $[meta.F], new MemoryJournal[meta.gaming.ExternalAction](meta), title : String, names : () => Map[meta.F, String], swt : Switches)
+                    startGame(seating, difficulties, options : $[meta.O], self : $[meta.F], new MemoryJournal[meta.gaming.ExternalAction](meta), title : String, names : () => Map[meta.F, String], swt : Switches)
                 }
                 def editSettings(onEdit : => Unit) = {
                     ui.uir.show()
@@ -1248,7 +1301,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 if (faction == null)
                     AskHuman
                 else
-                setup.difficulty(faction) match {
+                difficulties(faction) match {
                     case _ if journal.is[ServerPhantomJournal[_]] =>
                         AskHuman
                     case Human if journal.is[ServerJournal[_]].not =>
@@ -1281,13 +1334,13 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
     }
 
-    def arrangeOnlineGame(setup : Setup, options : $[meta.O], names : Map[meta.F, String], notes : Map[meta.F, String], merge : Boolean, title : String, time : scalajs.js.Date, actions : $[meta.gaming.Action], comment : |[String], onCreate : OnlineGame => Unit) {
+    def arrangeOnlineGame(seating : $[meta.F], difficulties : Map[meta.F, Difficulty], options : $[meta.O], names : Map[meta.F, String], notes : Map[meta.F, String], merge : Boolean, title : String, time : scalajs.js.Date, actions : $[meta.gaming.Action], comment : |[String], onCreate : OnlineGame => Unit) {
         val server = HRF.param("server").get
 
-        val factions = setup.seating.%(f => setup.difficulty(f) != Off)
+        val factions = seating.%(f => difficulties(f) != Off)
 
-        val humans = factions.%(f => setup.difficulty(f) == Human)
-        val bots = factions.%(f => setup.difficulty(f) != Human)
+        val humans = factions.%(f => difficulties(f) == Human)
+        val bots = factions.%(f => difficulties(f) != Human)
 
         var plays = Map[String, String]()
         var users = Map[meta.F, String]()
@@ -1304,7 +1357,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                             humans./(f => "user " + meta.writeFaction(f) + " " + users(f)) ++
                             humans./~(f => notes.get(f)./(n => "prename " + users(f) + " " + n)) ++
                             humans./~(f => names.get(f)./(n => "name " + users(f) + " " + n)) ++
-                            bots./(f => "bot " + meta.writeFaction(f) + " " + setup.difficulty(f).asInstanceOf[Bot].name) ++
+                            bots./(f => "bot " + meta.writeFaction(f) + " " + difficulties(f).asInstanceOf[Bot].name) ++
                             comment./(c => "comment " + c).$ ++
                             $(
                                 "seating " + factions./(meta.writeFaction).join(" "),

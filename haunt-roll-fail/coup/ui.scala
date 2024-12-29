@@ -35,13 +35,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     def factionElem(f : Faction) = f.name.styled(f)
 
     def factionStatus(f : Faction, container : Container) {
-
-
-
-
         if (!game.players.contains(f))
             return
-
 
         val p = game.players(f)
 
@@ -115,7 +110,6 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     def overlayFitX(e : Elem) = overlayFit(e)(xstyles.seeThrough).onClick
 
     def showOverlay(e : Elem, onClick : Any => Unit) {
-
         overlayPane.vis()
         overlayPane.replace(e, resources, onClick, _ => {}, _ => {})
     }
@@ -194,11 +188,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
         Fit("overlay", ss./(_.x).min, ss./(_.y).min, ss./(_.right).max - ss./(_.x).min, ss./(_.bottom).max - ss./(_.y).min)
     })
 
-
     val settingsKey = Meta.settingsKey
 
     val layoutKey = "v" + 1 + "." + "arity-" + arity
-
 
     override def preinfo(self : |[Faction], aa : $[UserAction]) = {
         val ii = currentGame.info(Nil, self, aa)
@@ -217,7 +209,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                 callbacks.playAgain()
             }).copy(clear = false)
         ) ++
-        (hrf.HRF.param("lobby").none).$(
+        (hrf.HRF.param("lobby").none && hrf.HRF.offline.not).$(
             ZBasic(Break ~ Break ~ Break, "Save Game Online".hh, () => {
                 showOverlay(overlayScrollX("Save Game Online".hlb(xstyles.larger125) ~
                     ("Save".hlb).div.div(xstyles.choice)(xstyles.xx)(xstyles.chm)(xstyles.chp)(xstyles.thu)(xlo.fullwidth)(xstyles.width60ex).pointer.onClick.param("***") ~

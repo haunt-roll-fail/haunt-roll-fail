@@ -663,7 +663,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
                     }
                 }).copy(clear = false)
             ) ++
-            (hrf.HRF.param("lobby").none).$(
+            (hrf.HRF.param("lobby").none && hrf.HRF.offline.not).$(
                 ZBasic(Break ~ Break ~ Break, "Save Game Online".hh, () => {
                     showOverlay(overlayScrollX("Save Game Online".hlb(xstyles.larger125) ~
                         ("Save".hlb).div.div(xstyles.choice)(xstyles.xx)(xstyles.chm)(xstyles.chp)(xstyles.thu)(xlo.fullwidth)(xstyles.width60ex).pointer.onClick.param("***") ~

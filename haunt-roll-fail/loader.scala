@@ -167,6 +167,12 @@ class BlobImageWrapper(url : String, private var blob : dom.Blob) extends ImageW
     }
 }
 
+class EmbeddedImageSourceLoader(url2id : String => String) extends Loader[String] {
+    def process(url : String) {
+        put(url, dom.document.getElementById(url2id(url)).asInstanceOf[html.Image].src)
+    }
+}
+
 class WrappedEmbeddedImageLoader(url2id : String => String) extends Loader[ImageWrapper] {
     def process(url : String) {
         put(url, new RawImageWrapper(dom.document.getElementById(url2id(url)).asInstanceOf[html.Image]))

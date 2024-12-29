@@ -420,7 +420,7 @@ object CommonExpansion extends Expansion {
             Ask(f).group("Steal", x.|("Resource"))
                 .some(f.rivals.%(e => x./(e.resources.has).|(e.resources.but(Nothingness).any))) { e =>
                     e.resKeys.%<(r => x.but(r).none)./ { case (x, k) =>
-                        StealResourceAction(f, e, x, k, then).as(ResourceRef(x, |(k)))
+                        StealResourceAction(f, e, x, k, then).as(ResourceRef(x, |(k)), "from", e)
                             .!(e.loyal.has(SwornGuardians))
                     }
                 }
@@ -804,7 +804,7 @@ object CommonExpansion extends Expansion {
                         f.gain(r, $("from", t))
                 }
 
-            then
+            AdjustResourcesAction(then)
 
         case PostTaxAction(f, s, c, loyal, then) =>
             implicit val ask = builder
@@ -823,7 +823,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            ask(f).done(AdjustResourcesAction(then))
+            ask(f).done(then)
 
         // MOVE
         case MayMoveAction(f, effect, then) =>
@@ -1248,7 +1248,7 @@ object CommonExpansion extends Expansion {
             Ask(f).group("Ransack".hl)
                 .each(market.%(c => Influence(c).exists(_.faction == e)))(c => RansackAction(f, c, then).as(c))
                 .needOk
-                .bail(then)
+                .bailout(then.as("No cards in court with", Agent.sof(e)))
 
         case RansackAction(f, c, then) =>
             market --> c --> f.loyal
@@ -1370,7 +1370,7 @@ object CommonExpansion extends Expansion {
 
             implicit val ask = builder
 
-            if (f.can(Ruthless)) {
+            if (f.can(Ruthless) && f.pool(Ship)) {
                 $(b).starports.foreach { b =>
                     b.faction.as[Faction].foreach { e =>
                         + UseEffectAction(f, Ruthless, DealHitsAction(f, s, f, e, $(b), 0, |(Ruthless), $, BuildShipAction(f, NoCost, s, b, |(Ruthless), then))).as("Damage", b, "to Build again")(Ruthless, "in", s)
@@ -1692,6 +1692,8 @@ object CommonExpansion extends Expansion {
 
             f.hand --> d --> f.blind
 
+            f.seen :+= d
+
             game.seen :+= (round, f, None)
 
             f.copy = true
@@ -1738,6 +1740,8 @@ object CommonExpansion extends Expansion {
 
             f.hand --> d --> f.blind
 
+            f.seen :+= d
+
             game.seen :+= (round, f, None)
 
             game.seized = |(f)
@@ -1759,59 +1763,122 @@ object CommonExpansion extends Expansion {
             implicit val ask = builder
             implicit val group = f.elem ~ " " ~ "Prelude".hh
 
-            f.resources.lazyZip(f.keys).foreach { (r, k) =>
-                if (r != Nothingness) {
-                    val cost = PayResource(r, |(k))
+            f.resKeys.distinct./ { (r, k) =>
+                val cost = PayResource(r, |(k))
 
-                    if ((r == Material && f.outraged.has(Material).not) || f.loyal.has(LoyalEngineers)) {
-                        game.build(f, cost, then)
-                        game.buildAlt(f, cost, then)
-                        game.repair(f, cost, then)
-                        game.repairAlt(f, cost, then)
-                    }
-
-                    if ((r == Weapon && s != Aggression && f.outraged.has(Weapon).not) || f.loyal.has(LoyalMarines))
-                        + AddBattleOptionAction(f, cost, then).as("Add", "Battle".styled(f), "option", cost)(group).!(f.anyBattle)
-
-                    if ((r == Fuel && f.outraged.has(Fuel).not) || f.loyal.has(LoyalPilots)) {
-                        game.move(f, cost, then)
-                        game.moveAlt(f, cost, then)
-                    }
-
-                    if ((r == Relic && f.outraged.has(Relic).not) || f.loyal.has(LoyalKeepers)) {
-                        game.secure(f, cost, then)
-                        game.secureAlt(f, cost, then)
-                    }
-
-                    if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
-                        factions.first.played./(_.suit)./{
-                            case Administration =>
-                                game.tax(f, cost, then)
-                                game.taxAlt(f, cost, then)
-                                game.repair(f, cost, then)
-                                game.repairAlt(f, cost, then)
-                                game.influence(f, cost, then)
-                                game.influenceAlt(f, cost, then)
-                            case Aggression =>
-                                game.battle(f, cost, then)
-                                game.battleAlt(f, cost, then)
-                                game.move(f, cost, then)
-                                game.moveAlt(f, cost, then)
-                                game.secure(f, cost, then)
-                                game.secureAlt(f, cost, then)
-                            case Construction =>
-                                game.build(f, cost, then)
-                                game.buildAlt(f, cost, then)
-                                game.repair(f, cost, then)
-                                game.repairAlt(f, cost, then)
-                            case Mobilization =>
-                                game.move(f, cost, then)
-                                game.moveAlt(f, cost, then)
-                                game.influence(f, cost, then)
-                                game.influenceAlt(f, cost, then)
-                        }
+                // TAX
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                            game.tax(f, cost, then)
+                            game.taxAlt(f, cost, then)
+                        case Aggression =>
+                        case Construction =>
+                        case Mobilization =>
                     }
                 }
+
+                // BUILD
+                if ((r == Material && f.outraged.has(Material).not) || f.loyal.has(LoyalEngineers)) {
+                    game.build(f, cost, then)
+                    game.buildAlt(f, cost, then)
+                }
+                else
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                        case Aggression =>
+                        case Construction =>
+                            game.build(f, cost, then)
+                            game.buildAlt(f, cost, then)
+                        case Mobilization =>
+                    }
+                }
+
+                // REPAIR
+                if ((r == Material && f.outraged.has(Material).not) || f.loyal.has(LoyalEngineers)) {
+                    game.repair(f, cost, then)
+                    game.repairAlt(f, cost, then)
+                }
+                else
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                            game.repair(f, cost, then)
+                            game.repairAlt(f, cost, then)
+                        case Aggression =>
+                        case Construction =>
+                            game.repair(f, cost, then)
+                            game.repairAlt(f, cost, then)
+                        case Mobilization =>
+                    }
+                }
+
+                // MOVE
+                if ((r == Fuel && f.outraged.has(Fuel).not) || f.loyal.has(LoyalPilots)) {
+                    game.move(f, cost, then)
+                    game.moveAlt(f, cost, then)
+                }
+                else
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                        case Aggression =>
+                            game.move(f, cost, then)
+                            game.moveAlt(f, cost, then)
+                        case Construction =>
+                        case Mobilization =>
+                            game.move(f, cost, then)
+                            game.moveAlt(f, cost, then)
+                    }
+                }
+
+                // BATTLE
+                if ((r == Weapon && s != Aggression && f.outraged.has(Weapon).not) || f.loyal.has(LoyalMarines))
+                    + AddBattleOptionAction(f, cost, then).as("Add", "Battle".styled(f), "option", cost)(group).!(f.anyBattle)
+
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                        case Aggression =>
+                            game.battle(f, cost, then)
+                            game.battleAlt(f, cost, then)
+                        case Construction =>
+                        case Mobilization =>
+                    }
+                }
+
+                // INFLUENCE
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                            game.influence(f, cost, then)
+                            game.influenceAlt(f, cost, then)
+                        case Aggression =>
+                        case Construction =>
+                        case Mobilization =>
+                            game.influence(f, cost, then)
+                            game.influenceAlt(f, cost, then)
+                    }
+                }
+
+                // SECURE
+                if ((r == Relic && f.outraged.has(Relic).not) || f.loyal.has(LoyalKeepers)) {
+                    game.secure(f, cost, then)
+                    game.secureAlt(f, cost, then)
+                }
+                else
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                    factions.first.played./(_.suit)./{
+                        case Administration =>
+                        case Aggression =>
+                            game.secure(f, cost, then)
+                            game.secureAlt(f, cost, then)
+                        case Construction =>
+                        case Mobilization =>
+                    }
+                }
+
             }
 
             if (f.can(MiningInterest))
@@ -2071,6 +2138,9 @@ object CommonExpansion extends Expansion {
             discard --> deck
 
             game.seen = $
+            factions.foreach { f =>
+                f.seen = $
+            }
 
             $(Tycoon, Tyrant, Warlord, Keeper, Empath).foreach { ambition =>
                 if (game.declared.contains(ambition)) {

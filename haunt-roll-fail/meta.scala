@@ -116,6 +116,8 @@ trait MetaBase {
     val quickMax : Int
     def quickFactions = factions
 
+    def randomQuickGame() : (F, $[F], Map[F, String], $[O])
+
     def factionName(f : F) : String
     def factionElem(f : F) : Elem
     def factionNote(f : F) : Elem = Empty
@@ -204,6 +206,24 @@ trait MetaBots extends MetaBase {
     def getBots(g : F) : $[String]
     def getBot(g : F, bot : String) : gaming.Bot
     def defaultBots : $[String]
+
+    def randomQuickGame() : (F, $[F], Map[F, String], $[O]) = {
+        while (true) {
+            val n = randomInRange(quickMin, quickMax)
+            val l = quickFactions.shuffle.take(n)
+            val f = l.shuffle.first
+            val o = optionsFor(n, l).%(_ => random() > 0.5)
+
+            validateFactionSeatingOptions(l, o) @@ {
+                case ErrorResult(_) =>
+                case _ =>
+                    val d = l.but(f)./(e => e -> getBots(e).shuffle.first).toMap
+                    return (f, l, d, o)
+            }
+        }
+
+        ???
+    }
 }
 
 trait MetaGame extends MetaBase with MetaBots
