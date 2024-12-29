@@ -53,6 +53,8 @@ case object LeadersAndLorePreset3 extends LeadersAndLoreOption {
     override val explain = $(
         "Preset of " ~ "five".hh ~ " leader cards and " ~ "five".hh ~ " lore cards.",
         $(Overseer, Corsair, Anarchist, Shaper, Quartermaster)./(_.elem).join(", "),
+        $(RepairDrones, RailgunArrays, SeekerTorpedoes, CloudCities, GateStations)./(_.elem).join(", "),
+        "Developed by " ~ "whichwit".hlb ~ " and " ~ "JT".hlb
     )
 }
 

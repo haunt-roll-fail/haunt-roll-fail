@@ -884,10 +884,10 @@ object CommonExpansion extends Expansion {
                 Force(then)
             else
             if (cascade)
-                Force(MoveFromAction(f, d, l.fresh, true, NoCost, then.as("Done"), then))
+                Force(MoveFromAction(f, d, l, true, NoCost, then.as("Done"), then))
             else
             if (f.can(SprinterDrives))
-                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l.fresh, false, NoCost, ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
+                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l, false, NoCost, ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
             else
                 Force(then)
 
@@ -967,7 +967,7 @@ object CommonExpansion extends Expansion {
 
             var ask = Ask(f)
 
-            if (l1.any && f.can(Skirmishers) && used.has(Skirmishers).not) {
+            if (l1.any && f.loyal.has(Skirmishers) && used.has(Skirmishers).not) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
                 val miss = $()
                 val hit = $(HitShip)
