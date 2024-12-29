@@ -880,14 +880,11 @@ object CommonExpansion extends Expansion {
 
             l --> d
 
-            if (l.fresh.none)
-                Force(then)
-            else
             if (cascade)
                 Force(MoveFromAction(f, d, l, true, NoCost, then.as("Done"), then))
             else
-            if (f.can(SprinterDrives))
-                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l, false, NoCost, ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
+            if (f.can(SprinterDrives) && l.fresh.any)
+                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l.fresh, false, NoCost, ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
             else
                 Force(then)
 
