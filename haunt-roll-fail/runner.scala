@@ -23,7 +23,7 @@ import scalajs.js
 import scalajs.js.timers.setTimeout
 
 object Runner {
-    def run(meta : MetaGame)(seating : $[meta.F], options : $[meta.O], resources : Resources, delay : Int, ui : meta.gaming.GameUI, auto : (meta.G, meta.gaming.F) => meta.gaming.AskResult, journal : Journal[meta.gaming.ExternalAction]) {
+    def run(meta : MetaGame)(seating : $[meta.F], options : $[meta.O], resources : Resources, ui : meta.gaming.GameUI, auto : (meta.G, meta.gaming.F) => meta.gaming.AskResult, journal : Journal[meta.gaming.ExternalAction]) {
         import meta.gaming._
 
         sealed trait UIState
@@ -974,7 +974,7 @@ object Runner {
 
             state match {
                 case UIContinue(Log(_, _, _), Nil) if logged > 1 =>
-                    setTimeout(hrf.HRF.paramInt("speed").|(240*3)) { continueHandleState() }
+                    setTimeout(hrf.HRF.paramInt("speed").|(240*3-140)) { continueHandleState() }
                     false
 
                 case UIContinue(_, Nil) =>

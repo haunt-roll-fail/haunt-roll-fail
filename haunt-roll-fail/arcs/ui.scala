@@ -283,10 +283,21 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         pieces.flush()
 
         systems.reverse.foreach { s =>
-            val figures = game.at(s)
+            var figures = game.at(s)
             var gates = regions.gates.get(s).|(Nil).sortBy(_.y)
 
-            val extra : $[Figure] = $
+            var extra : $[Figure] = $
+
+            if (game.leaders.any) {
+                game.board.starting.lazyZip(factions).foreach { case ((a, b, c), f) =>
+                    if (a == s)
+                        figures ++= 1.to(3)./(Figure(f, Agent, _))
+                    if (b == s)
+                        figures ++= 4.to(5)./(Figure(f, Agent, _))
+                    if (c.has(s))
+                        figures ++= 6.to(6)./(Figure(f, Agent, _))
+                }
+            }
 
             import hrf.ui.sprites._
 
@@ -305,6 +316,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     case Starport => $(ImageRect(img(prefix + starport + status), 61, 61, 1.0 + 0.4 * selected.??(1)))
                     case Ship => $(ImageRect(img(prefix + "ship" + status), 97, 71, 1.0 + 0.4 * selected.??(1)))
                     case Blight => $(ImageRect(img("blight" + status), 43, 79, 1.0 + 0.4 * selected.??(1)))
+                    case Agent => $(ImageRect(img(prefix + "agent" + status), 21, 66, 1.4))
                 }
 
                 var q = p.piece match {
@@ -314,7 +326,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 }
 
                 var z = p.piece match {
-                    case Ship | Blight => 4
+                    case Ship | Blight | Agent => 4
                     case Slot | City | Starport => 3
                 }
 
@@ -555,6 +567,30 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             HGap ~
             HGap ~
             HGap ~
+            (f.leader.any).?{
+                desc("Leader".hl.larger) ~
+                HGap ~
+                HGap ~
+                desc(f.leader./(l => OnClick(l, l.img))) ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap
+            } ~
+            (f.lores.any).?{
+                desc("Lore".hl.larger) ~
+                HGap ~
+                HGap ~
+                desc(f.lores./(l => OnClick(l, l.img))) ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap ~
+                HGap
+            } ~
             desc("Cards".hl.larger) ~
             HGap ~
             desc(f.hand.num.times(Image("card-back", styles.token3x))) ~
@@ -621,7 +657,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             desc("Ships".hl.larger) ~
             HGap ~
             HGap ~
-            desc(systems./~(f.at(_).ships)./(u => Image(u.faction.short + "-ship" + f.damaged.has(u).??("-damaged"), styles.ship3x)), f.pooled(Ship).times(Image("ship-empty", styles.ship3x))) ~
+            (systems./~(f.at(_).ships)./(u => Image(u.faction.short + "-ship" + f.damaged.has(u).??("-damaged"), styles.ship3x)) ++ f.pooled(Ship).times(Image("ship-empty", styles.ship3x))).grouped(5)./(desc) ~
             HGap ~
             HGap ~
             HGap ~
@@ -642,7 +678,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 desc("Trophies".hl.larger) ~
                 HGap ~
                 HGap ~
-                desc(f.trophies./(u => Image(u.faction.short + "-" + u.piece.name + "-damaged", (u.piece == Ship).?(styles.ship3x).|(styles.ship3x)))) ~
+                f.trophies./(u => Image(u.faction.short + "-" + u.piece.name + "-damaged", (u.piece == Ship).?(styles.ship3x).|(styles.ship3x))).grouped(5)./(desc) ~
                 HGap ~
                 HGap ~
                 HGap ~
@@ -691,6 +727,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         ).div(xlo.flexvcenter)(styles.infoStatus)), {
             case (f : Faction, more : Boolean) => onFactionStatus(f, more)
             case (c : CourtCard) => onClick(c)
+            case (l : Leader) => onClick(l)
+            case (l : Lore) => onClick(l)
             case _ =>
                 overlayPane.invis()
                 overlayPane.clear()
@@ -761,17 +799,19 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         Nil
     )
 
-    val layouter = Layouter(layouts, _./~{
+    val layouter = Layouter(layouts,
+    _./~{
         case f if f.name == "action" => $(f, f.copy(name = "undo"), f.copy(name = "settings"))
-        case f if f.name == "map-small" => $(f, f.copy(name = "map-small-overlay"))
         case f if f.name == "status-horizontal" => 1.to(arity)./(n => f.copy(name = "status-" + n, x = f.x + ((n - 1) * f.width  /~/ arity), width  = (n * f.width  /~/ arity) - ((n - 1) * f.width  /~/ arity)))
         case f if f.name == "status-vertical"   => 1.to(arity)./(n => f.copy(name = "status-" + n, y = f.y + ((n - 1) * f.height /~/ arity), height = (n * f.height /~/ arity) - ((n - 1) * f.height /~/ arity)))
         case f => $(f)
-    })
+    },
+    x => x,
+    ff => ff :+ Fit("map-small-overlay", ff./(_.x).min, ff./(_.y).min, ff./(_.right).max - ff./(_.x).min, ff./(_.bottom).max - ff./(_.y).min))
 
     val settingsKey = Meta.settingsKey
 
-    val layoutKey = "v" + 1 + "." + campaign.?("campaign").|("base") + "." + "arity-" + arity
+    val layoutKey = "v" + 2 + "." + campaign.?("campaign").|("base") + "." + "arity-" + arity
 
     def overlayScrollX(e : Elem) = overlayScroll(e)(styles.seeThroughInner).onClick
     def overlayFitX(e : Elem) = overlayFit(e)(styles.seeThroughInner).onClick
@@ -838,13 +878,13 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 HGap ~
                 systems./~(s =>
                     $(
-                    game.factions.%(_.rules(s)).single./(f => s.name.styled(f)).|(s.name.txt).larger.styled(xstyles.bold),
+                    game.factions.%(_.rules(s)).single./(f => s.unstyledElem.styled(f)).|(s.name.txt ~ s.smb.txt).larger.styled(xstyles.bold),
                     HGap,
-                    game.desc(game.resources(s)./(r => ResourceRef(r, None)).intersperse(" ")).div,
+                    (s.symbol != Gate || s.$.cities.any).?(game.desc(game.resources(s)./(r => ResourceRef(r, None)).intersperse(" ")).div).|(Empty),
                     HGap
                     ) ++
                     game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_.sortBy(_.piece.is[Building].not)./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.token3x))))./(game.desc(_).div(styles.figureLine)) ++
-                    $(game.desc(game.freeSlots(s).times(Image(starport + "-empty", styles.token3x))).div(styles.figureLine)) ++
+                    $(game.desc(game.freeSlots(s).times(Image("city-empty", styles.token3x))).div(styles.figureLine)) ++
                     $(
                     HGap,
                     HGap,

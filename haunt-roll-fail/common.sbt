@@ -1,6 +1,6 @@
 name := "HRF"
 
-version := "0.8.118"
+version := "0.8.119"
 
 scalaVersion := "2.13.15"
 
@@ -9,6 +9,7 @@ scalacOptions := Seq(
     "-deprecation",
     "-feature",
     "-language:postfixOps",
+    "-language:implicitConversions",
     "-Xlint:infer-any",
     "-Wconf:" + List(
         "will become a keyword",

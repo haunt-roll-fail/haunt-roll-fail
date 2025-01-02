@@ -17,6 +17,7 @@ import hrf.base._
 import hrf.ui._
 import hrf.loader._
 import hrf.options._
+import hrf.quine._
 
 import org.scalajs.dom
 
@@ -69,7 +70,15 @@ object HRF {
 
     var segments = dom.window.location.pathname.split('/').$.drop(3)
 
-    val offline = flag("offline")
+    var server = param("server")
+    var lobby = param("lobby")
+    var user = param("user")
+    var secret = param("secret")
+
+    val offline = flag("offline") || dom.window.location.protocol == "file:"
+
+    var offsite = server.has(dom.window.location.origin).not.?(dom.window.location.origin + dom.window.location.pathname)
+
     val embedded = flag("embedded-assets")
 
     val metaUIs : $[(MetaGame, BaseUI)] =
@@ -86,7 +95,7 @@ object HRF {
         yarg.Meta -> yarg.UI ::
     $
 
-    val metas = metaUIs.lefts.%(_.path != "root" || HRF.param("lobby").any || offline)
+    val metas = metaUIs.lefts.%(_.path != "root" || HRF.lobby.any || offline)
 
     val html = dom.window.location.origin + "/play/"
     val script = dom.document.getElementById("script").asInstanceOf[dom.html.Script].src
@@ -139,6 +148,18 @@ object HRF {
                 }
             }
 
+        if (offsite.any && lobby.none && param("play").any) {
+            get(server.get + "/get-play/" + param("play").get) { r =>
+                val l = r.splt("\n")
+
+                user = l.lift(0)
+                secret = l.lift(1)
+                lobby = l.lift(2)
+
+                main(args)
+            }
+        }
+        else
         if (fonts.status == "loading" && uptime() < 3000)
             setTimeout(20) { main(args) }
         else
@@ -457,19 +478,20 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
         dom.document.title = meta.label
 
-        if (HRF.param("lobby").any || HRF.flag("replay")) {
+        if (HRF.lobby.any || HRF.flag("replay")) {
             val (user, lj) = if (HRF.flag("replay")) {
                 ("", new ReplayPhantomJournal[String](meta, getElem("lobby").textContent, identity))
             }
             else {
-                val server = HRF.param("server").get
-                val lobby = HRF.param("lobby").get
-                val user = HRF.param("user").get
-                val secret = HRF.param("secret").get
+                val server = HRF.server.get
+                val lobby = HRF.lobby.get
+                val user = HRF.user.get
+                val secret = HRF.secret.get
 
                 (user, new ServerJournal[String](meta, server, user, secret, lobby, identity, identity))
             }
 
+            // var setup : Setup = null
             var started = false
 
             var enteredNames = Map[String, String]()
@@ -670,19 +692,19 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                             new ReplayPhantomJournal[meta.gaming.ExternalAction](meta, getElem("replay").textContent, s => meta.parseActionExternal(s), HRF.paramInt("at") | 999999)
                         else
                         if (HRF.flag("phantom"))
-                            new ServerPhantomJournal[meta.gaming.ExternalAction](meta, HRF.param("server").get, HRF.param("user").get, HRF.param("secret").get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
+                            new ServerPhantomJournal[meta.gaming.ExternalAction](meta, HRF.server.get, HRF.user.get, HRF.secret.get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
                         else
-                            new ServerJournal[meta.gaming.ExternalAction](meta, HRF.param("server").get, HRF.param("user").get, HRF.param("secret").get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
+                            new ServerJournal[meta.gaming.ExternalAction](meta, HRF.server.get, HRF.user.get, HRF.secret.get, server.get, s => meta.parseActionExternal(s), s => meta.writeActionExternal(s), HRF.paramInt("at") | 999999)
 
                     startGame(seating, difficulties, state.selected, self, journal, title.|("%untitled%"), () => names, ServerSwitches)
 
                     reread()
 
                     if (HRF.flag("replay").not) {
-                        val lobby = HRF.param("lobby").get
-                        val user = HRF.param("user").get
+                        val lobby = HRF.lobby.get
+                        val user = HRF.user.get
 
-                        val link = dom.document.location.pathname.split('/').$.drop(3).single.|("unknown/link")
+                        val link = HRF.offsite.any.?(HRF.param("play").get).||(dom.document.location.pathname.split('/').$.drop(3).single).|("unknown/link")
                         val faction = users.keys.$.%(k => users(k) == user).single
                         val name = preNames.get(user).|("")
 
@@ -790,7 +812,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
             (
                 ZBasic(title, "Quick".hh, meta.factions.%(meta.getBots(_).intersect(meta.defaultBots).any).any.??(() => goQuickGame())) ::
                 ZBasic(title, "Hotseat".hh, () => goHotseat()) ::
-                ZBasic(title, "Online".hh, HRF.param("server").any.??(() => goOnline()))
+                ZBasic(title, "Online".hh, (HRF.server.any && HRF.offline.not).??(() => goOnline()))
             ) ++
             meta.intLinks./((t, l) => ZBasic("Other", t, () => {
                 HRF.metas.%(_.name == l).single./{ m =>
@@ -854,7 +876,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
                     val filename = "hrf--" + meta.name + "--" + HRF.version + "--offline"
 
-                    hrf.quine.Quine.save(meta)(meta.name, $, $, resources, new MemoryJournal[meta.gaming.ExternalAction](meta), filename, false, miscellaneous())
+                    Quine.save(meta)("HRF", $, $, resources, new MemoryJournal[meta.gaming.ExternalAction](meta), filename, false, HRF.server.|(""), miscellaneous())
                 }
 
                 miscellaneous(true)
@@ -1217,7 +1239,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
     }
 
     def startGame(seatingX : $[meta.F], difficulties : Map[meta.F, Difficulty], options : $[meta.O], self : $[meta.F], journal : Journal[meta.gaming.ExternalAction], title : String, names : () => Map[meta.F, String], swt : Switches) {
-        val delay = HRF.paramInt("delay") | 30
+        history.nuke()
 
         val seating = seatingX.%(f => difficulties(f) != Off)
 
@@ -1252,7 +1274,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 def saveReplay(onSave : => Unit) = {
                     val filename = "hrf--" + meta.name + "--" + HRF.version + "--replay--" + HRF.startAt.toISOString().take(16).replace("T", "--")
 
-                    hrf.quine.Quine.save(meta)(title, seating, options, resources, journal, filename, true, onSave)
+                    Quine.save(meta)(title, seating, options, resources, journal, filename, true, "", onSave)
                 }
                 def saveReplayOnline(replaceBots : Boolean, mergeHumans : Boolean)(onSave : String => Unit) = {
                     journal.read(0) { actions =>
@@ -1329,13 +1351,13 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
             import meta.tagF
 
-            Runner.run(meta)(seating, options, resources, delay, renderer, (g, f) => f.as[meta.F]./(f => ask(g, f)).|!("unsuitable ask"), journal)
+            Runner.run(meta)(seating, options, resources, renderer, (g, f) => f.as[meta.F]./(f => ask(g, f)).|!("unsuitable ask"), journal)
         }
 
     }
 
     def arrangeOnlineGame(seating : $[meta.F], difficulties : Map[meta.F, Difficulty], options : $[meta.O], names : Map[meta.F, String], notes : Map[meta.F, String], merge : Boolean, title : String, time : scalajs.js.Date, actions : $[meta.gaming.Action], comment : |[String], onCreate : OnlineGame => Unit) {
-        val server = HRF.param("server").get
+        val server = HRF.server.get
 
         val factions = seating.%(f => difficulties(f) != Off)
 
@@ -1416,7 +1438,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
         val meta = HRF.metas.%(_.name == og.meta).single.|(this.meta)
 
-        def url(key : String) = (HRF.param("server").get + "/play/" + meta.name + "/" + key + (og.version != HRF.version || HRF.versionOverride.any).??("?version=" + og.version))
+        def url(key : String) = HRF.offsite./(_ + "?play=" + key).|(HRF.server.get + "/play/" + meta.name + "/" + key + (og.version != HRF.version || HRF.versionOverride.any).??("?version=" + og.version))
 
         var ca : Elem = "Copy all links".hl
 

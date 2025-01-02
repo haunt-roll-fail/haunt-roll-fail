@@ -36,6 +36,7 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
         val mapSmall = newPane("map-small", Content)
         val overlayPane = newOuterPane("map-small-overlay", Content)
         overlayPane.invis()
+        overlayPane.attach.parent.parentElement.style.zIndex = "300"
 
         var lastScene : |[Scene] = None
 

@@ -70,14 +70,11 @@ object Quine {
         }
     }
 
-    def save(meta : MetaGame)(title : String, seating : $[meta.F], options : $[meta.O], resources : Resources, journal : Journal[meta.gaming.ExternalAction], filename : String, replay : Boolean, onSave : => Unit) {
-        // val name = "hrf--" + meta.name + "--" + date.toISOString().take(16).replace("T", "--")
+    def save(meta : MetaGame)(title : String, seating : $[meta.F], options : $[meta.O], resources : Resources, journal : Journal[meta.gaming.ExternalAction], filename : String, replay : Boolean, server : String, onSave : => Unit) {
         val tab = "\n        "
 
         if (HRF.embedded) {
             val html : String = HRF.originalOuterHtml
-
-            println(html)
 
             journal.read(0) { actions =>
                 val story = actions./(meta.writeActionExternal)
@@ -88,7 +85,7 @@ object Quine {
                     $("options " + options./(meta.writeOption).join(" "))
 
                 val result = replaceSections($(
-                    "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-offline=\"true\" data-online=\"false\" data-embedded-assets=\"true\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " ", meta.name, "</title>", tab),
+                    "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-embedded-assets=\"true\" data-server=\"" + server + "\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " | ", meta.label, "</title>", tab),
                     "replay".toUpperCase -> replay.??($(tab, "<div id=\"lobby\" style=\"display: none\" >") ++ lobby./~($(tab, "    ", _)) ++ $(tab, "</div>", tab, "<div id=\"replay\" style=\"display: none\" >") ++ story./~($(tab, "    ", _)) ++ $(tab, "</div>", tab)),
                 ))(html).join("")
 
@@ -132,7 +129,7 @@ object Quine {
                     val uhtml = replaceUrls(urls./(u => ("URL " + u) -> DataUrlLoader.get(u)))(nhtml)
 
                     val result = replaceSections($(
-                        "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-offline=\"true\" data-online=\"false\" data-embedded-assets=\"true\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " ", meta.name, "</title>", tab),
+                        "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-embedded-assets=\"true\" data-server=\"" + server + "\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " | ", meta.label, "</title>", tab),
                         "script".toUpperCase -> $(tab, "<script id=\"script\" type=\"text/javascript\" >\n", script, tab, "</scr", "ipt>", tab),
                         "replay".toUpperCase -> replay.??($(tab, "<div id=\"lobby\" style=\"display: none\" >") ++ lobby./~($(tab, "    ", _)) ++ $(tab, "</div>", tab, "<div id=\"replay\" style=\"display: none\" >") ++ story./~($(tab, "    ", _)) ++ $(tab, "</div>", tab)),
                         "assets".toUpperCase -> (assets ++ $(tab)),

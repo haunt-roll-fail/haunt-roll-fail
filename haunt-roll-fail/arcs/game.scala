@@ -367,12 +367,15 @@ case object Hex extends Symbol
 case class System(cluster : Int, symbol : Symbol) extends Region with Elementary with Record {
     def name = (symbol.name + " " + cluster)
 
-    def elem = name.hlb ~ (symbol @@ {
+    def smb = (symbol @@ {
         case Gate => 0x2727.toChar.toString
         case Arrow => 0x2B9D.toChar.toString
         case Crescent => 0x263E.toChar.toString
         case Hex => 0x2B22.toChar.toString
-    }).hh
+    })
+
+    def elem = name.hlb ~ smb.hh
+    def unstyledElem = name ~ smb
 }
 
 
@@ -896,7 +899,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     var overrides : Map[System, Resource] = Map()
 
     def resources(s : System) : $[Resource] = overrides.get(s)./($(_)) ||
-        (s.symbol == Gate).?(systems.%(_.cluster == s.cluster).but(s)./~(resources)) |
+        (s.symbol == Gate).?(systems.%(_.cluster == s.cluster).but(s).%(_.$.cities.any)./~(resources)) |
         $(board.resource(s))
 
     var unslotted : $[Figure] = $
@@ -928,6 +931,8 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         case f : Faction => |(f.elem)
         case d : DeckCard => |(OnClick(d, d.elem.spn(xlo.pointer)))
         case c : CourtCard => |(OnClick(c, c.elem.spn(xlo.pointer)))
+        case l : Leader => |(OnClick(l, l.elem.spn(xlo.pointer)))
+        case l : Lore => |(OnClick(l, l.elem.spn(xlo.pointer)))
         case p : PayResource => |(p.elemLog)
         case l : $[Any] => convertForLog(l)
         case x => |(x)

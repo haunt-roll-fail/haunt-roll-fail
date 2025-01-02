@@ -68,7 +68,7 @@ case class ReorderResourcesAction(self : Faction, l : $[Resource], then : Forced
 
 case class TaxMainAction(self : Faction, cost : Cost, effect : |[Effect], then : ForcedAction) extends ForcedAction with Soft
 case class TaxAction(self : Faction, cost : Cost, effect : |[Effect], s : System, c : |[Figure], loyal : Boolean, then : ForcedAction) extends ForcedAction
-case class TaxGainAction(self : Faction, r : Resource, along : Boolean, then : ForcedAction) extends ForcedAction
+case class TaxGainAction(self : Faction, r : |[Resource], along : Boolean, then : ForcedAction) extends ForcedAction
 case class PostTaxAction(self : Faction, s : System, c : |[Figure], loyal : Boolean, then : ForcedAction) extends ForcedAction
 
 
@@ -186,7 +186,7 @@ case class UseEffectAction(self : Faction, c : Effect, then : ForcedAction) exte
 case class ClearEffectAction(self : Faction, c : Effect, then : ForcedAction) extends ForcedAction
 
 case class EndPreludeAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction
-case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction // with Soft
+case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction
 case class EndTurnAction(self : Faction) extends ForcedAction
 case object EndRoundAction extends ForcedAction
 case object TransferRoundAction extends ForcedAction
@@ -740,7 +740,7 @@ object CommonExpansion extends Expansion {
 
         // TAX
         case TaxMainAction(f, x, effect, then) =>
-            def res(s : System) = game.resources(s).%(game.available).some./(l => ("for", l./(r => (r, Image(r.name, styles.token))).intersperse("or")))
+            def res(s : System) = game.resources(s).distinct.%(game.available).some./(l => ("for", l./(r => (r, Image(r.name, styles.token))).intersperse("or")))
 
             var loyal = systems./~(s => f.at(s).cities./(_ -> s))
             var rival = systems.%(f.rules)./~(s => f.rivals./~(e => e.at(s).cities./(_ -> s)))
@@ -793,10 +793,12 @@ object CommonExpansion extends Expansion {
                     }
                 }
 
-            Ask(f).each(game.resources(s))(r => TaxGainAction(f, r, x == Pip && (f.copy || f.pivot), PostTaxAction(f, s, c, loyal, then)).as("Gain", ResourceRef(r, None))("Tax", s))
+            Ask(f).each(game.resources(s).distinct./(|(_)).some.|($(None)))(r => TaxGainAction(f, r, x == Pip && (f.copy || f.pivot), PostTaxAction(f, s, c, loyal, then)).as("Gain", r./(ResourceRef(_, None)))("Tax", s))
 
         case TaxGainAction(f, r, along, then) =>
-            f.gain(r, $)
+            r.foreach { r =>
+                f.gain(r, $)
+            }
 
             if (along)
                 $((Attuned, Psionic), (Insatiable, Fuel), (Firebrand, Weapon))./ { (t, r) =>
@@ -1010,7 +1012,7 @@ object CommonExpansion extends Expansion {
         case TrickyAction(f, s, e, l1, l2, l3, q, used, then) =>
             f.log("rerolled", q./(x => Image("raid-die-" + (Raid.die.values.indexed.%(_ == x).indices.shuffle(0) + 1), styles.token)), "with", Tricky)
 
-            BattleReRollAction(f, s, e, l1, l2, l3.diff(q), 0, q.num, 0, used :+ Tricky, then)
+            BattleReRollAction(f, s, e, l1, l2, l3.diff(q), 0, 0, q.num, used :+ Tricky, then)
 
         case BattleProcessAction(f, s, e, l1, l2, l3, used, then) =>
             val ll = (l1 ++ l2 ++ l3).flatten

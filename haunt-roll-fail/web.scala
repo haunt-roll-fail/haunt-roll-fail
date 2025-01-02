@@ -81,6 +81,20 @@ package object web {
                 popState()
         }
 
+        def nuke() {
+            if (available) {
+                try {
+                    dom.window.history.go(-dom.window.history.length)
+                    dom.window.history.pushState("clear", "")
+                    dom.window.history.go(-1)
+                }
+                catch {
+                    case e : Throwable => available = false
+                }
+            }
+            available = false
+        }
+
         def popState() {
             if (processing.not) {
                 if (available) {

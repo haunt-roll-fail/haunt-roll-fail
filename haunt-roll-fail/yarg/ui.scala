@@ -21,6 +21,8 @@ import org.scalajs.dom
 
 import scala.collection.mutable
 
+import scalajs.js.timers.setTimeout
+
 
 object UI extends BaseUI {
     val mmeta = Meta
@@ -230,6 +232,11 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
     })
 
     def drawMap() {
+        if (resources.images.loaded.keys.exists(resources.images.get(_).complete.not)) {
+            setTimeout(1000) { drawMap() }
+            return
+        }
+
         val bitmap = map.get(map.node.clientWidth*2, map.node.clientHeight*2)
 
         val g = bitmap.context
@@ -330,8 +337,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val resources : Resource
 
     val settingsKey = Meta.settingsKey
 
-    val layouter = ???
-    val layoutKey = ???
+    val layouter = null
+    val layoutKey = null
 
     override def layout(width : Int, height : Int)(onLayout : $[PanePlacement] => Unit) {
         val font = FontDimensionInfo(72, 40, 72)
