@@ -534,12 +534,24 @@ object Meta extends MetaGame { mmm =>
         ImageAsset("agent-empty") ::
         ImageAsset("b-agent") ::
         ImageAsset("b-agent-damaged") ::
+        ImageAsset("b-agent-a") ::
+        ImageAsset("b-agent-b") ::
+        ImageAsset("b-agent-c") ::
         ImageAsset("r-agent") ::
         ImageAsset("r-agent-damaged") ::
+        ImageAsset("r-agent-a") ::
+        ImageAsset("r-agent-b") ::
+        ImageAsset("r-agent-c") ::
         ImageAsset("w-agent") ::
         ImageAsset("w-agent-damaged") ::
+        ImageAsset("w-agent-a") ::
+        ImageAsset("w-agent-b") ::
+        ImageAsset("w-agent-c") ::
         ImageAsset("y-agent") ::
         ImageAsset("y-agent-damaged") ::
+        ImageAsset("y-agent-a") ::
+        ImageAsset("y-agent-b") ::
+        ImageAsset("y-agent-c") ::
     $) ::
     ConditionalAssetsList((factions : $[F], options : $[O]) => true, "figure", scale = 38)(
         ImageAsset("building-empty-keys-1") ::

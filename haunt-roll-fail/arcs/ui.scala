@@ -291,11 +291,13 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             if (game.leaders.any) {
                 game.board.starting.lazyZip(factions).foreach { case ((a, b, c), f) =>
                     if (a == s)
-                        figures ++= 1.to(3)./(Figure(f, Agent, _))
+                        pieces.addFixed(s, Figure(f, Agent, 1), 5)(Sprite($(ImageRect(img(f.short + "-agent-a"), 21, 66/2, 2)), $))(gates.first.x, gates.first.y)
+
                     if (b == s)
-                        figures ++= 4.to(5)./(Figure(f, Agent, _))
+                        pieces.addFixed(s, Figure(f, Agent, 2), 5)(Sprite($(ImageRect(img(f.short + "-agent-b"), 21, 66/2, 2)), $))(gates.first.x, gates.first.y)
+
                     if (c.has(s))
-                        figures ++= 6.to(6)./(Figure(f, Agent, _))
+                        pieces.addFloat(s, Figure(f, Agent, 3), 5)(Sprite($(ImageRect(img(f.short + "-agent-c"), 21, 66/2, 2)), $))
                 }
             }
 
