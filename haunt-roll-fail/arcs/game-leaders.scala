@@ -139,6 +139,8 @@ case object LeadersFactionsSetupAction extends ForcedAction
 
 case class BelovedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
+case class LearnedAction(self : Faction, l : $[Lore], then : ForcedAction) extends ForcedAction
+
 case class ConnectedAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 case class MythicAction(self : Faction, s : System, r : Resource, k : Int, then : ForcedAction) extends ForcedAction
@@ -153,6 +155,7 @@ object LeadersExpansion extends Expansion {
         case LeadersLoresShuffledAction(l1, l2) =>
             game.leaders = l1.take(factions.num + 1)
             game.lores = l2.take(factions.num + 1)
+            game.loresX = l2.drop(factions.num + 1).take(5)
 
             log("Leaders".hh, "and", "Lores".hh, "were shuffled")
 
@@ -219,6 +222,8 @@ object LeadersExpansion extends Expansion {
             then
 
         case LeadersFactionsSetupAction =>
+            var archivist: |[Faction] = None
+
             factions.lazyZip(board.starting).foreach { case (f, (a, b, cc)) =>
                 val leader = f.leader.get
 
@@ -269,13 +274,37 @@ object LeadersExpansion extends Expansion {
                     f.reserve --> Agent.of(f) --> game.scrap
                     f.reserve --> Agent.of(f) --> game.scrap
                 }
+
+                if (f.can(Learned)) {
+                    archivist = |(f)
+                }
             }
 
-            StartChapterAction
+            if (archivist.any) {
+                implicit def convert(u : Lore, selected : Boolean) = u.img
+
+                XXSelectObjectsAction(archivist.get, game.loresX)
+                    .withGroup("Select 2 extra lore cards")
+                    .withRule(_.num(2))
+                    .withThen(l => LearnedAction(archivist.get, l, StartChapterAction))(l => ("Keep", l.comma))
+                    .ask
+            }
+            else {
+                StartChapterAction
+            }
 
         // ELDER
         case BelovedAction(f, then) =>
             MayInfluenceAction(f, |(Beloved), then)
+
+        // ARCHIVIST
+        case LearnedAction(f, l, then) =>
+            l.foreach { u =>
+                f.lores :+= u
+                f.log("gained", u, "from", Learned)
+            }
+
+            then
 
         // NOBLE
         case ConnectedAction(f, then) =>

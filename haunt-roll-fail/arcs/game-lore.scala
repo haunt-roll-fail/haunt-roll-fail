@@ -63,7 +63,7 @@ object Lores {
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
     def preset2 = $(LivingStructures, SurvivalOverrides, GatePorts, SprinterDrives, ToolPriests)
     def preset3 = $(RepairDrones, RailgunArrays, SeekerTorpedoes, CloudCities, GateStations)
-    def preset4 = $()
+    def preset4 = all.diff(preset1).diff(preset2).diff(preset3)
 }
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction
