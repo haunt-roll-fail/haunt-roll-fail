@@ -155,7 +155,7 @@ object LeadersExpansion extends Expansion {
         case LeadersLoresShuffledAction(l1, l2) =>
             game.leaders = l1.take(factions.num + 1)
             game.lores = l2.take(factions.num + 1)
-            game.loresX = l2.drop(factions.num + 1).take(5)
+            game.unusedLores = l2.drop(factions.num + 1)
 
             log("Leaders".hh, "and", "Lores".hh, "were shuffled")
 
@@ -281,12 +281,12 @@ object LeadersExpansion extends Expansion {
             }
 
             if (archivist.any) {
-                implicit def convert(u : Lore, selected : Boolean) = u.img
+                implicit def convert(u : Lore) = u.img
 
-                XXSelectObjectsAction(archivist.get, game.loresX)
-                    .withGroup("Select 2 extra lore cards")
+                XXSelectObjectsAction(archivist.get, game.unusedLores.take(5))
+                    .withGroup("Select", "2".hlb, "extra lore cards")
                     .withRule(_.num(2))
-                    .withThen(l => LearnedAction(archivist.get, l, StartChapterAction))(l => ("Keep", l.comma))
+                    .withThen(l => LearnedAction(archivist.get, l, StartChapterAction).as("Keep", l.comma))
                     .ask
             }
             else {

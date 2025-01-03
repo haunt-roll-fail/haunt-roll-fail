@@ -60,7 +60,13 @@ case object LeadersAndLorePreset3 extends LeadersAndLoreOption {
 
 case object LeadersAndLorePreset4 extends LeadersAndLoreOption {
     val valueOn = "Archivist".hh ~ " & " ~ "Lores".hh
-    override def required(all : $[BaseOption]) = $($(LeadersAndLorePreset1), $(LeadersAndLorePreset2), $(LeadersAndLorePreset3))
+
+    override def required(all : $[BaseOption]) =
+        if (Lores.preset4.num >= 2)
+            $($(LeadersAndLorePreset1), $(LeadersAndLorePreset2), $(LeadersAndLorePreset3))
+        else
+            $($(LeadersAndLorePreset1, LeadersAndLorePreset2), $(LeadersAndLorePreset2, LeadersAndLorePreset3), $(LeadersAndLorePreset1, LeadersAndLorePreset3))
+
     override val explain = $(
         Archivist.elem ~ " leader card and the rest of the lore cards.",
     )

@@ -585,7 +585,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 desc("Lore".hl.larger) ~
                 HGap ~
                 HGap ~
-                desc(f.lores./(l => OnClick(l, l.img))) ~
+                f.lores./(l => OnClick(l, Div(l.img, styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge.div ~
                 HGap ~
                 HGap ~
                 HGap ~

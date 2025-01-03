@@ -44,26 +44,49 @@ case object TycoonsCharm      extends Lore("lore28", "Tycoon's Charm")
 
 object Lores {
     def all = $(
-        MirrorPlating     ,
-        HiddenHarbors     ,
-        SignalBreaker     ,
-        RepairDrones      ,
-        LivingStructures  ,
-        RailgunArrays     ,
-        SeekerTorpedoes   ,
-        AncientHoldings   ,
-        SurvivalOverrides ,
-        EmpathsVision     ,
-        KeepersTrust      ,
-        WarlordsCruelty   ,
-        TyrantsEgo        ,
-        TycoonsCharm      ,
+        ToolPriests,
+        SprinterDrives,
+        MirrorPlating,
+        HiddenHarbors,
+        SignalBreaker,
+        RepairDrones,
+        GatePorts,
+        CloudCities,
+        LivingStructures,
+        GateStations,
+        RailgunArrays,
+        SeekerTorpedoes,
+        AncientHoldings,
+        SurvivalOverrides,
+        EmpathsVision,
+        KeepersTrust,
+        WarlordsCruelty,
+        TyrantsEgo,
+        TycoonsCharm,
+    )
+
+    def done = $(
+        ToolPriests,
+        SprinterDrives,
+        MirrorPlating,
+        HiddenHarbors,
+        SignalBreaker,
+        RepairDrones,
+        GatePorts,
+        CloudCities,
+        LivingStructures,
+        GateStations,
+        RailgunArrays,
+        SeekerTorpedoes,
+        AncientHoldings,
+        SurvivalOverrides,
+        WarlordsCruelty,
     )
 
     def preset1 = $(MirrorPlating, HiddenHarbors, WarlordsCruelty, AncientHoldings, SignalBreaker)
     def preset2 = $(LivingStructures, SurvivalOverrides, GatePorts, SprinterDrives, ToolPriests)
     def preset3 = $(RepairDrones, RailgunArrays, SeekerTorpedoes, CloudCities, GateStations)
-    def preset4 = all.diff(preset1).diff(preset2).diff(preset3)
+    def preset4 = done.diff(preset1).diff(preset2).diff(preset3)
 }
 
 case class DiscardLoreCardAction(self : Faction, c : Lore, then : ForcedAction) extends ForcedAction

@@ -151,6 +151,7 @@ trait SelectSubset { self : Gaming =>
             l./(s => XXObjectsSelectedAction(self, selecting.any.?(m(s, selecting)).|(m(s, $)), selecting, valid.?(f(s, selecting)).|(null)))
         }))
         def withThens(f : $[T] => $[UserAction]) = copy()(config.copy(thens = (selecting : $[T], indices : $[Int], valid : Boolean) => f(selecting)))
+        def withThen(f : $[T] => UserAction) = copy()(config.copy(thens = (selecting : $[T], indices : $[Int], valid : Boolean) => $(f(selecting))))
 
         def perform(soft : Void)(implicit g : G) : Ask = ask(g)
 

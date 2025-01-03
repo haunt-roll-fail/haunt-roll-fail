@@ -845,7 +845,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     var leaders : $[Leader] = $
     var lores : $[Lore] = $
-    var loresX : $[Lore] = $
+    var unusedLores : $[Lore] = $
 
     implicit val figures = new IdentityTracker[Region, Figure]
     val scrap = game.figures.register(Scrap)
