@@ -284,7 +284,7 @@ object LeadersExpansion extends Expansion {
                 implicit def convert(u : Lore, selected : Boolean) = u.img
 
                 XXSelectObjectsAction(archivist.get, game.loresX)
-                    .withGroup("Select extra lore")
+                    .withGroup("Select 2 extra lore cards")
                     .withRule(_.num(2))
                     .withThen(l => LearnedAction(archivist.get, l, StartChapterAction))(l => ("Keep", l.comma))
                     .ask
