@@ -211,7 +211,7 @@ trait MetaBots extends MetaBase {
     def quickOptions = options./(_ -> 0.5).toMap
 
     def randomQuickGame() : (F, $[F], Map[F, String], $[O]) = {
-        10000.times {
+        10000.timesDo { () =>
             val n = randomInRange(quickMin, quickMax)
             val l = quickFactions.shuffle.take(n)
             val f = l.shuffle.first
@@ -225,7 +225,7 @@ trait MetaBots extends MetaBase {
             }
         }
 
-        ???
+        throw new Error("could not create a valid quick game setup")
     }
 }
 

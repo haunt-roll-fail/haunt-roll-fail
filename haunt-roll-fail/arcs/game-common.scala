@@ -72,14 +72,15 @@ case class TaxGainAction(self : Faction, r : |[Resource], along : Boolean, then 
 case class PostTaxAction(self : Faction, s : System, c : |[Figure], loyal : Boolean, then : ForcedAction) extends ForcedAction
 
 
-case class MayMoveAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MayMoveAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then may " ~ "Move".hh ~ ")" }
+
 case class MoveMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
 case class MoveToAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class MoveListAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction
 
-case class MayBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
-case class MustBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MayBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then may " ~ "Battle".hh ~ ")" }
+case class MustBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then must " ~ "Battle".hh ~ ")" }
 case class BattleMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class BattleSystemAction(self : Faction, cost : Cost, effect : |[Effect], s : System, then : ForcedAction) extends ForcedAction with Soft
 case class BattleFactionAction(self : Faction, cost : Cost, effect : |[Effect], s : System, e : Faction, then : ForcedAction) extends ForcedAction
@@ -118,11 +119,11 @@ case class RepairAction(self : Faction, cost : Cost, r : System, u : Figure, the
 
 case class InfluenceMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class InfluenceAction(self : Faction, cost : Cost, c : CourtCard, effect : |[Effect], then : ForcedAction) extends ForcedAction
-case class MayInfluenceAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MayInfluenceAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then may " ~ "Influence".hh ~ ")" }
 
 case class SecureMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
 case class SecureAction(self : Faction, cost : Cost, effect : |[Effect], c : CourtCard, then : ForcedAction) extends ForcedAction
-case class MustSecureAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction
+case class MustSecureAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then must " ~ "Secure".hh ~ ")" }
 
 case class AddBattleOptionAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction
 

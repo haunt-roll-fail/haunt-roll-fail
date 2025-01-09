@@ -583,6 +583,10 @@ trait BuildKey extends Key {
 
 trait SoftKeys
 
+trait ThenDesc { self : ForcedAction =>
+    def desc : Elem
+}
+
 
 trait GameImplicits {
     type Rolled = $[$[BattleResult]]
@@ -989,7 +993,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def move(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        + MoveMainAction(f, x, None, false, true, then).as("Move".styled(f), x)(group).!!!
+        + MoveMainAction(f, x, None, false, true, then).as("Move".styled(f), x, then.as[ThenDesc]./(_.desc))(group).!!!
     }
 
     def moveAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
@@ -999,7 +1003,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def battle(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        + BattleMainAction(f, x, None, false, true, then).as("Battle".styled(f), x)(group).!!!
+        + BattleMainAction(f, x, None, false, true, then).as("Battle".styled(f), x, then.as[ThenDesc]./(_.desc))(group).!!!
     }
 
     def battleAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
@@ -1013,14 +1017,14 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def secure(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        + SecureMainAction(f, x, None, false, true, then).as("Secure".styled(f), x)(group).!!!
+        + SecureMainAction(f, x, None, false, true, then).as("Secure".styled(f), x, then.as[ThenDesc]./(_.desc))(group).!!!
     }
 
     def secureAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
     }
 
     def influence(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        + InfluenceMainAction(f, x, None, false, true, then).as("Influence".styled(f), x)(group).!(f.pool(Agent).not, "no agents")
+        + InfluenceMainAction(f, x, None, false, true, then).as("Influence".styled(f), x, then.as[ThenDesc]./(_.desc))(group).!(f.pool(Agent).not, "no agents")
     }
 
     def influenceAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {

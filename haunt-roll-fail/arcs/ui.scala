@@ -1052,6 +1052,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         lazy val choice = actions./~{
             case _ : Info => None
             case _ : Hidden => None
+            case _ : DeadlockAction => None
             case a => Some(a)
         }
 
@@ -1062,6 +1063,11 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             case _ : Info => None
             case _ : Hidden => None
             case a => Some(a)
+        }
+
+        if (choice.num == 1 && actions./(_.unwrap).of[DeadlockAction].any) {
+            scalajs.js.timers.setTimeout(0) { then(choice(0)) }
+            return
         }
 
         if (choice.num == 1 && actions./(_.unwrap).of[EndTurnAction].any && (callbacks.settings.has(AutoEndOfTurn))) {

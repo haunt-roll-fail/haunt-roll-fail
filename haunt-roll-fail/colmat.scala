@@ -346,6 +346,7 @@ object colmat {
 
         def formatted(s : String) : String = s.format(n)
         def times[T](v : T) : List[T] = List.fill(n)(v)
+        def timesDo(v : () => Unit) : Unit = 1.to(n).foreach(_ => v())
         def between(from : Int, to : Int) : Boolean = n >= from && n <= to
         def clamp(from : Int, to : Int) : Int = if (n < from) from else if (n > to) to else n
         def of[T](p : List[T]) : T = p.apply(n)
