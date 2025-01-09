@@ -124,9 +124,13 @@ trait ImageWrapper {
 }
 
 class RawImageWrapper(img : html.Image) extends ImageWrapper {
+    if (img == null)
+        throw new Error("null raw image wrapper")
+
     def load(onLoad : html.Image => Unit, onFail : String => Unit) {
         onLoad(img)
     }
+
     def get : html.Image = img
 }
 
@@ -175,7 +179,12 @@ class EmbeddedImageSourceLoader(url2id : String => String) extends Loader[String
 
 class WrappedEmbeddedImageLoader(url2id : String => String) extends Loader[ImageWrapper] {
     def process(url : String) {
-        put(url, new RawImageWrapper(dom.document.getElementById(url2id(url)).asInstanceOf[html.Image]))
+        val img = dom.document.getElementById(url2id(url)).asInstanceOf[html.Image]
+
+        if (img == null)
+            throw new Error("embedded asset not found found for " + url + " id " + url2id(url))
+
+        put(url, new RawImageWrapper(img))
     }
 }
 

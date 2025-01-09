@@ -80,3 +80,30 @@ case object NormalSpacing extends ButtonSpacingSetting {
 case object ExpandedButtonSpacing extends ButtonSpacingSetting {
     val valueOn = "Expanded".hlb
 }
+
+
+sealed trait ScrollSpeedSetting extends Setting with OneOfGroup {
+    val group = "Scroll Speed"
+}
+
+case object SlowestScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Slowest".hlb
+}
+case object SlowerScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Slower".hlb
+}
+case object SlowScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Slow".hlb
+}
+case object NormalScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Normal".hlb
+}
+case object FastScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Fast".hlb
+}
+case object FasterScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Faster".hlb
+}
+case object FastestScrollSpeed extends ScrollSpeedSetting {
+    val valueOn = "Fastest".hlb
+}

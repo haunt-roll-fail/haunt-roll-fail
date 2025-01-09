@@ -107,6 +107,19 @@ case object TriangleStarports extends StarportsOption {
 }
 
 
+trait EndOfTurnOption extends hrf.Setting with OneOfGroup {
+    val group = "End of Turn"
+}
+
+case object AutoEndOfTurn extends EndOfTurnOption {
+    val valueOn = "Auto".hlb
+}
+
+case object ConfirmEndOfTurn extends EndOfTurnOption {
+    val valueOn = "Confirm".hlb
+}
+
+
 object Meta extends MetaGame { mmm =>
     val gaming = arcs.gaming
 
@@ -129,6 +142,13 @@ object Meta extends MetaGame { mmm =>
 
     val quickMin = 3
     val quickMax = 4
+
+    override val quickOptions = Map(
+        LeadersAndLorePreset1 -> 0.21,
+        LeadersAndLorePreset2 -> 0.21,
+        LeadersAndLorePreset3 -> 0.21,
+        RandomPlayerOrder -> 1.0,
+    )
 
     def randomGameName() = {
         val n = $("Space", "Politics", "Betrayal", "Explosion", "Conquest", "Warp", "Renegade", "Sway", "Diplomacy", "Conflict").shuffle
@@ -176,8 +196,8 @@ object Meta extends MetaGame { mmm =>
     override def bodyFont = Some("neue-kabel")
     override def titleFont = Some("fm-bolyar-pro-900")
 
-    override def settingsList = super.settingsList ++ $(StarStarports, TriangleStarports)
-    override def settingsDefaults = super.settingsDefaults ++ $(StarStarports)
+    override def settingsList = super.settingsList ++ $(StarStarports, TriangleStarports) ++ $(AutoEndOfTurn, ConfirmEndOfTurn)
+    override def settingsDefaults = super.settingsDefaults ++ $(StarStarports, AutoEndOfTurn)
 
     val assets =
     ConditionalAssetsList((factions : $[F], options : $[O]) => true)(

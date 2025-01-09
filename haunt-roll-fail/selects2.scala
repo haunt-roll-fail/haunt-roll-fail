@@ -212,7 +212,7 @@ trait SelectSubset { self : Gaming =>
         def indices : $[Int]
     }
 
-    case class XXSelectObjectsExplodeAction[T](self : F, values : $[T], order : Boolean)(config : XXSelectConfig[T])(implicit convert : Convert[T]) extends HiddenChoice with HalfExplode {
+    case class XXSelectObjectsExplodeAction[T](self : F, values : $[T], order : Boolean)(config : XXSelectConfig[T]) extends HiddenChoice with HalfExplode {
         import config._
 
         lazy val (prefixes, combinations) = {
@@ -230,9 +230,14 @@ trait SelectSubset { self : Gaming =>
             else
                 0.until(values.num).foreach { i =>
                     var j = multipleSelects(i)
+                    var m = false
+
                     while ({
                         val pp = prefixes./(_ :+ i).%(s => rule.validPrefix(s./(values.apply)))
-                        prefixes ++= pp
+
+                        prefixes ++= m.?(pp.diff(prefixes)).|(pp)
+
+                        m = true
                         j -= 1
                         j > 0 && pp.any
                     }) {}

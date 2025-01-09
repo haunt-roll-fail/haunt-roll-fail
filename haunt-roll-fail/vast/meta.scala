@@ -42,7 +42,7 @@ object Meta extends MetaGame {
 
     def validateFactionCombination(ff : $[Faction]) = InfoResult("Vast") &&
         (ff.has(Thief)).?(ErrorResult("Thief not implemented yet")) &&
-        (ff.intersect(factions) != factions.intersect(ff)).?(ErrorResult("Incorrect faction order")) &&
+        // (ff.intersect(factions) != factions.intersect(ff)).?(ErrorResult("Incorrect faction order")) &&
         (ff.num < 4).?(ErrorResult("Select at least four factions")) &&
         (ff.num > 4).?(ErrorResult("Max four factions"))
 

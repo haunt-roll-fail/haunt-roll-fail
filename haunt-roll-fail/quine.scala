@@ -105,9 +105,9 @@ object Quine {
             }
         }
         else
-        HRF.stringCache.wait($(HRF.html, HRF.script)) {
-            val html = HRF.stringCache.get(HRF.html).splt("\n")
-            val script = HRF.stringCache.get(HRF.script)
+        HRF.stringLoader.wait($(HRF.html, HRF.script)) {
+            val html = HRF.stringLoader.get(HRF.html).splt("\n")
+            val script = HRF.stringLoader.get(HRF.script)
 
             val urls = html.%(_.trim.startsWith("url(\""))./~(_.splt("\"").lift(1))
 
@@ -129,6 +129,7 @@ object Quine {
                     val uhtml = replaceUrls(urls./(u => ("URL " + u) -> DataUrlLoader.get(u)))(nhtml)
 
                     val result = replaceSections($(
+                        "base href".toUpperCase -> $(tab),
                         "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-embedded-assets=\"true\" data-server=\"" + server + "\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " | ", meta.label, "</title>", tab),
                         "script".toUpperCase -> $(tab, "<script id=\"script\" type=\"text/javascript\" >\n", script, tab, "</scr", "ipt>", tab),
                         "replay".toUpperCase -> replay.??($(tab, "<div id=\"lobby\" style=\"display: none\" >") ++ lobby./~($(tab, "    ", _)) ++ $(tab, "</div>", tab, "<div id=\"replay\" style=\"display: none\" >") ++ story./~($(tab, "    ", _)) ++ $(tab, "</div>", tab)),

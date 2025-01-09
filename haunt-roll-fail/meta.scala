@@ -84,9 +84,10 @@ trait MetaBase {
         $(hrf.CondensedButtonSpacing, hrf.NormalSpacing, hrf.ExpandedButtonSpacing) ++
         $(hrf.GameFontFace, hrf.CodeFontFace, hrf.SystemFontFace) ++
         $(hrf.SmallerFontSize, hrf.SmallFontSize, hrf.NormalFontSize, hrf.LargeFontSize, hrf.LargerFontSize) ++
-        $(hrf.AlwaysFullScreen, hrf.TripleClickFullScreen, hrf.NeverFullScreen)
+        $(hrf.AlwaysFullScreen, hrf.TripleClickFullScreen, hrf.NeverFullScreen) ++
+        $(hrf.SlowestScrollSpeed, hrf.SlowerScrollSpeed, hrf.SlowScrollSpeed, hrf.NormalScrollSpeed, hrf.FastScrollSpeed, hrf.FasterScrollSpeed, hrf.FastestScrollSpeed)
 
-    def settingsDefaults : $[hrf.Setting] = $(hrf.NormalSpacing, hrf.GameFontFace, hrf.NormalFontSize, hrf.TripleClickFullScreen)
+    def settingsDefaults : $[hrf.Setting] = $(hrf.NormalSpacing, hrf.GameFontFace, hrf.NormalFontSize, hrf.TripleClickFullScreen, hrf.NormalScrollSpeed)
 
     val about : $[Elem] = $
 
@@ -112,9 +113,6 @@ trait MetaBase {
 
     def minPlayers : Int
     def maxPlayers : Int = factions.num
-    val quickMin : Int
-    val quickMax : Int
-    def quickFactions = factions
 
     def randomQuickGame() : (F, $[F], Map[F, String], $[O])
 
@@ -207,12 +205,17 @@ trait MetaBots extends MetaBase {
     def getBot(g : F, bot : String) : gaming.Bot
     def defaultBots : $[String]
 
+    val quickMin : Int
+    val quickMax : Int
+    def quickFactions = factions
+    def quickOptions = options./(_ -> 0.5).toMap
+
     def randomQuickGame() : (F, $[F], Map[F, String], $[O]) = {
-        while (true) {
+        10000.times {
             val n = randomInRange(quickMin, quickMax)
             val l = quickFactions.shuffle.take(n)
             val f = l.shuffle.first
-            val o = optionsFor(n, l).%(_ => random() > 0.5)
+            val o = optionsFor(n, l)./~(o => quickOptions.get(o).%(_ > random())./(_ => o))
 
             validateFactionSeatingOptions(l, o) @@ {
                 case ErrorResult(_) =>

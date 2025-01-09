@@ -43,13 +43,15 @@ object HRF {
     def glyph(s : String) = getElem("icon").asInstanceOf[dom.html.Link].href = s
 
     val imageCache = new CachedBlobImageLoader("hrf-image-cache-" + imageDataVersion)
-    val stringCache = StringLoader
+    val stringCache = new CachedStringLoader("hrf-page-cache")
+    val stringLoader = StringLoader
 
     private val settings = getElem("settings").?
 
     def hash = dom.window.location.hash.drop(1)
     val search = dom.window.location.search.drop(1)
 
+    private def cookieParam(p : String) = web.getCookie("hrf-param-" + p)
     private def settingsParam(p : String) = settings./~(_.getAttribute("data-" + p).?).but("")
     private def hashParam(p : String)  = hash.split('|').$./(_.split('=')).%(_(0) == p).single./(_.drop(1).join("=")).map(java.net.URLDecoder.decode(_, "UTF-8"))
     private def urlParam(p : String) = search.split('&').$./(_.split('=')).%(_(0) == p).single./(_.drop(1).join("=")).map(java.net.URLDecoder.decode(_, "UTF-8"))
@@ -58,9 +60,12 @@ object HRF {
 
     dom.window.onhashchange = e => params.clear()
 
-    def param(p : String) = params.getOrElseUpdate(p, settingsParam(p) || hashParam(p) || urlParam(p))
+    if (cookieParam("cache-html").any)
+        HRF.stringCache.queue(dom.window.location.origin + dom.window.location.pathname)
 
-    def flag(p : String) = param(p).any
+    def param(p : String) = params.getOrElseUpdate(p, hashParam(p) || urlParam(p) || cookieParam(p) || settingsParam(p))
+
+    def flag(p : String) = param(p).but("-").but("false").but("no").any
 
     def paramInt(p : String) = param(p)./~(_.toIntOption)
 
@@ -70,7 +75,9 @@ object HRF {
 
     var segments = dom.window.location.pathname.split('/').$.drop(3)
 
-    var server = param("server")
+    var speed = paramInt("speed").|(600)
+
+    var server = param("server").map(url => url.endsWith("/").?(url.dropRight(1)).|(url))
     var lobby = param("lobby")
     var user = param("user")
     var secret = param("secret")
@@ -164,11 +171,16 @@ object HRF {
             setTimeout(20) { main(args) }
         else
         if (dom.document.readyState == dom.DocumentReadyState.complete)
-            new HRFUI()
+            onDocumentLoad()
         else
-            dom.window.onload = (e) => new HRFUI()
+            dom.window.onload = (e) => onDocumentLoad()
     }
 
+    def onDocumentLoad() {
+        originalOuterHtml = "<!doctype html>\n<html>\n    " + dom.document.documentElement.innerHTML + "\n<html>"
+
+        HRFR.load(resources => new HRFUI()(resources))
+    }
 }
 
 class Quants(duration : Int, count : Int) {
@@ -232,11 +244,8 @@ case class BotAssigned(faction : String, bot : String)
 
 case class HotseatGame(time : Double, version : String, meta : String, title : String, options : $[String], bots : $[BotAssigned], status : $[String])
 
-
-class HRFUI {
-    HRF.originalOuterHtml = "<!doctype html>\n<html>\n    " + dom.document.documentElement.innerHTML + "\n<html>"
-
-    implicit val zr = Resources(ImageResources(Map(), Map(
+object HRFR {
+    val original = Resources(ImageResources(Map(), Map(
         "question-mark" -> "/hrf/question-mark.png",
         "external-link" -> "/hrf/external-link.png",
 
@@ -275,6 +284,18 @@ class HRFUI {
         "borscht-kitchens"        -> "/hrf/webp2/root/images/card/deck/borscht-kitchens.webp",
     ), HRF.imageCache), () => Map())
 
+    val loader = HRF.embedded.?(new WrappedEmbeddedImageLoader(s => "asset-" + s)).|(HRF.imageCache)
+
+    def load(onLoad : Resources => Unit) {
+        loader.wait(HRF.embedded.?(original.images.sources.keys.$).|(original.images.sources.values.$)) {
+            val loaded = original.images.sources.$./((key, url) => key -> loader.get(HRF.embedded.?(key).|(url))).toMap
+
+            onLoad(Resources(ImageResources(loaded, original.images.sources, HRF.imageCache), () => Map()))
+        }
+    }
+}
+
+class HRFUI(implicit resources : Resources) {
     StyleRegister.add($(xstyles.pane))
     StyleRegister.add($(xstyles.outer))
     StyleRegister.add($(xstyles.inner, xstyles.pane.log))
@@ -301,7 +322,7 @@ class HRFUI {
                     xstyles.middleScrollIn),
                 xstyles.middleScrollOut),
             xstyles.unselectable, xstyles.inner, xstyles.pane.action
-            ), zr).attach, Map())
+            ), resources).attach, Map())
         val scroll = hook.parentElement.children(1)
         hook.remove()
     }
@@ -316,7 +337,7 @@ class HRFUI {
                     xstyles.middleScrollIn),
                 xstyles.middleScrollOut),
             xstyles.unselectable, xstyles.inner, xstyles.pane.action
-            ), zr).attach, Map())
+            ), resources).attach, Map())
         val scroll = hook.parentElement.children(1)
         hook.remove()
     }
@@ -328,6 +349,7 @@ class HRFUI {
     }
 
     def topInfo() {
+        action.asker.zask(HRF.metas./(m => ZBasic("Haunt Roll Fail".hh(xstyles.larger110)(ExternalStyle("consolas")), m.label.spn(xstyles.larger110)(ExternalStyle(m.titleFont.|(""))), null, ZBasic.info.but(xstyles.thumargin))))
     }
 
     HRF.param("meta")./~(mn => HRF.metas.%(_.name == mn).single)./{m =>
@@ -342,6 +364,11 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
     var settings : $[Setting] = $
 
     var history = new web.History("/play/" + meta.name, dom.window.location.search, dom.window.location.hash)
+
+    if (HRF.offsite.any)
+        history.disable()
+    else
+        history.init()
 
     def loadSettings() : $[Setting] = {
         val saved = Local.get(meta.settingsKey + ".settings", "").split(' ').$
@@ -373,6 +400,16 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
             case Some(CondensedButtonSpacing) => ("0.4ex", "0.2ex")
             case Some(NormalSpacing) | None => ("0.8ex", "0.4ex")
             case Some(ExpandedButtonSpacing) => ("1.2ex", "1.2ex")
+        }
+
+        HRF.speed = settings.of[ScrollSpeedSetting].lastOption @@ {
+            case Some(SlowestScrollSpeed) => 1920
+            case Some(SlowerScrollSpeed) => 1440
+            case Some(SlowScrollSpeed) => 960
+            case Some(NormalScrollSpeed) | None => 640
+            case Some(FastScrollSpeed) => 480
+            case Some(FasterScrollSpeed) => 320
+            case Some(FastestScrollSpeed) => 240
         }
 
         getElem("font-size-adjust").style.fontSize = settings.of[FontSizeSetting].lastOption @@ {
@@ -474,7 +511,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
         saveSettings(settings)
         applySettings(settings.notOf[FontSizeSetting])
 
-        ui.topInfo()
+        // ui.topInfo()
 
         dom.document.title = meta.label
 
@@ -491,7 +528,6 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 (user, new ServerJournal[String](meta, server, user, secret, lobby, identity, identity))
             }
 
-            // var setup : Setup = null
             var started = false
 
             var enteredNames = Map[String, String]()
@@ -588,13 +624,13 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 if (self.any && enteredNames.contains(user).not) {
                     def randomName() {
                         val adjective = $(
-                            "Ardent", "Adventurous", "Agile", "Alert",
+                            "Ardent", "Adventurous", "Agile", "Alert", // "Ambitious",
                             "Brave", "Bold",
-                            "Clever", "Cunning", "Caring", "Calm", "Curious",
-                            "Daring", "Diligent",
-                            "Eager", "Eloquent",
-                            "Fair", "Fearless",
-                            "Good", "Generous", "Gentle", "Gracious",
+                            "Clever", "Cunning", "Caring", "Calm", "Curious", "Cheerful", "Compassionate", // "Confident", "Considerate", "Creative",
+                            "Daring", "Diligent", "Determined", // "Dedicated",
+                            "Eager", "Eloquent", "Enthusiastic",
+                            "Fair", "Fearless", // "Frank",
+                            "Good", "Generous", "Gentle", "Gracious", "Grateful",
                             "Honorable", "Honest", "Humble",
                             "Ingenious",
                             "Jolly", "Just",
@@ -603,7 +639,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                             "Merciful", "Modest",
                             "Noble", "Nice",
                             "Observant",
-                            "Proud", "Patient", "Prudent",
+                            "Proud", "Patient", "Prudent", "Principled", "Passionate", // "Persistent",
                             "Quick",
                             "Righteous", "Resolute", "Resilent",
                             "Selfless", "Sincere",
@@ -656,7 +692,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                         ui.action.asker.iask(InputOption(|("Name").|("What's your name, punk?"), name, Nil, v => postName(v, 0)) :: BasicOption(" ", "Generate Random", Nil, () => randomName()))
                     }
 
-                    askName(getCookie("name", ""))
+                    askName(getCookie("name").|(""))
                 }
                 else
                 if (started.not) {
@@ -872,11 +908,11 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                 loader.wait(preload.rights) {
                     val loaded = preload./((key, url) => key -> loader.get(url)).toMap
 
-                    val resources = Resources(ImageResources(loaded, sources, HRF.imageCache), () => Map())
+                    val combined = Resources(ImageResources(loaded ++ resources.images.loaded, sources ++ resources.images.sources, HRF.imageCache), () => Map())
 
                     val filename = "hrf--" + meta.name + "--" + HRF.version + "--offline"
 
-                    Quine.save(meta)("HRF", $, $, resources, new MemoryJournal[meta.gaming.ExternalAction](meta), filename, false, HRF.server.|(""), miscellaneous())
+                    Quine.save(meta)("HRF", $, $, combined, new MemoryJournal[meta.gaming.ExternalAction](meta), filename, false, HRF.server.|(""), miscellaneous())
                 }
 
                 miscellaneous(true)
@@ -1178,7 +1214,6 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                                     if (active) {
                                         val next = options.click(o)
                                         options = next
-
                                         hrf.web.Local.set(optionsSaveKey, (next.selected ++ next.dimmed ++ unneeded)./(meta.writeOption).join(" "))
                                     }
                                 }

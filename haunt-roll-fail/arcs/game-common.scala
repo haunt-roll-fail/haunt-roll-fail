@@ -191,6 +191,7 @@ case class EndTurnAction(self : Faction) extends ForcedAction
 case object EndRoundAction extends ForcedAction
 case object TransferRoundAction extends ForcedAction
 case object EndChapterAction extends ForcedAction
+case object ScoreChapterAction extends ForcedAction
 case object CleanUpChapterAction extends ForcedAction
 
 case class SecureWith(e : |[Effect]) extends Message {
@@ -580,8 +581,8 @@ object CommonExpansion extends Expansion {
             XXSelectObjectsAction(f, f.hand)
                 .withGroup(Farseers, "discard cards to redraw")
                 .withRule(_.upTo(deck.any.?(deck.num).|(discard.num) - 1))
-                .withThen(l => FarseersRedrawAction(f, l, then))(l => ("Discard to draw", (l.num + 1).cards))
-                .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "to draw", 1.cards), CancelAction)
+                .withThen(l => FarseersRedrawAction(f, l, then))(l => ("Discard", Farseers, "and", l.num.cards, "to draw", (l.num + 1).cards))
+                .withExtras(NoHand, FarseersRedrawAction(f, $, then).as("Discard", Farseers, "only to draw", 1.cards), CancelAction)
 
         case FarseersRedrawAction(f, l, then) =>
             l.foreach { d =>
@@ -1072,7 +1073,7 @@ object CommonExpansion extends Expansion {
                             .!(e.loyal.has(SwornGuardians))
                     }
                     .each(e.loyal.of[GuildCard]) { c =>
-                        BattleRaidCourtCardAction(f, e, c, spend(c.keys)).as(c)
+                        BattleRaidCourtCardAction(f, e, c, spend(c.keys)).as(c, |(c.keys)./(n => Image("keys-" + n, styles.token)))
                             .!(c.keys > raid)
                             .!(e.loyal.has(SwornGuardians) && c != SwornGuardians)
                     }
@@ -1119,7 +1120,7 @@ object CommonExpansion extends Expansion {
                     .withGroup(f, "dealt", hits.hit, (bombardments > 0).?(("and", bombardments.hlb), "Bombardment".s(bombardments).styled(styles.hit)), "to", e, "in", r,
                         $(convert(Figure(e, City, 0), 1), convert(Figure(e, Starport, 0), 1), convert(Figure(e, Ship, 0), 1), convert(Figure(e, City, 0), 2), convert(Figure(e, Starport, 0), 2), convert(Figure(e, Ship, 0), 2)).merge.div(xstyles.displayNone))
                     .withRule(_.num(h + b).all(d => d.ships.num <= h && d.buildings.num <= b))
-                    .withMultipleSelects(_.fresh.??(2).|(1))
+                    .withMultipleSelects(_.fresh.?(2).|(1))
                     .withThen(d => DealHitsAction(self, r, f, e, d, raid, effect, used, then))(_ => "Damage".hl)
                     .ask
             else
@@ -1144,7 +1145,12 @@ object CommonExpansion extends Expansion {
 
             e.damaged ++= damaged
 
-            destroyed --> f.trophies
+            destroyed.foreach { u =>
+                if (u.faction != f)
+                    u --> f.trophies
+                else
+                    u --> u.faction.reserve
+            }
 
             var next = then
 
@@ -1966,7 +1972,9 @@ object CommonExpansion extends Expansion {
             MainTurnAction(f, s, i, n)
 
         case MainTurnAction(f, s, i, n) if i >= n =>
-            NoAsk(f)(EndTurnAction(f))
+            Ask(f)
+                .add(EndTurnAction(f).as("End Turn")(f.elem))
+                .needOk
 
         case MainTurnAction(f, s, i, n) =>
             soft()
@@ -2054,7 +2062,7 @@ object CommonExpansion extends Expansion {
                 game.battleAlt(f, cost, then)
             }
 
-            + EndTurnAction(f).as("Forfeit", (n - i).hl, "actions")(group)
+            + EndTurnAction(f).as("End Turn and Forfeit", (n - i).hlb, "Action".s(n - i))(group)
 
             ask(f).needOk
 
@@ -2084,10 +2092,10 @@ object CommonExpansion extends Expansion {
                 else
                     factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
 
-            if (current.has(next))
-                next.log("took the initiative")
-            else
+            if (factions.starting.has(next))
                 next.log("held the initiative")
+            else
+                next.log("took the initiative")
 
             factions.foreach { f =>
                 f.taking.foreach { d =>
@@ -2131,6 +2139,15 @@ object CommonExpansion extends Expansion {
                 Milestone(EndChapterAction)
 
         case EndChapterAction =>
+            log(("Chapter".hl ~ " " ~ chapter.hlb).styled(styles.title), "had ended")
+
+            MultiAsk(factions./(f =>
+                Ask(f)
+                    .add(ScoreChapterAction.as("Score Ambitions")(("Chapter".hl ~ " " ~ chapter.hlb).styled(styles.title)))
+                    .needOk
+            ))
+
+        case ScoreChapterAction =>
             factions.foreach { f =>
                 f.hand --> deck
             }
@@ -2231,7 +2248,7 @@ object CommonExpansion extends Expansion {
             if (game.declared.contains(Tyrant)) {
                 factions.foreach { f =>
                     f.captives.foreach { u =>
-                        u --> u.faction.as[Faction].get.reserve
+                        u --> u.faction.reserve
 
                         f.log("returned", u)
                     }
@@ -2241,7 +2258,7 @@ object CommonExpansion extends Expansion {
             if (game.declared.contains(Warlord)) {
                 factions.foreach { f =>
                     f.trophies.foreach { u =>
-                        u --> u.faction.as[Faction].get.reserve
+                        u --> u.faction.reserve
 
                         if (u.piece == City)
                             if (u.faction.pooled(City) > 2)

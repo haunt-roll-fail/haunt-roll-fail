@@ -63,22 +63,31 @@ package object web {
         private var processing : Boolean = false
         private var available : Boolean = true
 
-        try {
-            dom.window.history.replaceState(gizmo, "")
-            dom.window.history.pushState("initilaize 1", "")
-            dom.window.history.forward()
-        }
-        catch {
-            case e : Throwable => available = false
-        }
-
-        var ignore : Int = 0
+        private var ignore : Int = 0
 
         dom.window.onpopstate = (e) => {
             if (ignore > 0)
                 ignore -= 1
             else
                 popState()
+        }
+
+        def init() {
+            if (available) {
+                try {
+                    dom.window.history.replaceState(gizmo, "")
+                    // dom.window.history.pushState("initilaize 1", "", base)
+                    dom.window.history.pushState("initilaize 1", "")
+                    dom.window.history.forward()
+                }
+                catch {
+                    case e : Throwable => available = false
+                }
+            }
+        }
+
+        def disable() {
+            available = false
         }
 
         def nuke() {
@@ -233,16 +242,16 @@ package object web {
         dom.document.cookie = cookie
     }
 
-    def getCookie(name : String, default : String) : String = {
+    def getCookie(name : String) : |[String] = {
         var cc = dom.document.cookie.split(';')
 
         cc.foreach { c =>
             val p = c.split('=')
             if (p(0).trim == name)
-                return URIUtils.decodeURIComponent(p(1))
+                return |(URIUtils.decodeURIComponent(p(1)))
         }
 
-        default
+        None
     }
 
     object Local {

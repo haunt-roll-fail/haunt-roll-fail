@@ -125,6 +125,7 @@ package object serialize {
                     case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
                     case f @ Parsed.Failure(label, index, extra) =>
                         println("CantParseAction: " + label + " " + index + " " + extra + "\n\n" + f)
+                        println(">>>" + s + "<<<")
                         CantParseAction(s)
                 }
             }
