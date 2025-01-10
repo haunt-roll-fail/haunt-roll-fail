@@ -75,7 +75,7 @@ object HRF {
 
     var segments = dom.window.location.pathname.split('/').$.drop(3)
 
-    var speed = paramInt("speed").|(600)
+    var speed = paramInt("speed").|(640)
 
     var server = param("server").map(url => url.endsWith("/").?(url.dropRight(1)).|(url))
     var lobby = param("lobby")

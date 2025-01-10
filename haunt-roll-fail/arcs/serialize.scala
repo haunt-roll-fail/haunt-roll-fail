@@ -42,6 +42,7 @@ object Serialize extends Serializer {
 
         case ESymbol("Intersept") => parseExpr(ESymbol("Intercept"))
 
+        case EApply("TaxGainAction", params @ $(_, ENone, _, _)) => super.parseExpr(EApply("TaxGainAction", params))
         case EApply("TaxGainAction", params @ $(_, ESome(_), _, _)) => super.parseExpr(EApply("TaxGainAction", params))
         case EApply("TaxGainAction", params @ $(a, b, c, d)) => super.parseExpr(EApply("TaxGainAction", $(a, ESome(b), c, d)))
 

@@ -849,7 +849,10 @@ object CommonExpansion extends Expansion {
 
         case MoveFromAction(f, r, l, cascade, x, alt, then) =>
             Ask(f).group("Move from", r, "to")
-                .each(board.connected(r))(d => MoveToAction(f, r, d, l, cascade && d.symbol == Gate && f.rivals.exists(_.rules(d)).not, x, then).as(d))
+                .each(board.connected(r))(d => {
+                    val cat = cascade && d.symbol == Gate && f.rivals.exists(_.rules(d)).not
+                    MoveToAction(f, r, d, l, cat, x, then).as(d, cat.?("and further"))
+                })
                 .add(alt)
 
         case MoveToAction(f, r, d, l, cascade, x, then) =>

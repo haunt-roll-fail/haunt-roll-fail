@@ -176,8 +176,8 @@ object Meta extends MetaGame { mmm =>
     def getBots(f : Faction) = $("Easy")
 
     def getBot(f : Faction, b : String) = (f, b) match {
-        case (f : Faction, "Easy") => new BotYY(f)
-        case (f : Faction, _) => new BotXX(f)
+        case (f, "Easy") => new BotNew(f)
+        case (f, _) => new BotOld(f)
     }
 
     def defaultBots : $[String] = $("Easy")

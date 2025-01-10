@@ -211,17 +211,21 @@ trait MetaBots extends MetaBase {
     def quickOptions = options./(_ -> 0.5).toMap
 
     def randomQuickGame() : (F, $[F], Map[F, String], $[O]) = {
-        10000.timesDo { () =>
+        1000.timesDo { () =>
             val n = randomInRange(quickMin, quickMax)
             val l = quickFactions.shuffle.take(n)
             val f = l.shuffle.first
-            val o = optionsFor(n, l)./~(o => quickOptions.get(o).%(_ > random())./(_ => o))
+            val all = optionsFor(n, l)
+            val defaults = defaultsFor(n, l)
 
-            validateFactionSeatingOptions(l, o) @@ {
+            val o = all./~(o => quickOptions.get(o).%(_ > random())./(_ => o))
+            val r = OptionsState(all, o.shuffle, defaults).checkDimmed().selected
+
+            validateFactionSeatingOptions(l, r) @@ {
                 case ErrorResult(_) =>
                 case _ =>
                     val d = l.but(f)./(e => e -> getBots(e).shuffle.first).toMap
-                    return (f, l, d, o)
+                    return (f, l, d, r)
             }
         }
 

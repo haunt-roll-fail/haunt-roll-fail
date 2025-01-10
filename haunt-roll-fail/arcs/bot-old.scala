@@ -10,14 +10,14 @@ import hrf.logger._
 //
 //
 
-class BotNew(f : Faction) extends EvalBot {
+class BotOld(f : Faction) extends EvalBot {
     def eval(actions : $[UserAction])(implicit game : Game) : $[ActionEval] = {
-        val ev = new GameEvaluationNew(f)
+        val ev = new GameEvaluationOld(f)
         actions./{ a => ActionEval(a, ev.eval(a)) }
     }
 }
 
-class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
+class GameEvaluationOld(val self : Faction)(implicit val game : Game) {
     def eval(a : Action) : $[Evaluation] = {
         var result : $[Evaluation] = Nil
 
@@ -38,8 +38,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 case NoCost => -100
                 case AlreadyPaid => -100
                 case MultiCost(l) => l./(appraise).sum
-                case PayResource(resource, lock) =>
-                    lock.|(0) * 100 + resource @@ {
+                case PayResource(resource, |(lock)) =>
+                    lock * 100 + resource @@ {
                         case Material | Fuel => max(60, ambition(Tycoon) * 50)
                         case Relic => max(70, ambition(Keeper) * 100)
                         case Psionic => max(90, ambition(Empath) * 100)
@@ -86,9 +86,15 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
             case DeclareAmbitionAction(f, ambition, zero, _) =>
                 val r = record(ambition)(_)
 
-                f.rivals.num > 0 |=> (r(f) - f.rivals./(r).max) * 1000 -> "current record"
-                f.rivals.num > 1 |=> (r(f) - f.rivals./(r).sorted.dropLast.last) * 800 -> "current second record"
-                f.rivals.num > 2 |=> (r(f) - f.rivals./(r).sum - f.rivals.num) * 10 -> "current record sum"
+                if (f == Red || true) {
+                    f.rivals.num > 0 |=> (r(f) - f.rivals./(r).max) * 1000 -> "current record"
+                    f.rivals.num > 1 |=> (r(f) - f.rivals./(r).sorted.dropLast.last) * 800 -> "current second record"
+                    f.rivals.num > 2 |=> (r(f) - f.rivals./(r).sum - f.rivals.num) * 10 -> "current record sum"
+                }
+                else {
+                    true |=> (r(f) - f.rivals./(r).max) * 1000 -> "current record"
+                    true |=> (r(f) - f.rivals./(r).sum - f.rivals.num) * 10 -> "current record sum"
+                }
 
             case BattleFactionAction(f, cost, effect, s, e, _) =>
                 true |=> -appraise(cost) -> "cost"
@@ -98,21 +104,10 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
 
                 val str = own.num + own.fresh.num
 
-                true |=> min(own.num * 60, enemy.num * 240) -> "battle"
-                true |=> min(own.num * 120, enemy.damaged.num * 240) -> "battle damaged"
+                true |=> min(own.num * 250, enemy.num * 1000) -> "battle"
+                true |=> min(own.num * 500, enemy.damaged.num * 1000) -> "battle damaged"
                 true |=> own.fresh.num * 10 -> "own fresh"
-                true |=> enemy.fresh.num * -20 -> "enemy fresh"
-
-                enemy.fresh.none && e.at(s).buildings.any && own.fresh.num + own.num > 2 |=> 400 -> "raid"
-
-            case BattleDiceAction(f, s, e, skirmish, assault, raid, used, then) =>
-                val own = f.at(s).ships
-                val enemy = e.at(s).ships
-
-                // true |=> skirmish * 10 -> "skirmish good"
-                true |=> (skirmish * 20 + assault * 10 + raid * 30) -> "dice value"
-                (assault + raid > 0) && own.fresh.num < enemy.fresh.num + assault + raid |=> -400 -> "too risky"
-                (enemy.fresh.num + enemy.num) * 2 < skirmish + 2 * assault |=> assault * -100 -> "why assault"
+                true |=> enemy.fresh.num * -10 -> "enemy fresh"
 
             case DealHitsAction(f, s, _, e, l, raid, effect, _, _) =>
                 if (f == e) {
@@ -125,50 +120,13 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                     true |=> l.starports.num * 50 -> "damage starports"
                 }
 
-            case MoveListAction(f, from, to, l, cascade, cost, _) if l.fresh.none =>
-                l.fresh.none |=> -1000 -> "no fresh"
-
-            case MoveListAction(f, from, to, l, cascade, cost, _) if cascade && cost == NoCost && random() < 0.1 =>
-                true |=> -1000 -> "combo breaker"
-
-            case MoveListAction(f, from, to, l, cascade, cost, _) =>
-                cost != NoCost |=> -appraise(cost) -> "cost"
-
-                val fromEnemyRuleValue = game.colors.but(f)./(_.ruleValue(from)).max
-                val toEnemyRuleValue = game.colors.but(f)./(_.ruleValue(to)).max
-
-                val fromOldOwnRuleValue = f.at(from).ships.fresh.num
-                val toOldOwnRuleValue = f.at(to).ships.fresh.num
-
-                val fromNewOwnRuleValue = f.at(from).ships.fresh.diff(l).num
-                val toNewOwnRuleValue = f.at(to).ships.concat(l).fresh.num
-
-                val fromCost = (from.symbol == Gate).??(4) + f.at(from).cities.num * 10 + f.at(from).starports.num * 3 + factions.but(f)./(e => e.at(from).use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
-                val toCost   = (to  .symbol == Gate).??(4) + f.at(to)  .cities.num * 10 + f.at(to)  .starports.num * 3 + factions.but(f)./(e => e.at(to)  .use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
-
-                // true |=> 0 -> ("fromCost=" + fromCost + " toCost=" + toCost)
-
-                fromNewOwnRuleValue == fromEnemyRuleValue && fromEnemyRuleValue < fromOldOwnRuleValue |=> fromCost * -15 -> "move from eq"
-                fromNewOwnRuleValue <  fromEnemyRuleValue && fromEnemyRuleValue < fromOldOwnRuleValue |=> fromCost * -20 -> "move from unrule"
-                  toNewOwnRuleValue >    toEnemyRuleValue &&   toEnemyRuleValue >   toOldOwnRuleValue |=>   toCost * 20 -> "move to rule"
-                  toNewOwnRuleValue >    toEnemyRuleValue &&   toEnemyRuleValue ==  toOldOwnRuleValue |=>   toCost * 10 -> "move to diseq rule"
-                  toNewOwnRuleValue >    toEnemyRuleValue &&   toEnemyRuleValue <   toOldOwnRuleValue |=>   toCost * cascade.?(5).|(-5) -> "move to inc rule"
-
-                true |=> (l.fresh.num + l.damaged.num) * 2 -> "move more"
-
-            case BattleRaidResourceAction(f, e, r, keys, _) =>
-                true |=> appraise(PayResource(r, None)) -> "cost"
-                true |=> -keys * 5 -> "keys"
-
-            case BattleRaidCourtCardAction(f, e, c, _) =>
-                true |=> appraise(PayResource(c.suit, |(c.keys))) + 100 -> "cost"
-
             case SecureAction(f, cost, effect, c, _) =>
                 true |=> -appraise(cost) -> "cost"
 
                 c.as[GuildCard].foreach { c =>
                     true |=> appraise(PayResource(c.suit, |(c.keys))) -> "profit"
                 }
+
 
                 val own = Influence(c).$.%(_.faction == f).num
                 val enemy = Influence(c).$.%(_.faction != f).num
@@ -182,13 +140,12 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 val own = Influence(c).$.%(_.faction == f).num
                 val enemy = f.rivals./(e => Influence(c).$.%(_.faction == e).num).max
 
+                // if (f == Red)
+                //     true |=> (f.rivals./(e => (Influence(c).$.%(_.faction == e).num == enemy).??(e.power)).max - 40) -> "leader power"
+
                 enemy - own ==  1 |=> 100 -> "even out"
                 enemy - own ==  0 |=> 150 -> "break out"
                 enemy - own == -1 |=> 50 -> "out do"
-
-                c.as[GuildCard]./(_.suit).foreach { s =>
-                    true |=> appraise(PayResource(s, None)) / 10 -> "card cost"
-                }
 
             case BuildCityAction(f, cost, s, effect, _) =>
                 true |=> -appraise(cost) -> "cost"
@@ -216,14 +173,11 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
             case RepairAction(f, cost, s, u, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-                u.piece == Ship |=> 20 -> "repair ok"
-                u.piece == Starport |=> 10 -> "repair not ok"
-                u.piece == City |=> 10 -> "repair not ok"
+                true |=> 20 -> "repair ok"
 
             case TaxAction(f, cost, effect, s, u, loyal, _) =>
                 true |=> -appraise(cost) -> "cost"
-                loyal.not && u.?(_.faction.as[Faction].?(_.pool(Agent))) |=> 200 -> "capture"
-                f.resourceSlots + cost.as[PayResource].$.num > f.resources.but(Nothingness).num |=> game.resources(s).%(game.available)./(r => appraise(PayResource(r, None))).maxOr(0) -> "gain"
+                loyal.not |=> 100 -> "capture"
 
             case MoveListAction(f, s, dest, l, cascade, cost, _) =>
                 true |=> -appraise(cost) -> "cost"
@@ -241,13 +195,6 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                     str.in(4, 7) |=> max(0, record(Warlord)(f) - f.rivals./(record(Warlord)).max) * 100000 + 10000 - str * 1000 -> "warlord"
                     str.in(5, 7) |=> max(0, record(Keeper )(f) - f.rivals./(record(Keeper )).max) * 100000 + 10000 - str * 1000 -> "keeper"
                     str.in(6, 7) |=> max(0, record(Empath )(f) - f.rivals./(record(Empath )).max) * 100000 + 10000 - str * 1000 -> "empath"
-                }
-
-                if (suit == Aggression) {
-                    val balance = min(pips, market.%(c => Influence(c).$.use(l => l.%(_.faction == f).num > f.rivals./(e => l.%(_.faction == e).num).max)).num) * 20000 -
-                        f.rivals.%(_.hand.any).%(e => market.exists(c => Influence(c).$.use(l => l.%(_.faction == e).num > e.rivals./(e => l.%(_.faction == e).num).max))).num * 8000
-
-                    true |=> balance -> "secure balance"
                 }
 
                 val seen = f.hand ++ f.seen ++ game.seen./~(_._3)
@@ -281,17 +228,13 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                     str.in(6, 7) |=> max(0, record(Empath )(f) - f.rivals./(record(Empath )).max) * -10 -> "empath"
                 }
 
-                val lest = lead.get.suit
-
-                if (lest == Aggression)
+                if (lead.get.suit == Aggression)
                     market.foreach { c =>
                         Influence(c).$.use(l => l.%(_.faction == f).num > f.rivals./(e => l.%(_.faction == e).num).max) |=> 20000 -> "secure"
                     }
 
-                true |=> -((2 * str + pips) * 1000
-                    + (suit == Aggression).??(600) + (suit == Administration).??(400) + (suit == Mobilization).??(200)
-                    - (lest == Aggression).??(600) - (lest == Administration).??(400) - (lest == Mobilization).??(200)
-                    ) -> "lost card"
+
+                true |=> (2 * str + pips) * -1000 -> "lost card"
 
             case PivotAction(f, ActionCard(suit, str, pips)) =>
                 if (game.ambitionable.any) {
@@ -314,49 +257,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
 
             case ReorderResourcesAction(f, l, _) =>
                 true |=> l.lazyZip(f.keys).map { (r, k) =>
-                    appraise(PayResource(r, None)) * k
+                    appraise(PayResource(r, |(0))) * k
                 }.sum -> "appraisal"
-
-            case FreeCityAction(f, s, u, _) =>
-                u.faction == f |=> -1000 -> "dont free own city"
-                u.faction != f |=> u.faction.as[Faction]./(_.power).|(0) * 10 -> "more power"
-
-            case LatticeSeizeAction(f, c, _) =>
-                true |=> -appraise(PayResource(c.suit, None)) -> "cost"
-
-            case FarseersRedrawAction(f, l, _) =>
-                true |=> -appraise(PayResource(Farseers.suit, None)) -> "cost"
-
-            case FenceResourceAction(f, r, cost, _) =>
-                game.available(r).not |=> -10000 -> "unavailable"
-                true |=> -appraise(cost) -> "cost"
-                true |=> appraise(PayResource(r, |(3))) -> "cost"
-
-            case ManufactureMainAction(f, cost, _) =>
-                val r = Material
-                game.available(r).not |=> -10000 -> "unavailable"
-                true |=> -appraise(cost) -> "cost"
-                true |=> appraise(PayResource(r, |(1))) -> "cost"
-
-            case SynthesizeMainAction(f, cost, _) =>
-                val r = Fuel
-                game.available(r).not |=> -10000 -> "unavailable"
-                true |=> -appraise(cost) -> "cost"
-                true |=> appraise(PayResource(r, |(1))) -> "cost"
-
-            case StealResourceMainAction(f, _, _, DiscardCourtCardAction(_, c, _)) =>
-                true |=> -10000 -> "dont discard to steal"
-
-            case FillSlotsMainAction(f, r, DiscardCourtCardAction(_, c, _)) =>
-                val slots = f.resourceSlots - f.resources.but(Nothingness).num
-                val available = game.availableNum(r) + f.rivals.%!(_.can(SwornGuardians))./(_.resources.count(r)).sum
-
-                slots < 3 |=> -1000 -> "two slots or less"
-                available < 3 |=> -1000 -> "two resources or less"
-
-            case StealGuildCardAction(f, e, c, DiscardCourtCardAction(_, SilverTongues, _)) =>
-                c.is[GuildCard] |=> appraise(PayResource(c.as[GuildCard].get.suit, |(c.as[GuildCard].get.keys))) -> "gain"
-                true |=> -appraise(PayResource(SilverTongues.suit, |(2))) -> "gain"
 
             case _ =>
         }

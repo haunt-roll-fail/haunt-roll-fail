@@ -16,13 +16,17 @@ object Host extends hrf.host.BaseHost {
     val gaming = arcs.gaming
     val path = "arcs"
 
-    def askBot(g : G, f : F, actions: $[UserAction]) = new BotXX(f).ask(actions, 0)(g)
+    def askBot(g : G, f : F, actions: $[UserAction]) =
+        if (f == Red)
+            new BotNew(f).ask(actions, 0)(g)
+        else
+            new BotOld(f).ask(actions, 0)(g)
 
     def factions = $(Red, White, Blue, Yellow)
 
     def batch = {
         val allComb = factions.combinations(4).$
-        val repeat = 0.to(15).map(_ => factions)
+        val repeat = 1.to(20).map(_ => factions)
 
         def allSeatings(factions : $[Faction]) = factions.permutations.$
         def randomSeating(factions : $[Faction]) = allSeatings(factions).shuffle.head
@@ -41,7 +45,7 @@ object Host extends hrf.host.BaseHost {
 
     def serializer = arcs.Serialize
     def start = StartAction(version)
-    def times = 5
+    def times = 500
     def winners(a : Action) = a @@ {
         case GameOverWonAction(_, f) => $(f)
     }
