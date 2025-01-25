@@ -87,6 +87,7 @@ object HRF {
     var offsite = server.has(dom.window.location.origin).not.?(dom.window.location.origin + dom.window.location.pathname)
 
     val embedded = flag("embedded-assets")
+    val replay = flag("replay")
 
     val metaUIs : $[(MetaGame, BaseUI)] =
         root.Meta -> root.UI ::
@@ -287,6 +288,10 @@ object HRFR {
     val loader = HRF.embedded.?(new WrappedEmbeddedImageLoader(s => "asset-" + s)).|(HRF.imageCache)
 
     def load(onLoad : Resources => Unit) {
+        if (HRF.replay) {
+            onLoad(Resources(ImageResources(Map(), Map(), HRF.imageCache), () => Map()))
+        }
+        else
         loader.wait(HRF.embedded.?(original.images.sources.keys.$).|(original.images.sources.values.$)) {
             val loaded = original.images.sources.$./((key, url) => key -> loader.get(HRF.embedded.?(key).|(url))).toMap
 
@@ -515,8 +520,8 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
         dom.document.title = meta.label
 
-        if (HRF.lobby.any || HRF.flag("replay")) {
-            val (user, lj) = if (HRF.flag("replay")) {
+        if (HRF.lobby.any || HRF.replay) {
+            val (user, lj) = if (HRF.replay) {
                 ("", new ReplayPhantomJournal[String](meta, getElem("lobby").textContent, identity))
             }
             else {
@@ -724,7 +729,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
                     }
 
                     val journal =
-                        if (HRF.flag("replay"))
+                        if (HRF.replay)
                             new ReplayPhantomJournal[meta.gaming.ExternalAction](meta, getElem("replay").textContent, s => meta.parseActionExternal(s), HRF.paramInt("at") | 999999)
                         else
                         if (HRF.flag("phantom"))
@@ -736,7 +741,7 @@ class HRFMetaUI(val ui : HRFUI, val meta : MetaGame, delayMainMenu : Int)(implic
 
                     reread()
 
-                    if (HRF.flag("replay").not) {
+                    if (HRF.replay.not) {
                         val lobby = HRF.lobby.get
                         val user = HRF.user.get
 

@@ -149,7 +149,8 @@ case object AlreadyPaid extends Cost {
 }
 
 case class PayResource(resource : Resource, lock : |[Int]) extends Cost {
-    def elem = "with " ~ ResourceRef(resource, lock).elem
+    def ref = ResourceRef(resource, lock)
+    def elem = "with " ~ ref.elem
     override def elemLog = "with " ~ resource.elem
 }
 
@@ -374,6 +375,7 @@ case class System(cluster : Int, symbol : Symbol) extends Region with Elementary
         case Hex => 0x2B22.toChar.toString
     })
 
+    def gate = symbol == Gate
     def elem = name.hlb ~ smb.hh
     def unstyledElem = name ~ smb
 }
@@ -894,17 +896,20 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     court.$./(c => figures.register(Influence(c)))
 
 
-    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum - overrides.values.$.count(r)
+    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum - overridesHard.values.$.count(r)
 
     def available(r : Resource) = availableNum(r) > 0
 
 
     def at(s : System) = figures.get(s)
 
-    var overrides : Map[System, Resource] = Map()
+    var starting : $[(System, System, $[System])] = $
 
-    def resources(s : System) : $[Resource] = overrides.get(s)./($(_)) ||
-        (s.symbol == Gate).?(systems.%(_.cluster == s.cluster).but(s).%(_.$.cities.any)./~(resources)) |
+    var overridesSoft : Map[System, Resource] = Map()
+    var overridesHard : Map[System, Resource] = Map()
+
+    def resources(s : System) : $[Resource] = overridesHard.get(s)./($(_)) || overridesSoft.get(s)./($(_)) ||
+        s.gate.?(systems.%(_.cluster == s.cluster).but(s).%(_.$.cities.any)./~(resources)) |
         $(board.resource(s))
 
     var unslotted : $[Figure] = $
@@ -925,8 +930,10 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
         ) ++
         actions.has(NoLeadersAndLores).not.??(viewLeaders(leaders)) ++
         actions.has(NoLeadersAndLores).not.??(viewLores(lores)) ++
-        (chapter == 0 && setup.num == 3).$(ViewSetupInfoAction("setup-3p-02")) ++
-        (chapter == 0 && setup.num == 4).$(ViewSetupInfoAction("setup-4p-01"))
+        options.has(RandomizeStartingSystems).not.??(
+            (chapter == 0 && setup.num == 3).$(ViewSetupInfoAction("setup-3p-02")) ++
+            (chapter == 0 && setup.num == 4).$(ViewSetupInfoAction("setup-4p-01"))
+        )
     }
 
     def convertForLog(s : $[Any]) : $[Any] = s./~{

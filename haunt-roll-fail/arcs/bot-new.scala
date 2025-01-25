@@ -143,8 +143,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 val fromNewOwnRuleValue = f.at(from).ships.fresh.diff(l).num
                 val toNewOwnRuleValue = f.at(to).ships.concat(l).fresh.num
 
-                val fromCost = (from.symbol == Gate).??(4) + f.at(from).cities.num * 10 + f.at(from).starports.num * 3 + factions.but(f)./(e => e.at(from).use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
-                val toCost   = (to  .symbol == Gate).??(4) + f.at(to)  .cities.num * 10 + f.at(to)  .starports.num * 3 + factions.but(f)./(e => e.at(to)  .use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
+                val fromCost = from.gate.??(4) + f.at(from).cities.num * 10 + f.at(from).starports.num * 3 + factions.but(f)./(e => e.at(from).use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
+                val toCost   = to  .gate.??(4) + f.at(to)  .cities.num * 10 + f.at(to)  .starports.num * 3 + factions.but(f)./(e => e.at(to)  .use(l => l.cities.num * 10 + l.starports.num * 10 - l.ships.fresh.num)).sum
 
                 // true |=> 0 -> ("fromCost=" + fromCost + " toCost=" + toCost)
 
@@ -357,6 +357,12 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
             case StealGuildCardAction(f, e, c, DiscardCourtCardAction(_, SilverTongues, _)) =>
                 c.is[GuildCard] |=> appraise(PayResource(c.as[GuildCard].get.suit, |(c.as[GuildCard].get.keys))) -> "gain"
                 true |=> -appraise(PayResource(SilverTongues.suit, |(2))) -> "gain"
+
+            case DiscardResourceNoEffectAction(f, x, _) =>
+                true |=> -10000 -> "dont discard"
+
+            case DiscardGuildCardNoEffectAction(f, c, _) =>
+                true |=> -10000 -> "dont discard"
 
             case _ =>
         }

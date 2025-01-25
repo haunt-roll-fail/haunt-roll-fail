@@ -23,6 +23,29 @@ trait OldIncorrectBehaviour extends GameOption with ToggleOption {
     val group = "Old Incorrect Behaviour"
 }
 
+trait SetupOption extends GameOption with ToggleOption {
+    val group = "Setup".hh
+    override def blocked(all : $[BaseOption]) = all.of[CampaignOption]./($(_))
+}
+
+case object RandomPlayerOrder extends SetupOption {
+    val valueOn = "Random Player Order".hh
+}
+
+case object RandomizePlanetResources extends SetupOption {
+    val valueOn = "Randomize Planet Resources".hh
+    override val explain = $(
+    )
+}
+
+case object RandomizeStartingSystems extends SetupOption {
+    val valueOn = "Randomize Starting Systems".hh
+    override val explain = $(
+    )
+}
+
+
+
 trait LeadersAndLoreOption extends GameOption with ToggleOption with ImportantOption {
     val group = "Leaders and Lore".hh
     override def blocked(all : $[BaseOption]) = all.of[CampaignOption]./($(_))
@@ -72,6 +95,12 @@ case object LeadersAndLorePreset4 extends LeadersAndLoreOption {
     )
 }
 
+case object DoubleLore extends LeadersAndLoreOption {
+    val valueOn = "Double Lore".hh
+
+    override def required(all : $[BaseOption]) = $($(LeadersAndLorePreset1, LeadersAndLorePreset2), $(LeadersAndLorePreset2, LeadersAndLorePreset3), $(LeadersAndLorePreset1, LeadersAndLorePreset3))
+}
+
 
 trait CampaignOption extends GameOption with ImportantOption {
     val group = "Campaign Mode".hh
@@ -82,11 +111,6 @@ case object NoFate extends CampaignOption with ToggleOption {
     val valueOn = "No Fate".hlb
 }
 
-
-case object RandomPlayerOrder extends GameOption with ToggleOption {
-    val group = "Other Options".hh
-    val valueOn = "Random Player Order".hh
-}
 
 case object SplitDiscardPile extends GameOption with ToggleOption {
     val group = "Other Options".hh
@@ -136,7 +160,12 @@ object Meta extends MetaGame { mmm =>
 
     override val hiddenOptions = $
 
-    val options = $(NoFate) ++ $(LeadersAndLorePreset1, LeadersAndLorePreset2, LeadersAndLorePreset3, LeadersAndLorePreset4) ++ $(RandomPlayerOrder, SplitDiscardPile) ++ hiddenOptions
+    val options =
+        $(NoFate) ++
+        $(LeadersAndLorePreset1, LeadersAndLorePreset2, LeadersAndLorePreset3, LeadersAndLorePreset4, DoubleLore) ++
+        $(RandomPlayerOrder, RandomizePlanetResources, RandomizeStartingSystems) ++
+        $(SplitDiscardPile) ++
+        hiddenOptions
 
     override val gradualFactions : Boolean = true
 
@@ -151,8 +180,8 @@ object Meta extends MetaGame { mmm =>
     )
 
     def randomGameName() = {
-        val n = $("Space", "Politics", "Betrayal", "Explosion", "Conquest", "Warp", "Renegade", "Sway", "Diplomacy", "Conflict").shuffle
-        val c = $("for", "against", "versus", "through", "and", "of", "in", "as").shuffle
+        val n = $("Space", "Politics", "Betrayal", "Explosion", "Conquest", "Warp", "Renegade", "Sway", "Diplomacy", "Conflict", "Expanse", "Treachery", "Catastrophy", "Zero Gravity", "Wormhole", "Negotiation", "Control", "Force", "Galaxy", "Singularity").shuffle
+        val c = $("for", "against", "versus", "through", "and", "of", "in", "as", "by").shuffle
         n.head + " " + c.head + " " + n.last
     }
 
@@ -198,6 +227,11 @@ object Meta extends MetaGame { mmm =>
 
     override def settingsList = super.settingsList ++ $(StarStarports, TriangleStarports) ++ $(AutoEndOfTurn, ConfirmEndOfTurn)
     override def settingsDefaults = super.settingsDefaults ++ $(StarStarports, AutoEndOfTurn)
+
+    override def tips = super.tips ++ $(
+        "You can change Starport token shape in the settings.",
+        "You can enable End-of-Turn confirmation in the settings.",
+    )
 
     val assets =
     ConditionalAssetsList((factions : $[F], options : $[O]) => true)(

@@ -20,6 +20,9 @@ import arcs.elem._
 object BaseExpansion extends Expansion {
     def perform(action : Action, soft : Void)(implicit game : Game) = action @@ {
         case StartSetupAction =>
+            if (game.starting.none)
+                game.starting = board.starting
+
             CourtSetupAction
 
         case CheckWinAction =>

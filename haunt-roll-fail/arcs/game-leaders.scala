@@ -154,7 +154,7 @@ object LeadersExpansion extends Expansion {
         // SETUP
         case LeadersLoresShuffledAction(l1, l2) =>
             game.leaders = l1.take(factions.num + 1)
-            game.lores = l2.take(factions.num + 1)
+            game.lores = l2.take(factions.num + 1 + options.has(DoubleLore).??(factions.num))
             game.unusedLores = l2.drop(factions.num + 1)
 
             log("Leaders".hh, "and", "Lores".hh, "were shuffled")
@@ -191,7 +191,7 @@ object LeadersExpansion extends Expansion {
                     .withSplit($(game.leaders.num))
                     .withRule({
                         case Left(l) => f.leader.none
-                        case Right(l) => f.lores.none
+                        case Right(l) => f.lores.num < 1 + options.has(DoubleLore).??(1)
                     })
                     .withThen({
                         case Left(l) => AssignLeaderAction(f, l, next)
@@ -224,7 +224,7 @@ object LeadersExpansion extends Expansion {
         case LeadersFactionsSetupAction =>
             var archivist: |[Faction] = None
 
-            factions.lazyZip(board.starting).foreach { case (f, (a, b, cc)) =>
+            factions.lazyZip(game.starting).foreach { case (f, (a, b, cc)) =>
                 val leader = f.leader.get
 
                 leader.setupA.foreach { p =>
@@ -300,6 +300,7 @@ object LeadersExpansion extends Expansion {
         // ARCHIVIST
         case LearnedAction(f, l, then) =>
             l.foreach { u =>
+                // game.unusedLores :-= u
                 f.lores :+= u
                 f.log("gained", u, "from", Learned)
             }
@@ -334,7 +335,7 @@ object LeadersExpansion extends Expansion {
 
         // SHAPER
         case MythicAction(f, s, r, k, then) =>
-            game.overrides += s -> r
+            game.overridesHard += s -> r
 
             f.remove(ResourceRef(r, |(k)))
 

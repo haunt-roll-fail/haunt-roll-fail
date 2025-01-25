@@ -22,6 +22,8 @@ package object elem {
     val InfoCircle = 0x24D8.toChar.toString
     val Dagger = 0x2020.toChar.toString
     val DoubleDagger = 0x2021.toChar.toString
+    val LowAsterisk = 0x204E.toChar.toString
+    val DoubleAsterisk = 0x2051.toChar.toString
 
     trait Postfix extends Elem
 

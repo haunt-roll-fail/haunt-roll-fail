@@ -20,6 +20,11 @@ import arcs.elem._
 case class StartAction(version : String) extends StartGameAction with GameVersion
 case class PlayOrderAction(random : $[Faction]) extends RandomAction[$[Faction]]
 case object StartSetupAction extends ForcedAction
+case object RandomizeAction extends ForcedAction
+case object RandomizePlanetResourcesAction extends ForcedAction
+case class PlanetResourcesAction(shuffled : $[Resource], then : ForcedAction) extends ShuffledAction[Resource]
+case object RandomizeStartingSystemsAction extends ForcedAction
+case class StartingSystemsAction(shuffled : $[System], then : ForcedAction) extends ShuffledAction[System]
 case object CourtSetupAction extends ForcedAction
 case class ShuffleCourtDiscardAction(then : ForcedAction) extends ForcedAction
 case class ShuffleCourtDeckAction(then : ForcedAction) extends ForcedAction
@@ -108,6 +113,12 @@ case class OutrageAction(self : Faction, r : Resource, then : ForcedAction) exte
 case class ClearOutrageAction(self : Faction, r : $[Resource], then : ForcedAction) extends ForcedAction
 case class RansackMainAction(self : Faction, e : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class RansackAction(self : Faction, c : CourtCard, then : ForcedAction) extends ForcedAction
+
+case class DiscardResourcesMainAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class DiscardResourceNoEffectAction(self : Faction, cost : PayResource, then : ForcedAction) extends ForcedAction
+
+case class DiscardGuildCardsMainAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class DiscardGuildCardNoEffectAction(self : Faction, c : GuildCard, then : ForcedAction) extends ForcedAction
 
 case class BuildMainAction(self : Faction, cost : Cost, then : ForcedAction) extends ForcedAction with Soft
 case class BuildCityAction(self : Faction, cost : Cost, s : System, effect : |[Effect], then : ForcedAction) extends ForcedAction
@@ -251,7 +262,44 @@ object CommonExpansion extends Expansion {
 
             log("Play order", l.comma)
 
-            Milestone(StartSetupAction)
+            RandomizeAction
+
+        case RandomizeAction =>
+            if (options.has(RandomizePlanetResources) && game.overridesSoft.none)
+                RandomizePlanetResourcesAction
+            else
+            if (options.has(RandomizeStartingSystems) && game.starting.none)
+                RandomizeStartingSystemsAction
+            else
+                Milestone(StartSetupAction)
+
+        case RandomizePlanetResourcesAction =>
+            ShuffleTake[Resource](Resources.all./~(game.setup.num.times), board.systems.%!(_.gate).num, PlanetResourcesAction(_, RandomizeAction))
+
+        case PlanetResourcesAction(l, then) =>
+            board.systems.%!(_.gate).lazyZip(l).foreach { case (s, r) =>
+                game.overridesSoft += s -> r
+
+                log(s, "was", r)
+            }
+
+            then
+
+        case RandomizeStartingSystemsAction =>
+            Shuffle[System](board.systems, StartingSystemsAction(_, RandomizeAction))
+
+        case StartingSystemsAction(l, then) =>
+            val aa = l.%(_.gate.not).take(game.setup.num)
+            val bb = l.%(_.gate.not).reverse.take(game.setup.num)
+            val cc = l.%(_.gate)
+
+            game.starting = game.seating.lazyZip(aa).lazyZip(bb).lazyZip(cc).map { (f, a, b, c) =>
+                log(f, "started in", a, Comma, b, Comma, c)
+
+                (a, b, $(c))
+            }
+
+            then
 
         case CourtSetupAction =>
             ShuffleCourtDiscardAction(ReplenishMarketAction(FactionsSetupAction))
@@ -306,7 +354,7 @@ object CommonExpansion extends Expansion {
                 BaseFactionsSetupAction
 
         case BaseFactionsSetupAction =>
-            factions.lazyZip(board.starting).foreach { case (f, (city, port, fleets)) =>
+            factions.lazyZip(game.starting).foreach { case (f, (city, port, fleets)) =>
                 f.reserve --> City.of(f) --> city
                 f.reserve --> Ship.of(f) --> city
                 f.reserve --> Ship.of(f) --> city
@@ -468,7 +516,7 @@ object CommonExpansion extends Expansion {
             then
 
         case ShipAtEachGateMainAction(f, then) =>
-            val ss = systems.%(_.symbol == Gate)
+            val ss = systems.%(_.gate)
             val pp = min(ss.num, f.pooled(Ship))
 
             Ask(f).group("Place", Ship.of(f), "at gates")
@@ -551,7 +599,7 @@ object CommonExpansion extends Expansion {
 
             l --> f.captives
 
-            f.log("abducted", l, x)
+            f.log("abducted", l.comma, x)
 
             then
 
@@ -717,9 +765,9 @@ object CommonExpansion extends Expansion {
             then
 
         case DiscardCourtCardAction(f, c, then) =>
-            f.log("discarded", c)
-
             f.loyal --> c --> discourt
+
+            f.log("discarded", c)
 
             then
 
@@ -813,7 +861,7 @@ object CommonExpansion extends Expansion {
         case PostTaxAction(f, s, c, loyal, then) =>
             implicit val ask = builder
 
-            if (f.can(Mythic) && game.overrides.contains(s).not && board.slots(s) > 0) {
+            if (f.can(Mythic) && game.overridesHard.contains(s).not && board.slots(s) > 0) {
                 f.resKeys./ { (r, k) =>
                     + MythicAction(f, s, r, k, PostTaxAction(f, s, c, loyal, then)).as("Change planet type with", PayResource(r, |(k)))(Mythic, "in", s)
                 }
@@ -838,7 +886,7 @@ object CommonExpansion extends Expansion {
             val ss = systems./(r => r -> f.at(r).ships).%>(_.any).toMap
 
             if (f.can(Ancient))
-                pp = systems.%(_.symbol == Gate)
+                pp = systems.%(_.gate)
 
             Ask(f).group("Move", x, effect./("with" -> _), "from")
                 .each(ss.keys.% (pp.has).$)(r => MoveFromAction(f, r, ss(r), true,  x, CancelAction, then).as(r))
@@ -850,7 +898,7 @@ object CommonExpansion extends Expansion {
         case MoveFromAction(f, r, l, cascade, x, alt, then) =>
             Ask(f).group("Move from", r, "to")
                 .each(board.connected(r))(d => {
-                    val cat = cascade && d.symbol == Gate && f.rivals.exists(_.rules(d)).not
+                    val cat = cascade && d.gate && f.rivals.exists(_.rules(d)).not
                     MoveToAction(f, r, d, l, cat, x, then).as(d, cat.?("and further"))
                 })
                 .add(alt)
@@ -871,7 +919,7 @@ object CommonExpansion extends Expansion {
 
             f.log("moved", l.comma, "from", r, "to", d, x)
 
-            if (d.symbol == Gate)
+            if (d.gate)
                 f.rivals.%(_.can(GatePorts))./ { e =>
                     if (e.at(d).starports.fresh.any && e.rules(d)) {
                         if (f.pool(Agent)) {
@@ -936,7 +984,7 @@ object CommonExpansion extends Expansion {
             if (e.can(RailgunArrays) && used.has(RailgunArrays).not && e.at(s).ships.fresh.any)
                 AssignHitsAction(f, s, e, f, f.at(s).ships, 1, 0, 0, |(RailgunArrays), used, BattleStartAction(f, s, e, used :+ RailgunArrays, then))
             else {
-                val ships = f.at(s).count(Ship) + (s.symbol == Gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
+                val ships = f.at(s).count(Ship) + (s.gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
                 val canRaid = (e.at(s).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors) && e.at(s).starports.fresh.any).not
 
                 val combinations : $[(Int, Int, Int)] = 1.to(min(18, ships)).reverse./~(n =>
@@ -1171,8 +1219,9 @@ object CommonExpansion extends Expansion {
                 if (game.unslotted.has(u))
                     game.unslotted :-= u
 
-                if (e.can(Beloved).not)
-                    next = RansackMainAction(f, e, next)
+                if (u.faction != f)
+                    if (e.can(Beloved).not)
+                        next = RansackMainAction(f, e, next)
 
                 game.resources(s).foreach { r =>
                     next = OutrageAction(f, r, next)
@@ -1287,10 +1336,10 @@ object CommonExpansion extends Expansion {
             var clouds = f.can(CloudCities).??(present.%(s => board.slots(s) > 0 && f.at(s).cities.intersect(game.unslotted).none))
 
             if (f.can(GateStations))
-                cities ++= present.%(_.symbol == Gate).%(f.at(_).cities.none)
+                cities ++= present.%(_.gate).%(f.at(_).cities.none)
 
             if (f.can(GatePorts))
-                starports ++= present.%(_.symbol == Gate).%(f.at(_).starports.none)
+                starports ++= present.%(_.gate).%(f.at(_).starports.none)
 
             var yards = present./~(s => f.at(s).starports./(_ -> s))
 
@@ -1527,6 +1576,39 @@ object CommonExpansion extends Expansion {
 
             then
 
+        // DISCARD
+        case DiscardResourcesMainAction(f, then) =>
+            Ask(f)
+                .each(f.resKeys) { case (r, k) =>
+                    DiscardResourceNoEffectAction(f, PayResource(r, |(k)), then)
+                        .as("Discard", ResourceRef(r, |(k)))("Discard Resources with No Effect".spn(xstyles.error))
+                }
+                .cancel
+
+        case DiscardResourceNoEffectAction(f, x, then) =>
+            f.pay(x)
+
+            f.log("discarded", x.ref.elem, "with no effect")
+
+            then
+
+        case DiscardGuildCardsMainAction(f, then) =>
+            implicit val ask = builder
+
+            $(MiningInterest, ShippingInterest, Gatekeepers, PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines, ElderBroker).foreach { c =>
+                if (f.can(c))
+                    + DiscardGuildCardNoEffectAction(f, c, then).as("Discard", c)("Discard Guild Cards with No Effect".spn(xstyles.error))
+            }
+
+            ask(f).cancel
+
+        case DiscardGuildCardNoEffectAction(f, c, then) =>
+            f.loyal --> c --> discourt
+
+            f.log("discarded", c, "with no effect")
+
+            then
+
         // TURN
         case StartChapterAction =>
             log(DoubleLine)
@@ -1591,6 +1673,8 @@ object CommonExpansion extends Expansion {
                 game.current = |(factions.first)
 
                 f.log("passed initative to", factions.first)
+
+                game.round -= 1
 
                 Milestone(StartRoundAction)
             }
@@ -1960,11 +2044,16 @@ object CommonExpansion extends Expansion {
                 (TycoonsCharm, $(Material, Fuel))   ,
             ).foreach { case (l, r) =>
                 if (f.lores.has(l)) {
-                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, then)).as("Clear", r, "outrage")(l).!(f.outraged.intersect(r).none)
+                    + ClearOutrageAction(f, r, DiscardLoreCardAction(f, l, then)).as("Clear", r, "Outrage")(l).!(f.outraged.intersect(r).none)
                 }
             }
 
-            + EndPreludeAction(f, s, 0, p).as("End Prelude")(" ")
+            + EndPreludeAction(f, s, 0, p).as("End Prelude".hh)(" ")
+
+            if (f.resKeys.any)
+                + DiscardResourcesMainAction(f, then).as("Discard Resources with No Effect")("  ")
+
+            DiscardGuildCardsMainAction(f, then).as("Discard Guild Cards with No Effect")("  ").!!!.addIfAvailable
 
             ask(f)
 
@@ -2069,6 +2158,15 @@ object CommonExpansion extends Expansion {
             + EndTurnAction(f).as("End Turn and Forfeit", (n - i).hlb, "Action".s(n - i))(group)
 
             ask(f).needOk
+
+        case EndTurnAction(f) if systems.exists(s => f.at(s).ships.any || f.at(s).starports.any).not && f.pool(Ship) =>
+            log(DottedLine)
+
+            f.log("had no", "Ships".hh, "or", "Starports".hh)
+
+            Ask(f).group("Place", min(3, f.pooled(Ship)).hlb, Ship.sof(f), "in")
+                .each(systems.%(_.gate))(r => ShipsInSystemAction(f, r, EndTurnAction(f)).as(r))
+                .needOk
 
         case EndTurnAction(f) =>
             f.taxed.cities = $

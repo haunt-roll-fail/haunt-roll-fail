@@ -25,7 +25,7 @@ import scalajs.js.timers.setTimeout
 import scala.collection.mutable
 
 
-trait GreyUI { self : Gaming =>
+trait GreyUI { gui : Gaming =>
     trait CanvasPane {
         def container : Container
         def draw() : Unit
@@ -34,6 +34,8 @@ trait GreyUI { self : Gaming =>
     trait GUI extends GameUI {
         val uir : ElementAttachmentPoint
         val resources : Resources
+
+        def randomTip() : |[Elem] = None
 
         var panes = Map[String, Container]()
 
@@ -589,7 +591,7 @@ trait GreyUI { self : Gaming =>
                         actionPane.vis()
                         latest()
                     })
-                ))(resources)
+                ) ++ info(lastSelf, $))(resources)
             }
 
             top()
@@ -600,11 +602,15 @@ trait GreyUI { self : Gaming =>
             actionPane.vis()
         }
 
+        var lastSelf : |[F] = None
+
         def info(self : |[F], aa : $[UserAction]) : $[ZOption] = $
 
         def preinfo(self : |[F], aa : $[UserAction]) : $[ZOption] = $
 
         def ask(faction : |[F], actions : $[UserAction], then : UserAction => Unit) {
+            lastSelf = faction
+
             asker.scrollIfNeeded()
 
             preasker.zask(preinfo(faction, actions))(resources)
@@ -615,11 +621,13 @@ trait GreyUI { self : Gaming =>
         }
 
         def wait(self : $[F], factions : $[F]) {
+            lastSelf = self.single
+
             if (factions.any) {
-                val zw = factions.any.$(ZOption(Div("Waiting for " ~ convertDesc(factions./(f => factionElem(f)).comma).apply(game))(xlo.fullwidth), Div(Text("z... z... z..."), ZBasic.info)(xlo.fullwidth)))
+                val waiting = factions.any.$(ZOption(Div("Waiting for " ~ convertDesc(factions./(f => factionElem(f)).comma).apply(game))(xlo.fullwidth), Div(Text("z... z... z..."), ZBasic.info)(xlo.fullwidth)))
 
                 preasker.zask(preinfo(self.single, $))(resources)
-                asker.zask(zw)(resources)
+                asker.zask(waiting)(resources)
                 postasker.zask(info(self.single, $))(resources)
             }
 
@@ -677,6 +685,8 @@ trait GreyUI { self : Gaming =>
 
         def styleAction(faction : Option[F], actions : $[UserAction], a : UserAction, unavailable : Boolean, view : |[Any]) : $[Style] = Nil
 
+        def fixActionOption(e : Elem) : Elem = e
+
         def convertActions(faction : Option[F], actions : $[UserAction], then : UserAction => Unit = null) : $[ZOption] = {
             actions./~{ a =>
                 def q = {
@@ -684,7 +694,7 @@ trait GreyUI { self : Gaming =>
                     (q == Empty).?(q).|(Div(q)(xlo.fullwidth))
                 }
 
-                def o = a.option(currentGame) ~ (a match {
+                def o = fixActionOption(a.option(currentGame)) ~ (a @@ {
                     case UnavailableReasonAction(a, reason) if reason != "" => reason.startsWith("|").?(Break).|(SpaceSpan) ~ Span(Text("(" + reason.substring(reason.startsWith("|").??(1)) + ")"), xstyles.smaller85)
                     case _ => Empty
                 })

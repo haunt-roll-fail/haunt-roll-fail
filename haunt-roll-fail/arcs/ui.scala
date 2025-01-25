@@ -37,6 +37,10 @@ object UI extends BaseUI {
 class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta.GameOption], val resources : Resources, callbacks : hrf.Callbacks) extends MapGUI {
     def factionElem(f : Faction) = f.name.styled(f)
 
+    override def randomTip() = Meta.tips.shuffle.starting
+
+    var tip = randomTip()
+
     val statuses = 1.to(arity)./(i => newPane("status-" + i, Content, styles.status, styles.fstatus, ExternalStyle("hide-scrollbar")))
 
     val campaign : Boolean = options.of[CampaignOption].any
@@ -282,6 +286,39 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         pieces.flush()
 
+        case class ResourceMarker(s : System) extends Piece
+
+        systems.reverse.foreach { s =>
+            game.resources(s).%(_ => s.gate.not).foreach { r =>
+                val (x, y) = s @@ {
+                    case System(1, Arrow) => (1045, 125)
+                    case System(1, Crescent) => (1455, 120)
+                    case System(1, Hex) => (1860, 115)
+                    case System(2, Arrow) => (2100, 390)
+                    case System(2, Crescent) => (2405, 585)
+                    case System(2, Hex) => (2300, 880)
+                    case System(3, Arrow) => (2290, 1175)
+                    case System(3, Crescent) => (1955, 1315)
+                    case System(3, Hex) => (1955, 1670)
+                    case System(4, Arrow) => (1445, 1645)
+                    case System(4, Crescent) => (1050, 1690)
+                    case System(4, Hex) => (685, 1580)
+                    case System(5, Arrow) => (160, 1525)
+                    case System(5, Crescent) => (330, 1130)
+                    case System(5, Hex) => (140, 800)
+                    case System(6, Arrow) => (330, 660)
+                    case System(6, Crescent) => (255, 310)
+                    case System(6, Hex) => (610, 185)
+                    case _ => (1150 + random(100), 800 + random(100))
+                }
+
+                val rect = Rectangle(-32, -32, 64, 64)
+                val hit = Rectangle(-24, -24, 48, 48)
+
+                pieces.addFixed(s, Figure(Free, ResourceMarker(s), 1), 0)(Sprite($(ImageRect(new RawImage(img(r.id)), rect, 1.0)), $(hit)))(x, y)
+            }
+        }
+
         systems.reverse.foreach { s =>
             var figures = game.at(s)
             var gates = regions.gates.get(s).|(Nil).sortBy(_.y)
@@ -289,7 +326,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             var extra : $[Figure] = $
 
             if (game.leaders.any) {
-                game.board.starting.lazyZip(factions).foreach { case ((a, b, c), f) =>
+                game.starting.lazyZip(factions).foreach { case ((a, b, c), f) =>
                     if (a == s)
                         pieces.addFixed(s, Figure(f, Agent, 1), 5)(Sprite($(ImageRect(img(f.short + "-agent-a"), 21, 66/2, 2)), $))(gates.first.x, gates.first.y)
 
@@ -361,7 +398,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         ambTokens.clear()
 
         systems.reverse.foreach { s =>
-            game.overrides.get(s).foreach { r =>
+            game.overridesHard.get(s).foreach { r =>
                 val (x, y) = s @@ {
                     case System(1, Arrow) => (1045, 125)
                     case System(1, Crescent) => (1455, 120)
@@ -381,10 +418,10 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     case System(6, Arrow) => (330, 660)
                     case System(6, Crescent) => (255, 310)
                     case System(6, Hex) => (610, 185)
-                    case _ => (1150 + random(100), 800 + random(100) )
+                    case _ => (1150 + random(100), 800 + random(100))
                 }
 
-                ambTokens.add(Sprite($(ImageRect(new RawImage(img(r.id)), Rectangle(-32, -32, 64, 64), 1.0)), $), 1.0, 10)(x, y)
+                ambTokens.add(Sprite($(ImageRect(new RawImage(img(r.id)), Rectangle(-32, -32, 64, 64), 1.0)), $), 1.28, 10)(x, y)
             }
         }
 
@@ -454,8 +491,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         }
 
         val initative = game.seized.%(_ == f)./(_ => DoubleDagger).||((game.factions.first == f && game.seized.none).?(Dagger)).|("")
+        val bonus = (f.pooled(City) < 1).?(DoubleAsterisk).||((f.pooled(City) < 2).?(LowAsterisk)).|("")
 
-        val title = Div(Div(initative.styled(styles.title)(styles.initative) ~ name).styled(f), styles.smallname, xlo.pointer)
+        val title = (initative.styled(styles.title)(styles.initative) ~ name).div.styled(f).div(styles.smallname)(xlo.pointer)
         val hand = Hint("Hand: " + f.hand.num + " cards",
             f.hand.none.?("~~~".txt ~ Image("card-back-small", styles.fund, xlo.hidden)).|(
                 (f.hand.num > 55).?(
@@ -463,10 +501,10 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 ).|(
                     (f.hand.num).times(Image("card-back-small", styles.fund)).merge
                 )
-            )
+            ).spn(styles.hand)
         )
 
-        val powerHand = (f.power.power ~ " ".pre ~ hand).div(xstyles.larger110)
+        val powerHand = (bonus.styled(styles.bonus) ~ f.power.power ~ " ".pre ~ hand).div(xstyles.larger110)
 
         val outrage = f.outraged./(r => Image(r.name + "-outrage", styles.token)).merge.div(styles.outrageLine)
 
@@ -495,7 +533,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         val leader = f.leader.$./(l => l.elem.div(xstyles.smaller75)(styles.cardName).pointer.onClick.param(l)).merge
         val lores = f.lores./(l => l.elem.div(xstyles.smaller75)(styles.cardName).pointer.onClick.param(l)).merge
 
-        val loyal = f.loyal.$.of[GuildCard]./(c => ((Image("keys-" + c.keys, styles.tokenTop) ~ c.elem ~ Image(c.suit.name, styles.tokenTop)).div(xstyles.smaller75) ~ (c @@ {
+        val loyal = f.loyal.$.of[GuildCard]./(c => ((Image(c.suit.name, styles.tokenTop) ~ c.elem ~ Image("keys-" + c.keys, styles.tokenTop)).div(xstyles.smaller75) ~ (c @@ {
             case MaterialCartel => game.availableNum(Material).times(Image(Material.name, styles.tokenTop)).merge
             case FuelCartel => game.availableNum(Fuel).times(Image(Fuel.name, styles.tokenTop)).merge
             case _ => Empty
@@ -882,7 +920,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     $(
                     game.factions.%(_.rules(s)).single./(f => s.unstyledElem.styled(f)).|(s.name.txt ~ s.smb.txt).larger.styled(xstyles.bold),
                     HGap,
-                    (s.symbol != Gate || s.$.cities.any).?(game.desc(game.resources(s)./(r => ResourceRef(r, None)).intersperse(" ")).div).|(Empty),
+                    (s.gate.not || s.$.cities.any).?(game.desc(game.resources(s)./(r => ResourceRef(r, None)).intersperse(" ")).div).|(Empty),
                     HGap
                     ) ++
                     game.factions./(_.at(s)).%(_.any).sortBy(l => l.buildings.num * 20 + l.ships.num).reverse./(_.sortBy(_.piece.is[Building].not)./(u => Image(u.faction.short + "-" + u.piece.name + u.faction.damaged.has(u).??("-damaged"), (u.piece == Ship).?(styles.ship3x).|(styles.token3x))))./(game.desc(_).div(styles.figureLine)) ++
@@ -964,8 +1002,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
             (options.has(SplitDiscardPile)).$(ZBasic(Break ~ Break, "Action Cards Discard Pile".hh, () => { onClick("discard") }).copy(clear = false)) ++
-            $(ZBasic(Break ~ Break, "Played Action Cards".hh, () => { onClick("seen") }).copy(clear = false)) ++
-            $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, () => { onClick("discourt") }).copy(clear = false)) ++
+            $(ZBasic(Break ~ Break, "Played Action Cards".hh, game.seen.any.??(() => { onClick("seen") })).copy(clear = false)) ++
+            $(ZBasic(Break ~ Break, "Court Cards Discard Pile".hh, game.discourt.any.??(() => { onClick("discourt") })).copy(clear = false)) ++
             $(ZBasic(Break ~ Break, "Map Readout".hh, () => { onClick("readout") }).copy(clear = false)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
                 ZBasic(Break ~ Break ~ Break, "Save Replay As File".hh, () => {
@@ -992,8 +1030,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     })
                 }).copy(clear = false)
             ) ++
-            $(ZBasic(Break ~ Break, "Notifications".spn, () => { onClick("notifications", self) }).copy(clear = false)).%(_ => self.any || game.isOver) ++
-            $(ZBasic(Break ~ Break, "Interface".spn, () => { callbacks.editSettings { updateStatus() } }).copy(clear = false))
+            $(ZBasic(Break ~ Break ~ Break, "Notifications".spn, () => { onClick("notifications", self) }).copy(clear = false)).%(_ => self.any || game.isOver).%(_ => false) ++
+            $(ZBasic(Break, tip.|(Empty).spn, () => { tip = randomTip() }, ZBasic.infoch).copy(clear = false)).%(_ => callbacks.settings.has(hrf.HideTips).not) ++
+            $(ZBasic(Break, "Settings".spn, () => { tip = randomTip() ; callbacks.editSettings { updateStatus() } }).copy(clear = false))
     }
 
     var shown : $[Notification] = $
@@ -1080,6 +1119,15 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             keys = $
             then(a)
         })
+    }
+
+    override def fixActionOption(e : Elem) : Elem = e @@ {
+        case Div(e, l) => Div(fixActionOption(e), l)
+        case Span(e, l) => Span(fixActionOption(e), l)
+        case Concat(a, b) => Concat(fixActionOption(a), fixActionOption(b))
+        case ElemList(l, e) => ElemList(l./(fixActionOption), fixActionOption(e))
+        case Image(ImageId(i), s, d) => Image(ImageId(callbacks.settings.has(StarStarports).?(i.replace("starport", "starport-alt")).|(i)), s, d)
+        case e => e
     }
 
     override def styleAction(faction : |[F], actions : $[UserAction], a : UserAction, unavailable : Boolean, view : |[Any]) : $[Style] =

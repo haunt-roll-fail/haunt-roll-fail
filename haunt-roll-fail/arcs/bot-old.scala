@@ -260,6 +260,12 @@ class GameEvaluationOld(val self : Faction)(implicit val game : Game) {
                     appraise(PayResource(r, |(0))) * k
                 }.sum -> "appraisal"
 
+            case DiscardResourceNoEffectAction(f, x, _) =>
+                true |=> -10000 -> "dont discard"
+
+            case DiscardGuildCardNoEffectAction(f, c, _) =>
+                true |=> -10000 -> "dont discard"
+
             case _ =>
         }
 

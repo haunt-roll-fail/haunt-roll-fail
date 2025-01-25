@@ -247,6 +247,10 @@ trait Gaming extends Timelines {
         def question(implicit g : G) : Elem
         def option(implicit g : G) : Elem
         def unary_+(implicit builder : ActionCollector) = builder.add(this)
+        def addIfAvailable(implicit builder : ActionCollector) = this @@ {
+            case _ : Info =>
+            case _ => builder.add(this)
+        }
     }
 
     case object DummyUserAction extends ElemAction(Empty)(Empty) with Choice

@@ -81,13 +81,14 @@ trait MetaBase {
 
     def settingsKey : String = name
     def settingsList : $[hrf.Setting] =
+        $(hrf.ShowTips, hrf.HideTips) ++
         $(hrf.CondensedButtonSpacing, hrf.NormalSpacing, hrf.ExpandedButtonSpacing) ++
         $(hrf.GameFontFace, hrf.CodeFontFace, hrf.SystemFontFace) ++
         $(hrf.SmallerFontSize, hrf.SmallFontSize, hrf.NormalFontSize, hrf.LargeFontSize, hrf.LargerFontSize) ++
         $(hrf.AlwaysFullScreen, hrf.TripleClickFullScreen, hrf.NeverFullScreen) ++
         $(hrf.SlowestScrollSpeed, hrf.SlowerScrollSpeed, hrf.SlowScrollSpeed, hrf.NormalScrollSpeed, hrf.FastScrollSpeed, hrf.FasterScrollSpeed, hrf.FastestScrollSpeed)
 
-    def settingsDefaults : $[hrf.Setting] = $(hrf.NormalSpacing, hrf.GameFontFace, hrf.NormalFontSize, hrf.TripleClickFullScreen, hrf.NormalScrollSpeed)
+    def settingsDefaults : $[hrf.Setting] = $(hrf.ShowTips, hrf.NormalSpacing, hrf.GameFontFace, hrf.NormalFontSize, hrf.TripleClickFullScreen, hrf.NormalScrollSpeed)
 
     val about : $[Elem] = $
 
@@ -191,6 +192,16 @@ trait MetaBase {
     def extLinks : $[(Elem, String)] = $
 
     def support : $[(String, String)] = $
+
+    def tips : $[Elem] = $(
+        "You can disable tooltips in the settings.",
+        "You can change font size in the settings.",
+        "You can change button size in the settings.",
+        "Click on any line in the log to undo to that moment in the game.",
+        "Ask other players before undoing dice rolls or card reveal.",
+        "You can undo even if it's not your turn.",
+        "You can undo another undo, and return to the original timeline.",
+    )
 
 }
 

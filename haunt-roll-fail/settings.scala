@@ -16,6 +16,18 @@ import hrf.elem._
 
 trait Setting extends BaseOption
 
+sealed trait TipsSetting extends Setting with OneOfGroup {
+    val group = "Tips"
+}
+
+case object ShowTips extends TipsSetting {
+    val valueOn = "Show".hlb
+}
+case object HideTips extends TipsSetting {
+    val valueOn = "Hide".hlb
+}
+
+
 sealed trait FontFaceSetting extends Setting with OneOfGroup {
     val group = "Font Face"
 }

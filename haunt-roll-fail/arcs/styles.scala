@@ -39,7 +39,7 @@ package object elem {
         object building extends CustomStyle(height("3ex"), vertical.align("middle"), margin.left("-0.1ex"), margin.right("-0.1ex"), margin.top("-0.1ex"), margin.bottom("0.2ex"))
         object ship extends CustomStyle(height("2.4ex"), vertical.align("middle"), margin.left("-0.1ex"), margin.right("-0.1ex"), margin.top("-0.1ex"), margin.bottom("0.2ex"))
         object plaque extends CustomStyle(height("4.2ex"), vertical.align("middle"), margin("-0.1ex"))
-        object plaqueContainer extends CustomStyle(margin("0.1ex"))
+        object plaqueContainer extends CustomStyle(margin("0.1ex"), white.space("nowrap"))
         object tokenMinion extends CustomStyle(width("3.2ex"), vertical.align("middle"), padding.left("0.4ex"), padding.right("0.4ex"), padding.top("0.65ex"), padding.bottom("0.65ex"))
         object tokenBuilding extends CustomStyle(height("2.8ex"), vertical.align("middle"), padding("0.6ex"))
 
@@ -119,7 +119,9 @@ package object elem {
         object statusUpper extends CustomStyle(height("100%"), overflow.x("hidden"), overflow.y("auto"))
         object play extends CustomStyle(margin.top("-4.2ex"))
         object initative extends CustomStyle(font.size("160%"), line.height("0"), vertical.align("sub"), color("#ffffff"))
-        object cardName extends CustomStyle(margin.top("-0.6ex"), margin.bottom("-0.9ex"))
+        object bonus extends CustomStyle(/*font.size("110%"), */ line.height("0"), vertical.align("middle"), color("#e7ce4d"))
+        object hand extends CustomStyle(white.space("nowrap"))
+        object cardName extends CustomStyle(margin.top("-0.6ex"), margin.bottom("-0.9ex"), white.space("nowrap"))
 
 
         object quasi extends CustomStyle(background.color("transparent"), padding("0.2ch"), margin("0.1ch"), outline.style("none"), border.style("solid"), border.width("0.2ch"), border.color("transparent"))
@@ -127,7 +129,7 @@ package object elem {
         object selfigure2 extends CustomStyle(border.color("#dc143c"), border.style("solid"))
         object unquasi extends CustomStyle(filter("brightness(0.9)"))
 
-        object keyLine extends CustomStyle(margin.top("-0.8ex"), margin.bottom("-0.6ex"))
+        object keyLine extends CustomStyle(margin.top("-0.8ex"), margin.bottom("-0.6ex"), white.space("nowrap"))
         object outrageLine extends CustomStyle(margin.top("-0.1ex"), margin.bottom("-0.6ex"))
         object tokenTop extends CustomStyle(width("2.8ex"), vertical.align("top"), margin("0.2ex"))
 

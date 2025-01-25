@@ -3885,11 +3885,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, options : $[Meta.O], val
 
     val layoutKey = "v" + 2 + "." + "arity-" + arity
 
-    var lastSelf : |[Player] = None
-
     override def info(self : |[Player], aa : $[UserAction]) = {
-        lastSelf = self
-
         val ii = currentGame.info($, self, aa)
         ii.any.??($(ZOption(Empty, Break)) ++ convertActions(self.of[Faction], ii)) ++
             (currentGame.isOver && hrf.HRF.flag("replay").not).$(
