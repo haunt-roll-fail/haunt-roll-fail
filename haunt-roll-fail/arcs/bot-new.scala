@@ -38,6 +38,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 case NoCost => -100
                 case AlreadyPaid => -100
                 case MultiCost(l) => l./(appraise).sum
+                case PayResource(Material, _) if self.can(MaterialCartel) => 0
+                case PayResource(Fuel, _) if self.can(FuelCartel) => 0
                 case PayResource(resource, lock) =>
                     lock.|(0) * 100 + resource @@ {
                         case Material | Fuel => max(60, ambition(Tycoon) * 50)
@@ -55,8 +57,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 f.resources.count(Fuel) +
                 f.loyal.of[GuildCard].count(_.suit == Material) +
                 f.loyal.of[GuildCard].count(_.suit == Fuel) +
-                f.loyal.has(MaterialCartel).??(game.availableNum(Material)) +
-                f.loyal.has(FuelCartel).??(game.availableNum(Fuel))
+                f.can(MaterialCartel).??(game.availableNum(Material)) +
+                f.can(FuelCartel).??(game.availableNum(Fuel))
             case Tyrant => f.captives.num
             case Warlord => f.trophies.num
             case Keeper => f.resources.count(Relic) + f.loyal.of[GuildCard].count(_.suit == Relic)
@@ -70,8 +72,8 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                     f.resources.count(Fuel) +
                     f.loyal.of[GuildCard].count(_.suit == Material) +
                     f.loyal.of[GuildCard].count(_.suit == Fuel) +
-                    f.loyal.has(MaterialCartel).??(game.availableNum(Material)) +
-                    f.loyal.has(FuelCartel).??(game.availableNum(Fuel))
+                    f.can(MaterialCartel).??(game.availableNum(Material)) +
+                    f.can(FuelCartel).??(game.availableNum(Fuel))
                 case Tyrant => f.captives.num
                 case Warlord => f.trophies.num
                 case Keeper => f.resources.count(Relic) + f.loyal.of[GuildCard].count(_.suit == Relic)
@@ -125,13 +127,13 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                     true |=> l.starports.num * 50 -> "damage starports"
                 }
 
-            case MoveListAction(f, from, to, l, cascade, cost, _) if l.fresh.none =>
+            case MoveListAction(f, from, to, l, cascade, cost, effect, _) if l.fresh.none =>
                 l.fresh.none |=> -1000 -> "no fresh"
 
-            case MoveListAction(f, from, to, l, cascade, cost, _) if cascade && cost == NoCost && random() < 0.1 =>
+            case MoveListAction(f, from, to, l, cascade, cost, effect, _) if cascade && cost == NoCost && random() < 0.1 =>
                 true |=> -1000 -> "combo breaker"
 
-            case MoveListAction(f, from, to, l, cascade, cost, _) =>
+            case MoveListAction(f, from, to, l, cascade, cost, effect, _) =>
                 cost != NoCost |=> -appraise(cost) -> "cost"
 
                 val fromEnemyRuleValue = game.colors.but(f)./(_.ruleValue(from)).max
@@ -220,16 +222,22 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 u.piece == Starport |=> 10 -> "repair not ok"
                 u.piece == City |=> 10 -> "repair not ok"
 
+                u.piece != Ship && f.at(s).ships.fresh.none && factions.but(f).exists(_.at(s).ships.any) |=> -15 -> "rival fleet"
+
             case TaxAction(f, cost, effect, s, u, loyal, _) =>
                 true |=> -appraise(cost) -> "cost"
                 loyal.not && u.?(_.faction.as[Faction].?(_.pool(Agent))) |=> 200 -> "capture"
                 f.resourceSlots + cost.as[PayResource].$.num > f.resources.but(Nothingness).num |=> game.resources(s).%(game.available)./(r => appraise(PayResource(r, None))).maxOr(0) -> "gain"
 
-            case MoveListAction(f, s, dest, l, cascade, cost, _) =>
+            case MoveListAction(f, s, dest, l, cascade, cost, effect, _) =>
                 true |=> -appraise(cost) -> "cost"
 
-            case AddBattleOptionAction(f, cost, _) =>
+            case AddBattleOptionAction(f, cost, PreludeActionAction(_, suit, num)) =>
                 true |=> -appraise(cost) -> "cost"
+
+                suit == Aggression |=> -1000000 -> "can already"
+
+                num >= 3 && systems.exists(s => f.at(s).ships.num > 1 && factions.but(f).exists(e => e.at(s).use(l => l.buildings.any || l.ships.num > 1))) |=> 10000 -> "use weapon to attack"
 
             case PassAction(f) =>
                 true |=> -100 -> "dont pass"
@@ -309,8 +317,22 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
 
                 true |=> (2 * str + pips) * -1000 -> "lost card"
 
-            case SeizeAction(f, ActionCard(suit, str, pips), _) =>
-                true |=> (2 * str + pips) * -1000 -> "lost card"
+            case SeizeAction(f, c @ ActionCard(suit, str, pips), _) =>
+                f.surpass && f.played.only.strength > factions.but(f).%!(_.zeroed)./~(e => e.played.%(_.suit == game.lead.get.suit))./(_.strength).maxOr(0) |=> -1000000 -> "surpassing"
+
+                f.hand.but(c).notOf[EventCard].none |=> -10000000 -> "last card"
+
+                factions.but(f).exists(_.hand.num <= f.hand.num).not |=> -10000000 -> "on back foot"
+
+                val t = factions.but(f).%(_.surpass).%(e => e.played.only.strength > factions.but(e).%!(_.zeroed)./~(_.played.%(_.suit == game.lead.get.suit))./(_.strength).maxOr(0)).single.|(factions.first)
+
+                factions.but(f).but(t).exists(_.power > t.power) |=> -1000000 -> "initiative with less power"
+
+                suit == Aggression |=> -1000000 -> "dont seize with aggression"
+
+                result ++= eval(LeadAction(f, c))./(e => e.copy(weight = -e.weight))
+
+                true |=> 1000 -> "seize fest"
 
             case ReorderResourcesAction(f, l, _) =>
                 true |=> l.lazyZip(f.keys).map { (r, k) =>
@@ -325,7 +347,7 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 true |=> -appraise(PayResource(c.suit, None)) -> "cost"
 
             case FarseersRedrawAction(f, l, _) =>
-                true |=> -appraise(PayResource(Farseers.suit, None)) -> "cost"
+                true |=> -appraise(PayResource(Psionic, None)) -> "cost"
 
             case FenceResourceAction(f, r, cost, _) =>
                 game.available(r).not |=> -10000 -> "unavailable"
@@ -344,7 +366,7 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 true |=> -appraise(cost) -> "cost"
                 true |=> appraise(PayResource(r, |(1))) -> "cost"
 
-            case StealResourceMainAction(f, _, _, DiscardCourtCardAction(_, c, _)) =>
+            case StealResourceAction(f, e, x, k, DiscardCourtCardAction(_, c, _)) =>
                 true |=> -10000 -> "dont discard to steal"
 
             case FillSlotsMainAction(f, r, DiscardCourtCardAction(_, c, _)) =>
@@ -354,9 +376,9 @@ class GameEvaluationNew(val self : Faction)(implicit val game : Game) {
                 slots < 3 |=> -1000 -> "two slots or less"
                 available < 3 |=> -1000 -> "two resources or less"
 
-            case StealGuildCardAction(f, e, c, DiscardCourtCardAction(_, SilverTongues, _)) =>
+            case StealGuildCardAction(f, e, c, DiscardCourtCardAction(_, GuildCard(_, SilverTongues), _)) =>
                 c.is[GuildCard] |=> appraise(PayResource(c.as[GuildCard].get.suit, |(c.as[GuildCard].get.keys))) -> "gain"
-                true |=> -appraise(PayResource(SilverTongues.suit, |(2))) -> "gain"
+                true |=> -appraise(PayResource(Psionic, |(2))) -> "gain"
 
             case DiscardResourceNoEffectAction(f, x, _) =>
                 true |=> -10000 -> "dont discard"

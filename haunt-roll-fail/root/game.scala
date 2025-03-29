@@ -1799,7 +1799,7 @@ class Game(val players : $[Player], val candidates : $[Faction], val options : $
         highlightFaction = (c @@ {
             case Ask(_, Nil) => println("empty ask as a result of " + action); throw new Error("empty ask")
             case Ask(f, _) => $(f)
-            case MultiAsk(a) => a./(_.faction)
+            case MultiAsk(a, _) => a./(_.faction)
             case _ => $()
         }).of[Faction]
 

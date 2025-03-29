@@ -1536,7 +1536,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
         highlightFaction = c match {
             case Ask(f, _) => $(f)
-            case MultiAsk(a) => a./(_.faction)
+            case MultiAsk(a, _) => a./(_.faction)
             case _ => Nil
         }
 

@@ -304,7 +304,7 @@ class Game(val setup : List[Faction]) extends BaseGame with ContinueGame with Lo
 
         highlightFaction = c match {
             case Ask(f, _) => $(f)
-            case MultiAsk(a) => a./(_.faction)
+            case MultiAsk(a, _) => a./(_.faction)
             case _ => Nil
         }
 

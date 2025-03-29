@@ -74,8 +74,8 @@ case class AmbitionMarker(high : Int, low : Int)
 trait Piece extends Record {
     def name = toString
     def plural = name + "s"
-    def of(f : Faction) = SomePieceOf(f, this)
-    def sof(f : Faction) : Elem = (f.name + " " + plural).styled(f)
+    def of(f : Color) = SomePieceOf(f, this)
+    def sof(f : Color) : Elem = (f.name + " " + plural).styled(f)
 }
 
 trait PieceOf {
@@ -177,29 +177,32 @@ case object DeckDiscard extends DeckCardLocation
 
 trait CourtLocation
 case object CourtDeck extends CourtLocation
+case object SideDeck extends CourtLocation
 case object CourtMarket extends CourtLocation
 case object CourtDiscard extends CourtLocation
 case class DiscardAfterRound(faction : Faction) extends CourtLocation
 case class Loyal(faction : Faction) extends CourtLocation
+case class FateDeck(fate : Fate) extends CourtLocation
+case class NoFateDeck(faction : Faction) extends CourtLocation
 
 
 trait DeckCard extends Elementary with Record {
     def suit : Suit
-    def imgid : ImageId
-    def img = Image(imgid, styles.card)
+    def id : ImageId
+    def img = Image(id, styles.card)
     def strength : Int
     def pips : Int
 }
 
 case class ActionCard(suit : Suit, strength : Int, pips : Int) extends DeckCard {
-    def imgid = suit + "-" + strength
+    def id = suit + "-" + strength
     def elem = (" " + suit + " " + strength + " ").pre.spn(styles.outlined).styled(suit)
     def zeroed(b : Boolean) = (" " + suit + " " + b.?(0).|(strength) + " ").pre.spn(styles.outlined).styled(suit)
 }
 
 case class EventCard(index : Int) extends DeckCard {
     def suit = Event
-    def imgid = "event"
+    def id = "event"
     def elem = (" " + suit + " ").pre.spn(styles.outlined)
     def strength = 0
     def pips = 0
@@ -241,106 +244,99 @@ object DeckCards {
 
 trait Effect extends Record
 
-trait CourtCard extends Effect with Record with Elementary {
-    def bid : String
-    def cid : String
-    def id(implicit game : Game) = campaign.?(cid).|(bid)
+trait CourtCard extends Record with Elementary {
+    def id : String
     def name : String
     def elem = name.styled(styles.title).hl
-    def img(implicit game : Game) = Image(id, styles.card)
+    def img = Image(id, styles.card)
 }
 
-abstract class GuildCard(val bid : String, val cid : String, val name : String, val suit : Resource, val keys : Int) extends CourtCard
-abstract class VoxCard(val bid : String, val cid : String, val name : String) extends CourtCard
+case class GuildCard(id : String, effect : GuildEffect) extends CourtCard {
+    def name = effect.name
+    def suit = effect.suit
+    def keys = effect.keys
+}
 
-trait LoyalGuild { self : GuildCard => }
+case class VoxCard(id : String, effect : VoxEffect) extends CourtCard {
+    def name = effect.name
+}
 
-case object LoyalEngineers    extends GuildCard("bc01",     "", "Loyal Engineers",    Material, 3) with LoyalGuild
-case object MiningInterest    extends GuildCard("bc02", "cc01", "Mining Interest",    Material, 2)
-case object MaterialCartel    extends GuildCard("bc03",     "", "Material Cartel",    Material, 2)
-case object AdminUnion        extends GuildCard("bc04",     "", "Admin Union",        Material, 2)
-case object ConstructionUnion extends GuildCard("bc05", "cc02", "Construction Union", Material, 2)
-case object FuelCartel        extends GuildCard("bc06",     "", "Fuel Cartel",        Fuel,     2)
-case object LoyalPilots       extends GuildCard("bc07",     "", "Loyal Pilots",       Fuel,     3) with LoyalGuild
-case object Gatekeepers       extends GuildCard("bc08", "cc03", "Gatekeepers",        Fuel,     2)
-case object ShippingInterest  extends GuildCard("bc09", "cc04", "Shipping Interest",  Fuel,     2)
-case object SpacingUnion      extends GuildCard("bc10",     "", "Spacing Union",      Fuel,     2)
-case object ArmsUnion         extends GuildCard("bc11", "cc06", "Arms Union",         Weapon,   2)
-case object PrisonWardens     extends GuildCard("bc12", "cc05", "Prison Wardens",     Weapon,   2)
-case object Skirmishers       extends GuildCard("bc13",     "", "Skirmishers",        Weapon,   2)
-case object CourtEnforcers    extends GuildCard("bc14",     "", "Court Enforcers",    Weapon,   2)
-case object LoyalMarines      extends GuildCard("bc15",     "", "Loyal Marines",      Weapon,   3) with LoyalGuild
-case object LatticeSpies      extends GuildCard("bc16", "cc07", "Lattice Spies",      Psionic,  2)
-case object Farseers          extends GuildCard("bc17",     "", "Farseers",           Psionic,  2)
-case object SecretOrder       extends GuildCard("bc18",     "", "Secret Order",       Psionic,  2)
-case object LoyalEmpaths      extends GuildCard("bc19",     "", "Loyal Empaths",      Psionic,  3) with LoyalGuild
-case object SilverTongues     extends GuildCard("bc20", "cc08", "Silver Tongues",     Psionic,  2)
-case object LoyalKeepers      extends GuildCard("bc21",     "", "Loyal Keepers",      Relic,    3) with LoyalGuild
-case object SwornGuardians    extends GuildCard("bc22", "cc09", "Sworn Guardians",    Relic,    1)
-case object ElderBroker       extends GuildCard("bc23", "cc10", "Elder Broker",       Relic,    2)
-case object RelicFence        extends GuildCard("bc24",     "", "Relic Fence",        Relic,    2)
-case object GalacticBards     extends GuildCard("bc25",     "", "Galactic Bards",     Relic,    1)
-case object MassUprising      extends VoxCard  ("bc26",     "", "Mass Uprising")
-case object PopulistDemands   extends VoxCard  ("bc27", "cc11", "Populist Demands")
-case object OutrageSpreads    extends VoxCard  ("bc28",     "", "Outrage Spreads")
-case object SongOfFreedom     extends VoxCard  ("bc29", "cc14", "Song of Freedom")
-case object GuildStruggle     extends VoxCard  ("bc30",     "", "Guild Struggle")
-case object CallToAction      extends VoxCard  ("bc31",     "", "Call to Action")
-case object CouncilIntrigue   extends VoxCard  (    "", "cc12", "Populist Demands")
-case object DimplomaticFiasco extends VoxCard  (    "", "cc13", "Dimplomatic Fiasco")
-case object BlightLooms       extends VoxCard  (    "", "cc15", "Blight Looms")
+abstract class GuildEffect(val name : String, val suit : Resource, val keys : Int) extends Effect with Elementary {
+    def elem = name.styled(styles.title).hl
+}
+
+abstract class VoxEffect(val name : String) extends Effect with Elementary {
+    def elem = name.styled(styles.title).hl
+}
+
+
+trait LoyalGuild { self : GuildEffect => }
+
+case object LoyalEngineers    extends GuildEffect("Loyal Engineers",    Material, 3) with LoyalGuild
+case object MiningInterest    extends GuildEffect("Mining Interest",    Material, 2)
+case object MaterialCartel    extends GuildEffect("Material Cartel",    Material, 2)
+case object AdminUnion        extends GuildEffect("Admin Union",        Material, 2)
+case object ConstructionUnion extends GuildEffect("Construction Union", Material, 2)
+case object FuelCartel        extends GuildEffect("Fuel Cartel",        Fuel,     2)
+case object LoyalPilots       extends GuildEffect("Loyal Pilots",       Fuel,     3) with LoyalGuild
+case object Gatekeepers       extends GuildEffect("Gatekeepers",        Fuel,     2)
+case object ShippingInterest  extends GuildEffect("Shipping Interest",  Fuel,     2)
+case object SpacingUnion      extends GuildEffect("Spacing Union",      Fuel,     2)
+case object ArmsUnion         extends GuildEffect("Arms Union",         Weapon,   2)
+case object PrisonWardens     extends GuildEffect("Prison Wardens",     Weapon,   2)
+case object Skirmishers       extends GuildEffect("Skirmishers",        Weapon,   2)
+case object CourtEnforcers    extends GuildEffect("Court Enforcers",    Weapon,   2)
+case object LoyalMarines      extends GuildEffect("Loyal Marines",      Weapon,   3) with LoyalGuild
+case object LatticeSpies      extends GuildEffect("Lattice Spies",      Psionic,  2)
+case object Farseers          extends GuildEffect("Farseers",           Psionic,  2)
+case object SecretOrder       extends GuildEffect("Secret Order",       Psionic,  2)
+case object LoyalEmpaths      extends GuildEffect("Loyal Empaths",      Psionic,  3) with LoyalGuild
+case object SilverTongues     extends GuildEffect("Silver Tongues",     Psionic,  2)
+case object LoyalKeepers      extends GuildEffect("Loyal Keepers",      Relic,    3) with LoyalGuild
+case object SwornGuardians    extends GuildEffect("Sworn Guardians",    Relic,    1)
+case object ElderBroker       extends GuildEffect("Elder Broker",       Relic,    2)
+case object RelicFence        extends GuildEffect("Relic Fence",        Relic,    2)
+case object GalacticBards     extends GuildEffect("Galactic Bards",     Relic,    1)
+case object MassUprising      extends VoxEffect  ("Mass Uprising")
+case object PopulistDemands   extends VoxEffect  ("Populist Demands")
+case object OutrageSpreads    extends VoxEffect  ("Outrage Spreads")
+case object SongOfFreedom     extends VoxEffect  ("Song of Freedom")
+case object GuildStruggle     extends VoxEffect  ("Guild Struggle")
+case object CallToAction      extends VoxEffect  ("Call to Action")
 
 object CourtCards {
     def base = $(
-        LoyalEngineers    ,
-        MiningInterest    ,
-        MaterialCartel    ,
-        AdminUnion        ,
-        ConstructionUnion ,
-        FuelCartel        ,
-        LoyalPilots       ,
-        Gatekeepers       ,
-        ShippingInterest  ,
-        SpacingUnion      ,
-        ArmsUnion         ,
-        PrisonWardens     ,
-        Skirmishers       ,
-        CourtEnforcers    ,
-        LoyalMarines      ,
-        LatticeSpies      ,
-        Farseers          ,
-        SecretOrder       ,
-        LoyalEmpaths      ,
-        SilverTongues     ,
-        LoyalKeepers      ,
-        SwornGuardians    ,
-        ElderBroker       ,
-        RelicFence        ,
-        GalacticBards     ,
-        MassUprising      ,
-        PopulistDemands   ,
-        OutrageSpreads    ,
-        SongOfFreedom     ,
-        GuildStruggle     ,
-        CallToAction      ,
-    )
-
-    def campaign = $(
-        MiningInterest    ,
-        ConstructionUnion ,
-        Gatekeepers       ,
-        ShippingInterest  ,
-        PrisonWardens     ,
-        ArmsUnion         ,
-        LatticeSpies      ,
-        SilverTongues     ,
-        SwornGuardians    ,
-        ElderBroker       ,
-        PopulistDemands   ,
-        CouncilIntrigue   ,
-        DimplomaticFiasco ,
-        SongOfFreedom     ,
-        BlightLooms       ,
+        GuildCard("bc01", LoyalEngineers   ),
+        GuildCard("bc02", MiningInterest   ),
+        GuildCard("bc03", MaterialCartel   ),
+        GuildCard("bc04", AdminUnion       ),
+        GuildCard("bc05", ConstructionUnion),
+        GuildCard("bc06", FuelCartel       ),
+        GuildCard("bc07", LoyalPilots      ),
+        GuildCard("bc08", Gatekeepers      ),
+        GuildCard("bc09", ShippingInterest ),
+        GuildCard("bc10", SpacingUnion     ),
+        GuildCard("bc11", ArmsUnion        ),
+        GuildCard("bc12", PrisonWardens    ),
+        GuildCard("bc13", Skirmishers      ),
+        GuildCard("bc14", CourtEnforcers   ),
+        GuildCard("bc15", LoyalMarines     ),
+        GuildCard("bc16", LatticeSpies     ),
+        GuildCard("bc17", Farseers         ),
+        GuildCard("bc18", SecretOrder      ),
+        GuildCard("bc19", LoyalEmpaths     ),
+        GuildCard("bc20", SilverTongues    ),
+        GuildCard("bc21", LoyalKeepers     ),
+        GuildCard("bc22", SwornGuardians   ),
+        GuildCard("bc23", ElderBroker      ),
+        GuildCard("bc24", RelicFence       ),
+        GuildCard("bc25", GalacticBards    ),
+        VoxCard("bc26", MassUprising     ),
+        VoxCard("bc27", PopulistDemands  ),
+        VoxCard("bc28", OutrageSpreads   ),
+        VoxCard("bc29", SongOfFreedom    ),
+        VoxCard("bc30", GuildStruggle    ),
+        VoxCard("bc31", CallToAction     ),
     )
 }
 
@@ -355,6 +351,7 @@ case class Reserve(f : Color) extends SpecialRegion
 case class Outrage(f : Faction) extends SpecialRegion
 case class Trophies(f : Faction) extends SpecialRegion
 case class Captives(f : Faction) extends SpecialRegion
+case class Favors(f : Faction) extends SpecialRegion
 case object Scrap extends SpecialRegion
 case class Influence(c : CourtCard) extends SpecialRegion
 
@@ -518,7 +515,7 @@ object Piece {
 object Figure {
     implicit class FiguresEx[T](val t : T)(implicit val conv : T => $[Figure]) {
         def l = conv(t)
-        def of(f : Color) = l.%(_.faction == f)
+        def ofc(f : Color) = l.%(_.faction == f)
         def piece(p : Piece) = l.%(_.piece == p)
         def one(p : Piece) = l.%(_.piece == p).head
         def colors = l./(_.faction).distinct
@@ -542,6 +539,8 @@ object Figure {
         def ships = l.%(u => u.piece == Ship)
         def cities = l.%(u => u.piece == City)
         def starports = l.%(u => u.piece == Starport)
+        def blights = l.%(u => u.piece == Blight)
+        def agents = l.%(u => u.piece == Agent)
 
         def fresh(implicit game : Game) = l.%(u => u.faction.damaged.has(u).not)
         def damaged(implicit game : Game) = l.%(u => u.faction.damaged.has(u))
@@ -622,12 +621,9 @@ trait GameImplicits {
     def chapter(implicit game : Game) = game.chapter
     def round(implicit game : Game) = game.round
     def market(implicit game : Game) = game.market
-    def court(implicit game : Game) = game.court
-    def discourt(implicit game : Game) = game.discourt
     def deck(implicit game : Game) = game.deck
     def discard(implicit game : Game) = game.discard
     def lead(implicit game : Game) = game.lead
-    def zeroed(implicit game : Game) = game.zeroed
     def seized(implicit game : Game) = game.seized
 
     implicit def cards(implicit game : Game) = game.cards
@@ -642,7 +638,9 @@ abstract class ColorState(val faction : Color)(implicit game : Game) {
 
     var damaged : $[Figure] = $
 
-    def ruleValue(r : System) : Int = faction.at(r).diff(damaged).count(Ship)
+    var regent = false
+
+    def ruleValue(s : System) : Int
 
     def rules(r : System) = faction.ruleValue(r) > game.colors.but(faction)./(_.ruleValue(r)).max
 
@@ -656,18 +654,24 @@ abstract class ColorState(val faction : Color)(implicit game : Game) {
 }
 
 class BlightsState(override val faction : Blights.type)(implicit game : Game) extends ColorState(faction)(game) {
+    override def ruleValue(s : System) : Int = 0
+
     val reserve : Region = game.figures.register(Reserve(faction), _.faction == faction,
         1.to(24)./(Figure(faction, Blight, _))
     )
 }
 
 class EmpireState(override val faction : Empire.type)(implicit game : Game) extends ColorState(faction)(game) {
+    override def ruleValue(s : System) : Int = Empire.at(s).fresh.any.??(99)
+
     val reserve : Region = game.figures.register(Reserve(faction), _.faction == faction,
         1.to(15)./(Figure(faction, Ship, _))
     )
 }
 
 class FreeState(override val faction : Free.type)(implicit game : Game) extends ColorState(faction)(game) {
+    override def ruleValue(s : System) : Int = 0
+
     val reserve : Region = game.figures.register(Reserve(faction), _.faction == faction,
         1.to(28*2)./(Figure(faction, City, _)) ++
         1.to(14*2)./(Figure(faction, Starport, _))
@@ -688,12 +692,21 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
     val captives = game.figures.register(Captives(faction))
 
+    val favors = game.figures.register(Favors(faction))
+
+    var fatedeck : CourtLocation = game.courtiers.register(NoFateDeck(faction))
+
     var fates : $[Fate] = $
     var past : $[Fate] = $
     var leader : |[Leader] = None
     var lores : $[Lore] = $
 
     var power = 0
+
+    var progress = 0
+    var objective : |[Objective] = None
+
+    var primus = false
 
     var resources : $[Resource] = $
     var spent : $[Resource] = $
@@ -703,7 +716,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     def keys = extraKeys ++ cityKeys
     def resourceSlots = extraKeys.num + $(6, 6, 6, 4, 3, 2)(pooled(City))
 
-    def resKeys = resources.lazyZip(keys).toList.%<(_ != Nothingness)
+    def resKeys : $[(Resource, Int)] = resources.lazyZip(keys).toList.%<(_ != Nothingness)
 
     var anyBattle : Boolean = false
 
@@ -712,7 +725,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var blind = game.cards.register(Blind(faction))
     var taking : $[DeckCard] = $
 
-    var loyal = game.courtiers.register(Loyal(faction))
+    val loyal = game.courtiers.register(Loyal(faction))
     val discardAfterRound = courtiers.register(DiscardAfterRound(faction))
 
     object taxed {
@@ -723,11 +736,15 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     var worked : $[Figure] = $
 
     var used : $[Effect] = $
+    var secured : $[GuildCard] = $
 
     var lead : Boolean = false
+    var zeroed : Boolean = false
+    var declared : Boolean = false
     var surpass : Boolean = false
     var copy : Boolean = false
     var pivot : Boolean = false
+    var mirror : Boolean = false
 
     var adjust : Boolean = false
 
@@ -736,7 +753,11 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     def rivals = game.factions.but(faction)
     def others = game.colors.but(faction)
 
-    def can(e : Effect) = (loyal.contains(e) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
+    override def ruleValue(s : System) = (game.campaign && faction.regent && game.current == faction && Empire.at(s).fresh.any && faction.at(s).any).?(999).|(faction.at(s).diff(damaged).count(Ship))
+
+    def can(e : Effect) : Boolean = (loyal.exists(_.as[GuildCard].?(_.effect == e)) || lores.contains(e) || leader.exists(_.effects.has(e))) && used.has(e).not
+
+    def canPrelude(e : GuildEffect) : Boolean = loyal.exists(_.as[GuildCard].%(_.effect == e).%!(secured.has).any) && used.has(e).not
 
     override def pooled(p : Piece) = super.pooled(p) - (p == Agent).??(outraged.num)
 
@@ -789,7 +810,7 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
     }
 
     def stealable(x : Resource) : Boolean = {
-        resources.has(x) && loyal.has(SwornGuardians).not
+        resources.has(x) && faction.can(SwornGuardians).not
     }
 
     def pay(cost : Cost) {
@@ -808,6 +829,14 @@ class FactionState(override val faction : Faction)(implicit game : Game) extends
 
             case _ =>
                 // println("skipping payment " + cost)
+        }
+    }
+
+    def advance(n : Int) {
+        if (n != 0 && progress > 0) {
+            progress -= n
+
+            faction.log("advanced objective by", n.hlb)
         }
     }
 }
@@ -868,17 +897,25 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     var seen : $[(Int, Faction, |[DeckCard])] = $
 
-    val court = courtiers.register(CourtDeck, content = campaign.?(CourtCards.campaign).|(CourtCards.base))
+    val court = courtiers.register(CourtDeck, content = campaign.?(BlightCards.court).|(CourtCards.base))
+    val sidedeck = courtiers.register(SideDeck, content = campaign.??(BlightCards.sidedeck ++ Lores.done))
     val market = courtiers.register(CourtMarket)
     val discourt = courtiers.register(CourtDiscard)
 
+    var act : Int = 0
     var chapter : Int = 0
     var round : Int = 0
     var passed : Int = 0
 
     var lead : |[ActionCard] = None
-    var zeroed : Boolean = false
     var seized : |[Faction] = None
+    var decided : |[Color] = None
+
+    var edicts : $[Edict] = $
+
+    var drafts : $[NegotiationDraft] = $
+    var draftsCount : Int = 0
+    var negotiators : $[Faction] = $
 
     val markers : $[AmbitionMarker] = $(AmbitionMarker(2, 0), AmbitionMarker(3, 2), AmbitionMarker(5, 3), AmbitionMarker(4, 2), AmbitionMarker(6, 3), AmbitionMarker(9, 4), AmbitionMarker(4, 2))
 
@@ -895,8 +932,13 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
     court.$./(c => figures.register(Influence(c)))
 
+    sidedeck.$./(c => figures.register(Influence(c)))
 
-    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum - overridesHard.values.$.count(r)
+    var protoGolems : Map[System, GolemType] = Map()
+
+    var trust : $[Resource] = $
+
+    def availableNum(r : Resource) = 5 - factions./(_.resources.count(r)).sum - factions./(_.spent.count(r)).sum - overridesHard.values.$.count(r) - trust.count(r)
 
     def available(r : Resource) = availableNum(r) > 0
 
@@ -955,7 +997,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def showFigure(u : Figure, hits : Int) = {
-        val prefix = (hits < 2).??(u.faction.short.toLowerCase + "-")
+        val prefix = (u.faction == Empire).?("imperial-").|((hits < 2).??(u.faction.short.toLowerCase + "-"))
         val suffix = (hits == 1).??("-damaged") + (hits >= 2).??("-empty")
 
         u.piece match {
@@ -972,15 +1014,15 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def buildAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        if (f.loyal.has(MiningInterest)) {
+        if (f.can(MiningInterest)) {
             + ManufactureMainAction(f, x, then).as("Manufacture".styled(f), x)(group)
         }
 
-        if (f.loyal.has(ShippingInterest)) {
+        if (f.can(ShippingInterest)) {
             + SynthesizeMainAction(f, x, then).as("Synthesize".styled(f), x)(group)
         }
 
-        if (f.loyal.has(PrisonWardens) && f.captives.any) {
+        if (f.can(PrisonWardens) && f.captives.any) {
             + PressgangMainAction(f, x, then).as("Press Gang".styled(f), x)(group)
         }
 
@@ -1004,8 +1046,12 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def moveAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        if (f.can(SurvivalOverrides)) {
+        if (f.lores.has(SurvivalOverrides)) {
             + MartyrMainAction(f, x, then).as("Martyr".styled(f), x)(group).!!!
+        }
+
+        if (f.lores.has(ForceBeams)) {
+            + GuideMainAction(f, x, then).as("Guide".styled(f), x)(group).!!!
         }
     }
 
@@ -1014,12 +1060,16 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def battleAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        if (f.loyal.has(CourtEnforcers)) {
+        if (f.can(CourtEnforcers)) {
             val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
 
             val l = market.%(c => Influence(c).%(_.faction != f).use(l => l.any && l.num < limit))
 
             + AbductMainAction(f, l, x, then).as("Abduct".styled(f), x)(group).!(l.none)
+        }
+
+        if (f.lores.has(GalacticRifles)) {
+            + FireRiflesMainAction(f, x, then).as("Fire Rifles".styled(f), x)(group).!!!
         }
     }
 
@@ -1035,7 +1085,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def influenceAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        if (f.loyal.has(PrisonWardens) && f.captives.any) {
+        if (f.can(PrisonWardens) && f.captives.any) {
             + ExecuteMainAction(f, x, then).as("Execute".styled(f), x)(group)
         }
     }
@@ -1045,7 +1095,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
     }
 
     def taxAlt(f : Faction, x : Cost, then : ForcedAction)(implicit builder : ActionCollector, group : Elem) {
-        if (f.loyal.has(ElderBroker) && systems.exists(r => f.rules(r) && f.rivals.exists(e => e.at(r).cities.any))) {
+        if (f.can(ElderBroker) && systems.exists(r => f.rules(r) && f.rivals.exists(e => e.at(r).cities.any))) {
             + TradeMainAction(f, x, then).as("Trade".styled(f), x)(group)
         }
     }
@@ -1057,7 +1107,7 @@ class Game(val setup : $[Faction], val options : $[Meta.O]) extends BaseGame wit
 
         highlightFaction = c match {
             case Ask(f, _) => $(f)
-            case MultiAsk(a) => a./(_.faction)
+            case MultiAsk(a, _) => a./(_.faction)
             case _ => Nil
         }
 

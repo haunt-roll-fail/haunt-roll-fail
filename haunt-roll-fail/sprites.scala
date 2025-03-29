@@ -334,8 +334,12 @@ object Margins {
     def apply(x : Double, y : Double) : Margins = Margins(x, y, x, y)
 }
 
+trait Touch
+case object Inside extends Touch
+case object Outside extends Touch
+
 class Scene(layers : $[Layer], width : Double, height : Double, margins : Margins) {
-    def render(g : dom.CanvasRenderingContext2D, ww : Int, hh : Int, zoom : Double, dx : Double, dy : Double) {
+    def render(g : dom.CanvasRenderingContext2D, ww : Int, hh : Int, zoom : Double, dx : Double, dy : Double, touch : Touch) {
         object canvas {
             val width = ww
             val height = hh
@@ -356,7 +360,7 @@ class Scene(layers : $[Layer], width : Double, height : Double, margins : Margin
         g.translate(-canvas.width / 2, -canvas.height / 2)
 
 
-        if (w * canvas.height < canvas.width * h) {
+        if (w * canvas.height < canvas.width * h == (touch == Inside)) {
             g.translate((canvas.width - w * canvas.height / h) / 2, 0)
             g.scale(1.0 * canvas.height / h, 1.0 * canvas.height / h)
         }

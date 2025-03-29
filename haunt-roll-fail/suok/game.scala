@@ -345,11 +345,11 @@ class Game(val setup : List[Faction]) extends BaseGame with ContinueGame with Lo
                         case c if current == s && current.marked.not => c
                         case Ask(f, ll) if f == s => Ask(f, ll :+ RoyalClaimAction(f, then))
                         case a @ Ask(f, ll) if f != s => MultiAsk(a :: Ask(f, RoyalClaimAction(s, then) :: HiddenOkAction))
-                        case MultiAsk(aa) if aa.%(_.faction == s).any => MultiAsk(aa./(a => a match {
+                        case MultiAsk(aa, p) if aa.%(_.faction == s).any => MultiAsk(aa./(a => a match {
                             case Ask(f, ll) if f == s => Ask(f, ll :+ RoyalClaimAction(s, then))
                             case a => a
-                        }))
-                        case MultiAsk(aa) if aa.%(_.faction == s).none => MultiAsk(aa :+ Ask(s, RoyalClaimAction(s, then) :: HiddenOkAction))
+                        }), p)
+                        case MultiAsk(aa, p) if aa.%(_.faction == s).none => MultiAsk(aa :+ Ask(s, RoyalClaimAction(s, then) :: HiddenOkAction), p)
                         case c => c
                     }).|(c)
 

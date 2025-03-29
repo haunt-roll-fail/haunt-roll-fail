@@ -23,7 +23,7 @@ object Serialize extends Serializer {
     val prefix = "arcs."
 
     override def write(o : Any) : String = o match {
-        case p : Figure => p.faction.short + "/" + write(p.piece) + "/" + p.index
+        case p : Figure => p.faction.name + "/" + write(p.piece) + "/" + p.index
         case c : Color => c.name
         case _ => super.write(o)
     }
@@ -37,8 +37,8 @@ object Serialize extends Serializer {
     override def expr[T : P] : P[Expr] = P( space ~ ( unitrefp | unitref | base ) ~ space )
 
     override def parseExpr(e : Expr) : Any = e match {
-        case EUnitRef(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseSymbol(b).get.asInstanceOf[Piece], c)
-        case EUnitRefP(a, b, c) => Figure(parseFaction(a).|!("can't parse faction " + a), parseExpr(b).asInstanceOf[Piece], c)
+        case EUnitRef(a, b, c) => Figure(parseFaction(a) | parseSymbol(a).get.asInstanceOf[Color], parseSymbol(b).get.asInstanceOf[Piece], c)
+        case EUnitRefP(a, b, c) => Figure(parseFaction(a) | parseSymbol(a).get.asInstanceOf[Color], parseExpr(b).asInstanceOf[Piece], c)
 
         case ESymbol("Intersept") => parseExpr(ESymbol("Intercept"))
 

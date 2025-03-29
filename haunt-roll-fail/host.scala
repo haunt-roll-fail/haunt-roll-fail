@@ -73,17 +73,34 @@ trait BaseHost {
                 if (list.num < n)
                     throw new Error("shuffle take " + n + " of " + list.num)
 
-                var r = list.shuffle
+                var r = list.shuffle.take(n)
 
-                shuffled(r.take(n))
+                shuffled(r)
+
+            case ShuffleTakeUntil(list, n, condition, shuffled, tag) =>
+                if (list.num < n)
+                    throw new Error("shuffle take until " + n + " of " + list.num)
+
+                var r = list.shuffle.take(n)
+
+                while (!condition(r))
+                    r = list.shuffle.take(n)
+
+                shuffled(r)
 
             case Random(list, chosen, tag) =>
                 chosen(list.shuffle(0))
 
+            case Random2(l1, l2, chosen, tag) =>
+                chosen(l1.shuffle(0), l2.shuffle(0))
+
+            case Random3(l1, l2, l3, chosen, tag) =>
+                chosen(l1.shuffle(0), l2.shuffle(0), l3.shuffle(0))
+
             case Ask(_, List(action)) =>
                 action
 
-            case MultiAsk(l) =>
+            case MultiAsk(l, policy) =>
                 askFaction(g, l.shuffle.last)
 
             case Ask(f : F, actions) =>
@@ -113,7 +130,7 @@ trait BaseHost {
         var results : $[$[F]] = $
 
         1.to(times).foreach { i =>
-            results = results ++ batch/*.par*/.map { g =>
+            results = results ++ batch.par.map { g =>
                 var log : $[String] = Nil
                 def writeLog(s : String) {
                     log = s :: log

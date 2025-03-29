@@ -61,7 +61,7 @@ object Host {
             case Ask(_, List(action)) =>
                 action
 
-            case MultiAsk(aa) =>
+            case MultiAsk(aa, _) =>
                 askFaction(g, aa.shuffle(0))
 
             case Ask(f, actions) =>

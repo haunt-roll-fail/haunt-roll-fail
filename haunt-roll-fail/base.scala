@@ -227,6 +227,17 @@ trait Gaming extends Timelines {
         def random : T
     }
 
+    trait Random2Action[T, U] extends OracleAction {
+        def random1 : T
+        def random2 : U
+    }
+
+    trait Random3Action[T, U, V] extends OracleAction {
+        def random1 : T
+        def random2 : U
+        def random3 : V
+    }
+
     trait SelfPerform { self : Action =>
         def perform(soft : Void)(implicit g : G) : Continue
     }
@@ -321,7 +332,7 @@ trait Gaming extends Timelines {
         }
     }
 
-    trait SelfExplode extends Soft { self : Choice with Soft =>
+    trait SelfExplode extends Soft { self : Action with Soft =>
         def explode(withSoft : Boolean) : $[UserAction]
         def verifyX(a : UserAction) = a @@ {
             case a : Choice if a.isSoft => explode(true).has(a)
@@ -445,7 +456,14 @@ trait Gaming extends Timelines {
         val exploded = scala.collection.mutable.Map[G, $[Action]]()
     }
 
-    case class MultiAsk(asks : $[Ask]) extends Continue
+    case class MultiAsk(asks : $[Ask], policy : MultiAskPolicy = MultiAskPolicy.HumanPriority) extends Continue
+
+    trait MultiAskPolicy
+
+    object MultiAskPolicy {
+        case object HumanPriority extends MultiAskPolicy
+        case object BotPriority extends MultiAskPolicy
+    }
 
     case class Force(action : Action) extends Continue
 
@@ -455,9 +473,12 @@ trait Gaming extends Timelines {
     case class Shuffle[T](list : $[T], shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
     case class ShuffleUntil[T](list : $[T], condition : $[T] => Boolean, shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
     case class ShuffleTake[T](list : $[T], n : Int, shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
+    case class ShuffleTakeUntil[T](list : $[T], n : Int, condition : $[T] => Boolean, shuffle : $[T] => ShuffledAction[T], tag : Any = None) extends Continue
     case class Shuffle2[T, U](l1 : $[T], l2 : $[U], shuffle : ($[T], $[U]) => Shuffled2Action[T, U], tag : Any = None) extends Continue
     case class Shuffle3[T, U, V](l1 : $[T], l2 : $[U], l3 : $[V], shuffle : ($[T], $[U], $[V]) => Shuffled3Action[T, U, V], tag : Any = None) extends Continue
     case class Random[T](values : $[T], random : T => RandomAction[T], tag : Any = None) extends Continue
+    case class Random2[T, U](values1 : $[T], values2 : $[U], random : (T, U) => Random2Action[T, U], tag : Any = None) extends Continue
+    case class Random3[T, U, V](values1 : $[T], values2 : $[U], values3 : $[V], random : (T, U, V) => Random3Action[T, U, V], tag : Any = None) extends Continue
 
     case class Log(message : Elem, kind : LogKind, continue : Continue) extends Continue {
         override def unwrap = continue.unwrap
@@ -832,7 +853,7 @@ trait Gaming extends Timelines {
                     case Log(_, _, _) => throw new Error("log on explode from" + desc)
                     case Ask(_, Nil) => throw new Error("empty ask fro" + desc)
                     case Ask(_, l) => l
-                    case MultiAsk(aa) => aa./~(_.actions)
+                    case MultiAsk(aa, _) => aa./~(_.actions)
                     case x => throw new Error("unknown continue " + x + " in explode from" + desc)
                 }
 
@@ -846,6 +867,7 @@ trait Gaming extends Timelines {
                     case a : SelfExplode => $(a)
                     case a : HalfExplode => $(a)
                     case a : SelfValidate => $(a)
+                    case a : WrappedAction if a.then.is[SelfValidate] => $(a)
                     case a : LimitedExtra[_] => a.values./(a.update)
                     case a : Extra[_] => throw new Error("explode unlimited extra")
                     case a : Info => $
@@ -857,6 +879,7 @@ trait Gaming extends Timelines {
                     case a : SelfExplode => a.explode(withSoft)
                     case a : HalfExplode => withSoft.$(a) ++ process(a.expand(target), a +: filtered)
                     case a : SelfValidate => $(a)
+                    case a : WrappedAction if a.then.is[SelfValidate] => $(a)
                     case a : Choice if a.isSoft => withSoft.$(a) ++ process(performRepeat(a), a +: filtered)
                     case a : UserAction => $(a)
                 }
@@ -903,7 +926,7 @@ trait Gaming extends Timelines {
             case Then(x) => validate(Ask(null.asInstanceOf[F], $(x.wrap)), action, expandAll)
             case DelayedContinue(_, c) => validate(c, action, expandAll)
             case Log(_, _, c) => validate(c, action, expandAll)
-            case MultiAsk(l) => l.exists(ask => validate(ask, action, expandAll))
+            case MultiAsk(l, _) => l.exists(ask => validate(ask, action, expandAll))
             case Ask(_, l) if l.contains(action) => true
             case Ask(_, l) if {
                 val aa = action.unwrap
@@ -936,6 +959,10 @@ trait Gaming extends Timelines {
                 case a : ShuffledAction[_] => action == x(a.shuffled) && a.shuffled.num == n && a.shuffled.toSet.subsetOf(l.toSet)
                 case _ => false
             }
+            case ShuffleTakeUntil(l, n, p, x, _) => action @@ {
+                case a : ShuffledAction[_] => action == x(a.shuffled) && a.shuffled.num == n && a.shuffled.toSet.subsetOf(l.toSet) && p(a.shuffled)
+                case _ => false
+            }
             case Shuffle2(l1, l2, x, _) => action @@ {
                 case a : Shuffled2Action[_, _] => action == x(a.shuffled1, a.shuffled2) && a.shuffled1.toSet == l1.toSet && a.shuffled2.toSet == l2.toSet
                 case _ => false
@@ -958,6 +985,14 @@ trait Gaming extends Timelines {
             }
             case Random(l, x, _) => action @@ {
                 case a : RandomAction[_] => action == x(a.random) && l.contains(a.random)
+                case _ => false
+            }
+            case Random2(l1, l2, x, _) => action @@ {
+                case a : Random2Action[_, _] => action == x(a.random1, a.random2) && l1.contains(a.random1) && l2.contains(a.random2)
+                case _ => false
+            }
+            case Random3(l1, l2, l3, x, _) => action @@ {
+                case a : Random3Action[_, _, _] => action == x(a.random1, a.random2, a.random3) && l1.contains(a.random1) && l2.contains(a.random2) && l3.contains(a.random3)
                 case _ => false
             }
             case _ => false

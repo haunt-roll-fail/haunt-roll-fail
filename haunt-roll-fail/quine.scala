@@ -117,7 +117,8 @@ object Quine {
 
             loader.wait(urls ++ resources.images.sources.values.$) {
                 journal.read(0) { actions =>
-                    val assets = resources.images.sources.keys.$./~(k => $(tab, "<image style=\"display: none\" id=\"asset-", k, "\" src=\"", loader.get(resources.images.sources(k)), "\" />"))
+                    val self = $(tab, """<!-- "/> --><img style="display: none" id="html-quine" data-src="""", java.util.Base64.getEncoder().encodeToString(HRF.stringLoader.get(HRF.html).getBytes), """" />""")
+                    val assets = resources.images.sources.keys.$./~(k => $(tab, """<!-- "/> --><img style="display: none" id="asset-""", k, """" src="""", loader.get(resources.images.sources(k)), """" />"""))
 
                     val story = actions./(meta.writeActionExternal)
                     val lobby = $("meta " + meta.name, "version " + meta.gaming.version, "title " + title) ++
@@ -133,7 +134,7 @@ object Quine {
                         "settings".toUpperCase -> $(tab, "<title id=\"settings\" data-embedded-assets=\"true\" data-server=\"" + server + "\" data-replay=\"", replay.??("true"), "\" data-meta=\"", meta.name, "\" >", title, " | ", meta.label, "</title>", tab),
                         "script".toUpperCase -> $(tab, "<script id=\"script\" type=\"text/javascript\" >\n", script, tab, "</scr", "ipt>", tab),
                         "replay".toUpperCase -> replay.??($(tab, "<div id=\"lobby\" style=\"display: none\" >") ++ lobby./~($(tab, "    ", _)) ++ $(tab, "</div>", tab, "<div id=\"replay\" style=\"display: none\" >") ++ story./~($(tab, "    ", _)) ++ $(tab, "</div>", tab)),
-                        "assets".toUpperCase -> (assets ++ $(tab)),
+                        "assets".toUpperCase -> (self ++ assets ++ $(tab)),
                         "cache invalidation".toUpperCase -> $(tab)
                     ))(uhtml.join("\n")).join("")
 

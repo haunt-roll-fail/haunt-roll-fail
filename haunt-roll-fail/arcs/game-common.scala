@@ -45,6 +45,7 @@ case class FollowAction(self : Faction) extends ForcedAction with Soft
 case class SurpassAction(self : Faction, d : DeckCard) extends ForcedAction
 case class CopyAction(self : Faction, d : DeckCard) extends ForcedAction
 case class PivotAction(self : Faction, d : DeckCard) extends ForcedAction
+case class MirrorAction(self : Faction, d : DeckCard) extends ForcedAction
 case class CheckSeizeAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class SeizeAction(self : Faction, d : DeckCard, then : ForcedAction) extends ForcedAction
 case class DeclareAmbitionAction(self : Faction, ambition : Ambition, zero : Boolean, then : ForcedAction) extends ForcedAction
@@ -80,9 +81,9 @@ case class PostTaxAction(self : Faction, s : System, c : |[Figure], loyal : Bool
 case class MayMoveAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then may " ~ "Move".hh ~ ")" }
 
 case class MoveMainAction(self : Faction, cost : Cost, effect : |[Effect], skip : Boolean, cancel : Boolean, then : ForcedAction) extends ForcedAction with Soft
-case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
-case class MoveToAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction with Soft
-case class MoveListAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, then : ForcedAction) extends ForcedAction
+case class MoveFromAction(self : Faction, r : System, l : $[Figure], cascade : Boolean, x : Cost, effect : |[Effect], alt : UserAction, then : ForcedAction) extends ForcedAction with Soft
+case class MoveToAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, effect : |[Effect], then : ForcedAction) extends ForcedAction with Soft
+case class MoveListAction(self : Faction, r : System, d : System, l : $[Figure], cascade : Boolean, x : Cost, effect : |[Effect], then : ForcedAction) extends ForcedAction
 
 case class MayBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then may " ~ "Battle".hh ~ ")" }
 case class MustBattleAction(self : Faction, effect : |[Effect], then : ForcedAction) extends ForcedAction with ThenDesc { def desc = "(then must " ~ "Battle".hh ~ ")" }
@@ -201,7 +202,8 @@ case class EndPreludeAction(self : Faction, suit : Suit, done : Int, total : Int
 case class MainTurnAction(self : Faction, suit : Suit, done : Int, total : Int) extends ForcedAction
 case class EndTurnAction(self : Faction) extends ForcedAction
 case object EndRoundAction extends ForcedAction
-case object TransferRoundAction extends ForcedAction
+case class TransferInitiativeAction(f : Faction) extends ForcedAction
+case object ContinueRoundsAction extends ForcedAction
 case object EndChapterAction extends ForcedAction
 case object ScoreChapterAction extends ForcedAction
 case object CleanUpChapterAction extends ForcedAction
@@ -274,7 +276,7 @@ object CommonExpansion extends Expansion {
                 Milestone(StartSetupAction)
 
         case RandomizePlanetResourcesAction =>
-            ShuffleTake[Resource](Resources.all./~(game.setup.num.times), board.systems.%!(_.gate).num, PlanetResourcesAction(_, RandomizeAction))
+            ShuffleTakeUntil[Resource](Resources.all./~(max(game.setup.num, board.systems.%!(_.gate).num /↑ 5).times), board.systems.%!(_.gate).num, l => (l ++ l.take(2)).sliding(3).forall(_.distinct.num == 3), PlanetResourcesAction(_, RandomizeAction))
 
         case PlanetResourcesAction(l, then) =>
             board.systems.%!(_.gate).lazyZip(l).foreach { case (s, r) =>
@@ -305,7 +307,7 @@ object CommonExpansion extends Expansion {
             ShuffleCourtDiscardAction(ReplenishMarketAction(FactionsSetupAction))
 
         case ShuffleCourtDiscardAction(then) =>
-            discourt --> discourt.of[GuildCard] --> court
+            game.discourt --> game.discourt.of[GuildCard] --> game.court
 
             if (chapter > 0)
                 log("Guild cards from court discard were added to the court deck")
@@ -313,18 +315,18 @@ object CommonExpansion extends Expansion {
             ShuffleCourtDeckAction(then)
 
         case ShuffleCourtDeckAction(then) =>
-            Shuffle[CourtCard](court, ShuffledCourtDeckAction(_, then))
+            Shuffle[CourtCard](game.court, ShuffledCourtDeckAction(_, then))
 
         case ShuffledCourtDeckAction(l, then) =>
-            court --> l --> court
+            game.court --> l --> game.court
 
             log("The court deck was shuffled")
 
             then
 
         case ReplenishMarketAction(then) =>
-            while (market.num < 4 && court.any) {
-                court.take(1) --> market
+            while (game.court.any && market.num < 4 + campaign.??(1)) {
+                game.court.take(1) --> market
 
                 if (chapter > 0)
                     log("A card was added to the market")
@@ -471,7 +473,7 @@ object CommonExpansion extends Expansion {
                 .some(f.rivals.%(e => x./(e.resources.has).|(e.resources.but(Nothingness).any))) { e =>
                     e.resKeys.%<(r => x.but(r).none)./ { case (x, k) =>
                         StealResourceAction(f, e, x, k, then).as(ResourceRef(x, |(k)), "from", e)
-                            .!(e.loyal.has(SwornGuardians))
+                            .!(e.loyal.exists(_.as[GuildCard].?(_.effect == SwornGuardians)))
                     }
                 }
                 .needOk
@@ -490,7 +492,7 @@ object CommonExpansion extends Expansion {
             Ask(f).group("Steal".hl, "a", "Guild Card".hh)
                 .some(f.rivals)(e => e.loyal.of[GuildCard]./ { c =>
                     StealGuildCardAction(f, e, c, then).as(c, "from", e)
-                        .!(e.loyal.has(SwornGuardians) && c != SwornGuardians)
+                        .!(e.loyal.but(c).exists(_.as[GuildCard].?(_.effect == SwornGuardians)))
                 })
                 .add(alt)
 
@@ -668,14 +670,14 @@ object CommonExpansion extends Expansion {
 
 //[[ PINKER
         // ON SECURE
-        case GainCourtCardAction(f, c @ CallToAction, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, CallToAction), e, then) =>
             deck.take(1) --> f.hand
 
             f.log("drew", 1.cards)
 
             DiscardCourtCardAction(f, c, then)
 
-        case GainCourtCardAction(f, c @ PopulistDemands, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, PopulistDemands), e, then) =>
             val next = DiscardCourtCardAction(f, c, then)
 
             if (game.ambitionable.any)
@@ -689,7 +691,7 @@ object CommonExpansion extends Expansion {
             else
                 Ask(f).group("Declare Ambition".hl, "with", c).add(next.as("No Ambition Markers")).needOk
 
-        case GainCourtCardAction(f, c @ MassUprising, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, MassUprising), e, then) =>
             val next = DiscardCourtCardAction(f, c, then)
 
             val nn = systems./(_.cluster).distinct
@@ -703,22 +705,24 @@ object CommonExpansion extends Expansion {
             else
                 NoAsk(f)(next)
 
-        case GainCourtCardAction(f, c @ GuildStruggle, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, GuildStruggle), e, then) =>
             val next = ShuffleCourtDiscardAction(DiscardCourtCardAction(f, c, then))
 
             StealGuildCardMainAction(f, $(next.as("Skip")), next)
 
-        case GainCourtCardAction(f, c @ SongOfFreedom, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, SongOfFreedom), e, then) =>
             val next = BuryCourtCardAction(f, c, ShuffleCourtDeckAction(then))
 
             val l = systems.%(f.rules)
 
-            Ask(f).group(SongOfFreedom, "frees a", "City".hl)
+            Ask(f).group(c, "frees a", "City".hl)
                 .some(l)(r => factions./~(_.at(r).cities)./(u => FreeCityAction(f, r, u, next).as(u, "in", r)))
                 .skip(next)
 
         case FreeCityAction(f, r, u, then) =>
             u --> u.faction.reserve
+
+            u.faction.damaged :-= u
 
             f.log("freed", u, "in", r)
 
@@ -744,7 +748,7 @@ object CommonExpansion extends Expansion {
 
             then
 
-        case GainCourtCardAction(f, c @ OutrageSpreads, e, then) =>
+        case GainCourtCardAction(f, c @ VoxCard(_, OutrageSpreads), e, then) =>
             val next = DiscardCourtCardAction(f, c, then)
 
             Ask(f).group(c)
@@ -756,7 +760,7 @@ object CommonExpansion extends Expansion {
 
             l.foldLeft(then)((q, e) => OutrageAction(e, r, q))
 
-        case GainCourtCardAction(f, c @ SwornGuardians, Some(e), then) =>
+        case GainCourtCardAction(f, c @ GuildCard(_, SwornGuardians), Some(e), then) =>
             BuryCourtCardAction(f, c, then)
 //]]
 
@@ -765,7 +769,7 @@ object CommonExpansion extends Expansion {
             then
 
         case DiscardCourtCardAction(f, c, then) =>
-            f.loyal --> c --> discourt
+            f.loyal --> c --> game.discourt
 
             f.log("discarded", c)
 
@@ -774,7 +778,7 @@ object CommonExpansion extends Expansion {
         case BuryCourtCardAction(f, c, then) =>
             f.log("buried", c)
 
-            f.loyal --> c --> court
+            f.loyal --> c --> game.court
 
             then
 
@@ -817,7 +821,7 @@ object CommonExpansion extends Expansion {
 
             Ask(f).group("Tax".hl, x)
                 .each(loyal) { case (c, s) => TaxAction(f, x, effect, s, |(c), true,  then).as(c, "in", s, res(s)).!(taxed.has(c), "taxed") }
-                .each(rival) { case (c, s) => TaxAction(f, x, effect, s, |(c), false, then).as(c, "in", s, res(s)).!(taxed.has(c), "taxed") }
+                .each(rival) { case (c, s) => TaxAction(f, x, effect, s, |(c), false, then).as(c, "in", s, res(s)).!(taxed.has(c), "taxed").!(f.regent && c.faction.regent && Empire.at(s).any, "truce") }
                 .each(slots) { s =>           TaxAction(f, x, effect, s, None, true,  then).as(s,          res(s)).!(f.taxed.slots.count(s) >= game.freeSlots(s), "taxed") }
                 .cancel
 
@@ -883,41 +887,53 @@ object CommonExpansion extends Expansion {
 
         case MoveMainAction(f, x, effect, skip, cancel, then) =>
             var pp = systems.%(f.at(_).hasA(Starport))
-            val ss = systems./(r => r -> f.at(r).ships).%>(_.any).toMap
+            val ss = systems./(s => s -> f.at(s).ships).%>(_.any).toMap
+
+            def empire(s : System) = (campaign && f.regent).??(Empire.at(s).ships)
+
+            if (f.lores.has(CatapultOverdriveLL))
+                pp ++= systems.%(f.rules).%(s => f.rivals.exists(_.at(s).starports.any))
 
             if (f.can(Ancient))
                 pp = systems.%(_.gate)
 
             Ask(f).group("Move", x, effect./("with" -> _), "from")
-                .each(ss.keys.% (pp.has).$)(r => MoveFromAction(f, r, ss(r), true,  x, CancelAction, then).as(r))
-                .each(ss.keys.%!(pp.has).$)(r => MoveFromAction(f, r, ss(r), false, x, CancelAction, then).as(r))
+                .each(ss.keys.% (pp.has).$)(s => MoveFromAction(f, s, ss(s) ++ empire(s), true,  x, effect, CancelAction, then).as(s))
+                .each(ss.keys.%!(pp.has).$)(s => MoveFromAction(f, s, ss(s) ++ empire(s), false, x, effect, CancelAction, then).as(s))
                 .skip(skip.?(then))
                 .cancelIf(cancel)
                 .needOk
 
-        case MoveFromAction(f, r, l, cascade, x, alt, then) =>
-            Ask(f).group("Move from", r, "to")
+        case MoveFromAction(f, r, l, cascade, x, effect, alt, then) =>
+            Ask(f).group("Move", effect./("with" -> _), "from", r, "to")
                 .each(board.connected(r))(d => {
-                    val cat = cascade && d.gate && f.rivals.exists(_.rules(d)).not
-                    MoveToAction(f, r, d, l, cat, x, then).as(d, cat.?("and further"))
+                    val cat = cascade && (d.gate || f.lores.has(CatapultOverdriveLL)) && f.rivals.exists(_.rules(d)).not
+                    MoveToAction(f, r, d, l, cat, x, effect, then).as(d, cat.?("and further"))
                 })
                 .add(alt)
 
-        case MoveToAction(f, r, d, l, cascade, x, then) =>
-            val n = f.can(Disorganized).?(min(2, l.num)).|(l.num)
-            val (damaged, fresh) = l.partition(f.damaged.has)
-            val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
+        case MoveToAction(self, r, d, l, cascade, x, effect, then) =>
+            val combinations = l.groupBy(_.faction).$./{ (f, l) =>
+                val n = self.can(Disorganized).?(min(2, l.num)).|(l.num)
+                val (damaged, fresh) = l.partition(f.damaged.has)
+                val combinations = 0.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
+                combinations
+            }.reduceLeft((aa, bb) => aa./~(a => bb./(b => a ++ b))).%!(_.none)
 
-            implicit def convert(u : Figure) = game.showFigure(u, damaged.has(u).??(1))
+            // val n = f.can(Disorganized).?(min(2, l.num)).|(l.num)
+            // val (damaged, fresh) = l.partition(f.damaged.has)
+            // val combinations = 1.to(n)./~(k => max(0, k - fresh.num).to(min(k, damaged.num))./(i => fresh.take(k - i) ++ damaged.take(i)))
 
-            Ask(f).group("Move from", r, "to", d)
-                .each(combinations)(l => MoveListAction(f, r, d, l, cascade, x, then).as(l./(u => convert(u))))
+            implicit def convert(u : Figure) = game.showFigure(u, u.faction.damaged.has(u).??(1))
+
+            Ask(self).group("Move", effect./("with" -> _), "from", r, "to", d/*, l.num, n, combinations.toString*/)
+                .each(combinations)(l => MoveListAction(self, r, d, l, cascade, x, effect, then).as(l./(u => convert(u))))
                 .cancel
 
-        case MoveListAction(f, r, d, l, cascade, x, then) =>
+        case MoveListAction(f, r, d, l, cascade, x, effect, then) =>
             f.pay(x)
 
-            f.log("moved", l.comma, "from", r, "to", d, x)
+            f.log("moved", l.comma, "from", r, "to", d, x, effect./("with" -> _))
 
             if (d.gate)
                 f.rivals.%(_.can(GatePorts))./ { e =>
@@ -936,10 +952,10 @@ object CommonExpansion extends Expansion {
             l --> d
 
             if (cascade)
-                Force(MoveFromAction(f, d, l, true, NoCost, then.as("Done"), then))
+                Force(MoveFromAction(f, d, l, true, NoCost, effect, then.as("Done"), then))
             else
             if (f.can(SprinterDrives) && l.fresh.any)
-                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l.fresh, false, NoCost, ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
+                Force(UseEffectAction(f, SprinterDrives, MoveFromAction(f, d, l.fresh, false, NoCost, |(SprinterDrives), ClearEffectAction(f, SprinterDrives, then).as("Done"), ClearEffectAction(f, SprinterDrives, then))))
             else
                 Force(then)
 
@@ -961,8 +977,12 @@ object CommonExpansion extends Expansion {
 
         case BattleSystemAction(f, x, effect, s, then) =>
             Ask(f).group(f, "battles in", s, effect./("with" -> _))
-                .each(f.rivals.%(_.present(s)))(e => BattleFactionAction(f, x, effect, s, e, then).as(e))
+                .each(f.rivals.%(_.present(s)))(e =>
+                    BattleFactionAction(f, x, effect, s, e, then).as(e)
+                        .!(f.regent && e.regent && Empire.at(s).any, "truce")
+                )
                 .cancel
+                .needOk
 
         case BattleFactionAction(f, x, effect, s, e, then) =>
             f.pay(x)
@@ -978,17 +998,26 @@ object CommonExpansion extends Expansion {
                 then
             }
             else
-            if (f.can(SignalBreaker) && used.has(SignalBreaker).not && f.at(s).ships.damaged.none)
+            if (f.lores.has(SignalBreaker) && used.has(SignalBreaker).not && f.at(s).ships.damaged.none)
                 BattleStartAction(f, s, e, used :+ SignalBreaker, then)
             else
-            if (e.can(RailgunArrays) && used.has(RailgunArrays).not && e.at(s).ships.fresh.any)
+            if (e.lores.has(PredictiveSensors) && used.has(PredictiveSensors).not) {
+                Ask(e).group(PredictiveSensors, "move to", s)
+                    .some(board.connected(s)) { t =>
+                        e.at(t).ships.fresh./(u => PredictiveSensorsAction(f, t, u, s, BattleStartAction(f, s, e, used, then)).as(u, "from", t))
+                    }
+                    .done(BattleStartAction(f, s, e, used :+ PredictiveSensors, then))
+            }
+            else
+            if (e.lores.has(RailgunArrays) && used.has(RailgunArrays).not && e.at(s).ships.fresh.any)
                 AssignHitsAction(f, s, e, f, f.at(s).ships, 1, 0, 0, |(RailgunArrays), used, BattleStartAction(f, s, e, used :+ RailgunArrays, then))
             else {
-                val ships = f.at(s).count(Ship) + (s.gate).??(f.loyal.has(Gatekeepers).??(2)) + f.can(Committed).??(2)
-                val canRaid = (e.at(s).hasBuilding || systems.exists(e.at(_).hasBuilding).not) && (e.lores.has(HiddenHarbors) && e.at(s).starports.fresh.any).not
+                val ships = f.at(s).count(Ship) + s.gate.??(f.can(Gatekeepers).??(2)) + f.can(Committed).??(2)
+                val canRaid = (e.at(s).buildings.any || systems.exists(e.at(_).buildings.any).not) && (e.lores.has(HiddenHarbors) && e.at(s).starports.fresh.any).not
+                val maxRaid = max(canRaid.??(6), f.lores.has(RaiderExosuits).??(e.at(s).buildings.none.??(1)))
 
                 val combinations : $[(Int, Int, Int)] = 1.to(min(18, ships)).reverse./~(n =>
-                    max(0, n - 12).to(min(canRaid.??(6), n))./~(raid =>
+                    max(0, n - 12).to(min(maxRaid, n))./~(raid =>
                         max(0, n - raid - 6).to(min(6, n - raid))./~(assault =>
                             |(n - raid - assault).%(_ <= 6).%(_ >= f.can(Wary).??(assault))./(skirmish =>
                                 (skirmish, assault, raid)
@@ -1019,7 +1048,7 @@ object CommonExpansion extends Expansion {
 
             var ask = Ask(f)
 
-            if (l1.any && f.loyal.has(Skirmishers) && used.has(Skirmishers).not) {
+            if (l1.any && f.can(Skirmishers) && used.has(Skirmishers).not) {
                 val limit = f.resources.count(Weapon) + f.loyal.of[GuildCard].count(_.suit == Weapon)
                 val miss = $()
                 val hit = $(HitShip)
@@ -1122,12 +1151,12 @@ object CommonExpansion extends Expansion {
                     .each(e.resKeys) { case (x, k) =>
                         BattleRaidResourceAction(f, e, x, k, spend(k)).as(ResourceRef(x, |(k)))
                             .!(k > raid)
-                            .!(e.loyal.has(SwornGuardians))
+                            .!(e.loyal.exists(_.as[GuildCard].?(_.effect == SwornGuardians)))
                     }
                     .each(e.loyal.of[GuildCard]) { c =>
                         BattleRaidCourtCardAction(f, e, c, spend(c.keys)).as(c, |(c.keys)./(n => Image("keys-" + n, styles.token)))
                             .!(c.keys > raid)
-                            .!(e.loyal.has(SwornGuardians) && c != SwornGuardians)
+                            .!(e.loyal.but(c).exists(_.as[GuildCard].?(_.effect == SwornGuardians)))
                     }
                     .needOk
                     .done(then)
@@ -1242,15 +1271,18 @@ object CommonExpansion extends Expansion {
             else
                 then
 
+        case PromptRepairsAction(f, s, 0, effect, then) =>
+            NoAsk(f)(then)
+
         case PromptRepairsAction(f, s, n, effect, then) =>
-            val ss = f.at(s)
+            val ll = f.at(s).ships
 
             implicit def convert(u : Figure, selected : Boolean) = game.showFigure(u, u.faction.damaged.has(u).??(1) - selected.??(1))
 
-            if (n > 0 && ss.ships.damaged.any)
-                XXSelectObjectsAction(f, f.at(s))
+            if (ll.damaged.any)
+                XXSelectObjectsAction(f, ll)
                     .withGroup(f, "repairs", n.hl, "ships in", s, $(convert(Figure(f, Ship, 0), false)).merge.div(xstyles.displayNone))
-                    .withRule(_.num(min(ss.ships.damaged.num, n)).each(_.damaged))
+                    .withRule(_.num(min(ll.damaged.num, n)).each(_.damaged))
                     .withThen(l => RepairsAction(f, s, l, effect, then))(_ => "Repair")
                     .withExtras(then.as("Skip"))
                     .ask
@@ -1283,13 +1315,14 @@ object CommonExpansion extends Expansion {
                 case x => x
             }
 
-            f.loyal.of[GuildCard].notOf[LoyalGuild].foreach { c =>
-                if (c.suit == r) {
-                    f.loyal --> c --> discourt
+            if (f.lores.has(GuildLoyaltyLL).not)
+                f.loyal.of[GuildCard].%!(_.effect.is[LoyalGuild]).foreach { c =>
+                    if (c.suit == r) {
+                        f.loyal --> c --> game.discourt
 
-                    f.log("discarded", c)
+                        f.log("discarded", c)
+                    }
                 }
-            }
 
             then
 
@@ -1447,19 +1480,22 @@ object CommonExpansion extends Expansion {
                 .some(ll)(r => f.at(r).damaged./(u => RepairAction(f, x, r, u, then).as(u.piece.of(f), Image(u.faction.short + "-" + u.piece.name + "-damaged", u.piece.is[Building].?(styles.qbuilding).|(styles.qship)), "in", r)))
                 .cancel
 
-        case RepairAction(f, x, r, u, then) =>
+        case RepairAction(f, x, s, u, then) =>
             f.pay(x)
 
             f.damaged :-= u
 
-            f.log("repaired", u, "in", r, x)
+            f.log("repaired", u, "in", s, x)
 
             then
 
         // INFLUENCE
         case InfluenceMainAction(f, x, effect, skip, cancel, then) =>
             Ask(f).group("Influence".hl, effect./("with" -> _), x)
-                .each(market)(c => InfluenceAction(f, x, c, effect, then).as(c))
+                .each(market) { c =>
+                    InfluenceAction(f, x, c, effect, then).as(c)
+                        .!(c == ImperialCouncilDecided)
+                }
                 .skip(skip.?(then))
                 .cancelIf(cancel)
                 .needOk
@@ -1498,7 +1534,7 @@ object CommonExpansion extends Expansion {
 
             market --> c --> f.loyal
 
-            f.used :+= c
+            f.secured ++= c.as[GuildCard]
 
             f.log("secured", c, x, effect./("with" -> _))
 
@@ -1595,15 +1631,17 @@ object CommonExpansion extends Expansion {
         case DiscardGuildCardsMainAction(f, then) =>
             implicit val ask = builder
 
-            $(MiningInterest, ShippingInterest, Gatekeepers, PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines, ElderBroker).foreach { c =>
-                if (f.can(c))
-                    + DiscardGuildCardNoEffectAction(f, c, then).as("Discard", c)("Discard Guild Cards with No Effect".spn(xstyles.error))
+            def discardable(e : GuildEffect) : GuildCard = f.loyal./~(c => c.as[GuildCard].%(c => c.effect == e && f.secured.has(c).not)).first
+
+            $(MiningInterest, ShippingInterest, Gatekeepers, PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines, ElderBroker).foreach { e =>
+                if (f.canPrelude(e))
+                    + DiscardGuildCardNoEffectAction(f, discardable(e), then).as("Discard", e)("Discard Guild Cards with No Effect".spn(xstyles.error))
             }
 
             ask(f).cancel
 
         case DiscardGuildCardNoEffectAction(f, c, then) =>
-            f.loyal --> c --> discourt
+            f.loyal --> c --> game.discourt
 
             f.log("discarded", c, "with no effect")
 
@@ -1703,8 +1741,8 @@ object CommonExpansion extends Expansion {
                 .add(s.in(2, 7).?(DeclareAmbitionAction(f, Tycoon,  true, next))./(a => a.as(a.ambition)))
                 .add(s.in(3, 7).?(DeclareAmbitionAction(f, Tyrant,  true, next))./(a => a.as(a.ambition)))
                 .add(s.in(4, 7).?(DeclareAmbitionAction(f, Warlord, true, next))./(a => a.as(a.ambition)))
-                .add(s.in(5, 7).?(DeclareAmbitionAction(f, Keeper,  f.loyal.has(SecretOrder).not, next))./(a => a.as(a.ambition)))
-                .add(s.in(6, 7).?(DeclareAmbitionAction(f, Empath,  f.loyal.has(SecretOrder).not, next))./(a => a.as(a.ambition)))
+                .add(s.in(5, 7).?(DeclareAmbitionAction(f, Keeper,  true, next))./(a => a.as(a.ambition)))
+                .add(s.in(6, 7).?(DeclareAmbitionAction(f, Empath,  true, next))./(a => a.as(a.ambition)))
                 .add(next.as("Skip"))
 
         case DeclareAmbitionAction(f, a, zero, then) if f.can(Generous) =>
@@ -1724,10 +1762,10 @@ object CommonExpansion extends Expansion {
 
             game.ambitionable = game.ambitionable.dropRight(1)
 
-            if (zero)
-                game.zeroed = true
+            if (zero && (f.can(SecretOrder) && a.in(Keeper, Empath)).not)
+                f.zeroed = true
 
-
+            f.declared = true
 
             AmbitionDeclaredAction(f, a, $, then)
 
@@ -1743,7 +1781,7 @@ object CommonExpansion extends Expansion {
                 }
 
             if (f.can(Connected) && used.has(Connected).not && game.declared.get(a).|($).num == 1)
-                ask = ask.add(ConnectedAction(f, AmbitionDeclaredAction(f, a, used :+ Connected, then)).as("Draw and secure a court card".hh)(Connected).!(game.court.none, "deck empty"))
+                ask = ask.add(ConnectedAction(f, AmbitionDeclaredAction(f, a, used :+ Connected, then)).as("Draw and secure a court card".hh)(Connected).!(game.court.none, "deck empty")).needOk
 
             if (f.can(Farseers) && used.has(Farseers).not)
                 ask = ask.each(f.rivals)(e => FarseersMainAction(f, e, AmbitionDeclaredAction(f, a, used :+ Farseers, then)).as(e)(Farseers))
@@ -1752,14 +1790,16 @@ object CommonExpansion extends Expansion {
 
         case FollowAction(f) =>
             YYSelectObjectsAction(f, f.hand)
-                .withGroup(f.elem ~ " follows " ~ lead.get.zeroed(zeroed))
+                .withGroup(f.elem ~ " follows " ~ lead.get.zeroed(factions.first.zeroed))
                 .withThens {
                     case d : ActionCard => $(
-                        SurpassAction(f, d).as("Surpass".styled(lead.get.suit).styled(xstyles.bold), "with", d).!(d.suit != lead.get.suit, "wrong suit").!(d.strength < lead.get.strength && zeroed.not, "low strength"),
+                        SurpassAction(f, d).as("Surpass".styled(lead.get.suit).styled(xstyles.bold), "with", d).!(d.suit != lead.get.suit, "wrong suit").!(d.strength < lead.get.strength && factions.first.zeroed.not, "low strength"),
                         CopyAction(f, d).as("Copy".styled(lead.get.suit).styled(xstyles.bold), "with", d),
                         PivotAction(f, d).as("Pivot".styled(d.suit).styled(xstyles.bold), "with", d).!(d.suit == lead.get.suit, "same suit"),
                     )
-                    case d : EventCard => $(/*....................................*/)
+                    case d : EventCard => $(
+                        MirrorAction(f, d).as("Mirror".styled(lead.get.suit).styled(xstyles.bold), "with", d),
+                    )
                 }
                 .withExtras(NoHand)
 
@@ -1804,8 +1844,19 @@ object CommonExpansion extends Expansion {
 
             CheckSeizeAction(f, PreludeActionAction(f, d.suit, 1))
 
+        case MirrorAction(f, d) =>
+            f.log("mirrored with", d)
+
+            f.hand --> d --> f.played
+
+            game.seen :+= (round, f, |(d))
+
+            f.mirror = true
+
+            CheckSeizeAction(f, PreludeActionAction(f, lead.get.suit, factions.but(f).%(_.mirror).none.??(lead.get.pips)))
+
         case CheckSeizeAction(f, then) =>
-            if (zeroed.not && game.ambitionable.any && f.played.any && f.can(GalacticBards)) {
+            if (factions.exists(_.declared).not && game.ambitionable.any && f.played.any && f.can(GalacticBards)) {
                 val next = UseEffectAction(f, GalacticBards, CheckSeizeAction(f, then))
                 val s = f.played.single.get.strength
 
@@ -1818,12 +1869,12 @@ object CommonExpansion extends Expansion {
                     .add(next.as("Skip"))
             }
             else
-            if (seized.none && (f.hand.notOf[EventCard].any || f.loyal.has(LatticeSpies))) {
+            if (seized.none && (f.hand.notOf[EventCard].any || f.can(LatticeSpies))) {
                 YYSelectObjectsAction(f, f.hand)
                     .withGroup(f.elem ~ " can seize initiative")
                     .withRule(_.suit != Event)
                     .withThen(SeizeAction(f, _, then))("Seize with " ~ _.elem)("Seize")
-                    .withExtras(NoHand, f.loyal.has(LatticeSpies).?(LatticeSeizeAction(f, LatticeSpies, then).as("Seize with", LatticeSpies)).|(NoHand), then.as("Skip".hh))
+                    .withExtras(NoHand, f.can(LatticeSpies).?(LatticeSeizeAction(f, f.loyal.of[GuildCard].%(_.effect == LatticeSpies).first, then).as("Seize with", LatticeSpies)).|(NoHand), then.as("Skip".hh))
             }
             else
                 NoAsk(f)(then)
@@ -1844,7 +1895,7 @@ object CommonExpansion extends Expansion {
         case LatticeSeizeAction(f, c, then) =>
             f.log("seized initiative with", c)
 
-            f.loyal --> c --> discourt
+            f.loyal --> c --> game.discourt
 
             game.seized = |(f)
 
@@ -1860,7 +1911,7 @@ object CommonExpansion extends Expansion {
                 val cost = PayResource(r, |(k))
 
                 // TAX
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                             game.tax(f, cost, then)
@@ -1872,12 +1923,12 @@ object CommonExpansion extends Expansion {
                 }
 
                 // BUILD
-                if ((r == Material && f.outraged.has(Material).not) || f.loyal.has(LoyalEngineers)) {
+                if ((r == Material && f.outraged.has(Material).not) || f.can(LoyalEngineers)) {
                     game.build(f, cost, then)
                     game.buildAlt(f, cost, then)
                 }
                 else
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                         case Aggression =>
@@ -1889,12 +1940,12 @@ object CommonExpansion extends Expansion {
                 }
 
                 // REPAIR
-                if ((r == Material && f.outraged.has(Material).not) || f.loyal.has(LoyalEngineers)) {
+                if ((r == Material && f.outraged.has(Material).not) || f.can(LoyalEngineers)) {
                     game.repair(f, cost, then)
                     game.repairAlt(f, cost, then)
                 }
                 else
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                             game.repair(f, cost, then)
@@ -1908,12 +1959,12 @@ object CommonExpansion extends Expansion {
                 }
 
                 // MOVE
-                if ((r == Fuel && f.outraged.has(Fuel).not) || f.loyal.has(LoyalPilots)) {
+                if ((r == Fuel && f.outraged.has(Fuel).not) || f.can(LoyalPilots)) {
                     game.move(f, cost, then)
                     game.moveAlt(f, cost, then)
                 }
                 else
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                         case Aggression =>
@@ -1927,10 +1978,10 @@ object CommonExpansion extends Expansion {
                 }
 
                 // BATTLE
-                if ((r == Weapon && s != Aggression && f.outraged.has(Weapon).not) || f.loyal.has(LoyalMarines))
+                if ((r == Weapon && s != Aggression && f.outraged.has(Weapon).not) || f.can(LoyalMarines))
                     + AddBattleOptionAction(f, cost, then).as("Add", "Battle".styled(f), "option", cost)(group).!(f.anyBattle)
 
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                         case Aggression =>
@@ -1942,7 +1993,7 @@ object CommonExpansion extends Expansion {
                 }
 
                 // INFLUENCE
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                             game.influence(f, cost, then)
@@ -1956,12 +2007,12 @@ object CommonExpansion extends Expansion {
                 }
 
                 // SECURE
-                if ((r == Relic && f.outraged.has(Relic).not) || f.loyal.has(LoyalKeepers)) {
+                if ((r == Relic && f.outraged.has(Relic).not) || f.can(LoyalKeepers)) {
                     game.secure(f, cost, then)
                     game.secureAlt(f, cost, then)
                 }
                 else
-                if ((r == Psionic && f.outraged.has(Psionic).not) || f.loyal.has(LoyalEmpaths)) {
+                if ((r == Psionic && f.outraged.has(Psionic).not) || f.can(LoyalEmpaths)) {
                     factions.first.played./(_.suit)./{
                         case Administration =>
                         case Aggression =>
@@ -1974,55 +2025,57 @@ object CommonExpansion extends Expansion {
 
             }
 
-            if (f.can(MiningInterest))
-                + FillSlotsMainAction(f, Material, DiscardCourtCardAction(f, MiningInterest, then)).as("Fill up", ResourceRef(Material, None))(MiningInterest)
+            def discardable(e : GuildEffect) : GuildCard = f.loyal./~(c => c.as[GuildCard].%(c => c.effect == e && f.secured.has(c).not)).first
+            def discardEffect(e : GuildEffect) : ForcedAction = DiscardCourtCardAction(f, discardable(e), then)
 
-            if (f.can(ShippingInterest))
-                + FillSlotsMainAction(f, Fuel, DiscardCourtCardAction(f, ShippingInterest, then)).as("Fill up", ResourceRef(Fuel, None))(ShippingInterest)
+            if (f.canPrelude(MiningInterest))
+                + FillSlotsMainAction(f, Material, discardEffect(MiningInterest)).as("Fill up", ResourceRef(Material, None))(MiningInterest)
 
-            if (f.can(AdminUnion))
+            if (f.canPrelude(ShippingInterest))
+                + FillSlotsMainAction(f, Fuel, discardEffect(ShippingInterest)).as("Fill up", ResourceRef(Fuel, None))(ShippingInterest)
+
+            if (f.canPrelude(AdminUnion))
                 if (factions.exists(_.played.exists(_.suit == Administration)))
-                    + ReserveCardMainAction(f, AdminUnion, factions./~(_.played.%(_.suit == Administration)), then).as("Take", Administration, "card")(AdminUnion)
+                    + ReserveCardMainAction(f, discardable(AdminUnion), factions./~(_.played.%(_.suit == Administration)), then).as("Take", Administration, "card")(AdminUnion)
 
-            if (f.can(ConstructionUnion))
+            if (f.canPrelude(ConstructionUnion))
                 if (factions.exists(_.played.exists(_.suit == Construction)))
-                    + ReserveCardMainAction(f, ConstructionUnion, factions./~(_.played.%(_.suit == Construction)), then).as("Take", Construction, "card")(ConstructionUnion)
+                    + ReserveCardMainAction(f, discardable(ConstructionUnion), factions./~(_.played.%(_.suit == Construction)), then).as("Take", Construction, "card")(ConstructionUnion)
 
-            if (f.can(SpacingUnion))
+            if (f.canPrelude(SpacingUnion))
                 if (factions.exists(_.played.exists(_.suit == Mobilization)))
-                    + ReserveCardMainAction(f, SpacingUnion, factions./~(_.played.%(_.suit == Mobilization)), then).as("Take", Mobilization, "card")(SpacingUnion)
+                    + ReserveCardMainAction(f, discardable(SpacingUnion), factions./~(_.played.%(_.suit == Mobilization)), then).as("Take", Mobilization, "card")(SpacingUnion)
 
-            if (f.can(ArmsUnion))
+            if (f.canPrelude(ArmsUnion))
                 if (factions.exists(_.played.exists(_.suit == Aggression)))
-                    + ReserveCardMainAction(f, ArmsUnion, factions./~(_.played.%(_.suit == Aggression)), then).as("Take", Aggression, "card")(ArmsUnion)
+                    + ReserveCardMainAction(f, discardable(ArmsUnion), factions./~(_.played.%(_.suit == Aggression)), then).as("Take", Aggression, "card")(ArmsUnion)
 
-            if (f.can(MaterialCartel))
-                + StealResourceMainAction(f, |(Material), $(CancelAction), DiscardCourtCardAction(f, MaterialCartel, then)).as("Steal", ResourceRef(Material, None))(MaterialCartel)
+            if (f.canPrelude(MaterialCartel))
+                + StealResourceMainAction(f, |(Material), $(CancelAction), discardEffect(MaterialCartel)).as("Steal", ResourceRef(Material, None))(MaterialCartel)
 
-            if (f.can(FuelCartel))
-                + StealResourceMainAction(f, |(Fuel), $(CancelAction), DiscardCourtCardAction(f, FuelCartel, then)).as("Steal", ResourceRef(Fuel, None))(FuelCartel)
+            if (f.canPrelude(FuelCartel))
+                + StealResourceMainAction(f, |(Fuel), $(CancelAction), discardEffect(FuelCartel)).as("Steal", ResourceRef(Fuel, None))(FuelCartel)
 
-            if (f.can(Gatekeepers))
-                + ShipAtEachGateMainAction(f, DiscardCourtCardAction(f, Gatekeepers, then)).as("Place", Ship.of(f), "at each gate")(Gatekeepers).!(f.pool(Ship).not, "no ships")
+            if (f.canPrelude(Gatekeepers))
+                + ShipAtEachGateMainAction(f, discardEffect(Gatekeepers)).as("Place", Ship.of(f), "at each gate")(Gatekeepers).!(f.pool(Ship).not, "no ships")
 
             systems.%(r => f.rules(r)).some.foreach { l =>
                 $(PrisonWardens, Skirmishers, CourtEnforcers, LoyalMarines).foreach { c =>
-                    if (f.can(c))
-                        + ShipsInSystemMainAction(f, l, DiscardCourtCardAction(f, c, then)).as("Place", 3.hlb, Ship.sof(f), "in a controlled system")(c).!(f.pool(Ship).not, "no ships")
+                    if (f.canPrelude(c))
+                        + ShipsInSystemMainAction(f, l, discardEffect(c)).as("Place", 3.hlb, Ship.sof(f), "in a controlled system")(c).!(f.pool(Ship).not, "no ships")
                 }
             }
 
-            if (f.can(Farseers)) {
-                + FarseersRedrawMainAction(f, DiscardCourtCardAction(f, Farseers, then)).as("Redraw cards")(Farseers)
+            if (f.canPrelude(Farseers))
+                + FarseersRedrawMainAction(f, discardEffect(Farseers)).as("Redraw cards")(Farseers)
+
+            if (f.canPrelude(SilverTongues)) {
+                + StealResourceMainAction(f, None, $(CancelAction), discardEffect(SilverTongues)).as("Steal any resource")(SilverTongues)
+
+                + StealGuildCardMainAction(f, $(CancelAction), discardEffect(SilverTongues)).as("Steal a Guild Card")(SilverTongues)
             }
 
-            if (f.can(SilverTongues)) {
-                + StealResourceMainAction(f, None, $(CancelAction), DiscardCourtCardAction(f, SilverTongues, then)).as("Steal any resource")(SilverTongues)
-
-                + StealGuildCardMainAction(f, $(CancelAction), DiscardCourtCardAction(f, SilverTongues, then)).as("Steal a Guild Card")(SilverTongues)
-            }
-
-            if (f.can(RelicFence) && game.available(Relic)) {
+            if (f.canPrelude(RelicFence) && game.available(Relic)) {
                 f.resources.lazyZip(f.keys).foreach { (r, k) =>
                     if (r != Nothingness) {
                         val cost = PayResource(r, |(k))
@@ -2032,8 +2085,8 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            if (f.can(ElderBroker) && (game.available(Material) || game.available(Fuel) || game.available(Weapon))) {
-                + GainResourcesAction(f, $(Material, Fuel, Weapon), DiscardCourtCardAction(f, ElderBroker, then)).as("Gain", ResourceRef(Material, None), ResourceRef(Fuel, None), ResourceRef(Weapon, None))(ElderBroker)
+            if (f.canPrelude(ElderBroker) && (game.available(Material) || game.available(Fuel) || game.available(Weapon))) {
+                + GainResourcesAction(f, $(Material, Fuel, Weapon), discardEffect(ElderBroker)).as("Gain", ResourceRef(Material, None), ResourceRef(Fuel, None), ResourceRef(Weapon, None))(ElderBroker)
             }
 
             $(
@@ -2172,6 +2225,7 @@ object CommonExpansion extends Expansion {
             f.taxed.cities = $
             f.taxed.slots = $
             f.worked = $
+            f.secured = $
             f.used = $
             f.anyBattle = false
 
@@ -2192,12 +2246,16 @@ object CommonExpansion extends Expansion {
                 if (game.seized.any)
                     game.seized.get
                 else
-                    factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => zeroed.not || f.lead.not)./(-_.strength).|(0)).first
+                    factions.sortBy(f => f.played.single.%(_.suit == lead.get.suit).%(_ => f.zeroed.not)./(-_.strength).|(0)).first
 
             if (factions.starting.has(next))
                 next.log("held the initiative")
             else
                 next.log("took the initiative")
+
+            if (game.decided.none)
+                if (factions.exists(_.played.exists(_.is[EventCard])))
+                    game.decided = |(Blights)
 
             factions.foreach { f =>
                 f.taking.foreach { d =>
@@ -2209,31 +2267,44 @@ object CommonExpansion extends Expansion {
                 f.taking = $
 
                 f.discardAfterRound.foreach { c =>
-                    c --> discourt
+                    c --> game.discourt
 
                     f.log("discarded", c)
                 }
             }
 
             game.lead = None
-            game.zeroed = false
             game.seized = None
 
             factions.foreach { f =>
                 f.played --> options.has(SplitDiscardPile).?(discard).|(deck)
                 f.blind --> deck
                 f.lead = false
+                f.zeroed = false
+                f.declared = false
                 f.surpass = false
                 f.copy = false
                 f.pivot = false
+                f.mirror = false
             }
 
-            game.current = |(next)
+            Milestone(TransferInitiativeAction(next))
 
-            Milestone(TransferRoundAction)
+        case TransferInitiativeAction(f) =>
+            game.factions = factions.dropWhile(_ != f) ++ factions.takeWhile(_ != f)
 
-        case TransferRoundAction =>
-            game.factions = factions.dropWhile(current.has(_).not) ++ factions.takeWhile(current.has(_).not)
+            game.current = |(f)
+
+            if (game.decided.has(Blights))
+                ResolveEventAction(f)
+            else
+            if (game.decided.any)
+                ResolveCouncilAction(f)
+            else
+                ContinueRoundsAction
+
+        case ContinueRoundsAction =>
+            game.decided = None
 
             if (factions.exists(_.hand.any))
                 Milestone(StartRoundAction)
@@ -2272,8 +2343,8 @@ object CommonExpansion extends Expansion {
                             f.resources.count(Fuel) +
                             f.loyal.of[GuildCard].count(_.suit == Material) +
                             f.loyal.of[GuildCard].count(_.suit == Fuel) +
-                            f.loyal.has(MaterialCartel).??(game.availableNum(Material)) +
-                            f.loyal.has(FuelCartel).??(game.availableNum(Fuel))
+                            f.can(MaterialCartel).??(game.availableNum(Material)) +
+                            f.can(FuelCartel).??(game.availableNum(Fuel))
                         case Tyrant => f.captives.num
                         case Warlord => f.trophies.num
                         case Keeper => f.resources.count(Relic) + f.loyal.of[GuildCard].count(_.suit == Relic)
@@ -2305,6 +2376,12 @@ object CommonExpansion extends Expansion {
 
                             f.power += p
                             f.log("scored first place", ambition, "for", p.power)
+
+                            if (f.objective.has(InspireConfidence) && f.regent.not)
+                                f.advance(3)
+
+                            if (f.objective.has(ConsolidateImperialPower) && f.primus)
+                                f.advance(p)
                         }
 
                         if (low > 0)
@@ -2373,7 +2450,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            factions.%(_.loyal.has(MaterialCartel)).some.foreach { mc =>
+            factions.%(_.can(MaterialCartel)).some.foreach { mc =>
                 factions.diff(mc).foreach { f =>
                     while (f.resources.has(Material)) {
                         f.remove(ResourceRef(Material, None))
@@ -2383,7 +2460,7 @@ object CommonExpansion extends Expansion {
                 }
             }
 
-            factions.%(_.loyal.has(FuelCartel)).some.foreach { fc =>
+            factions.%(_.can(FuelCartel)).some.foreach { fc =>
                 factions.diff(fc).foreach { f =>
                     while (f.resources.has(Fuel)) {
                         f.remove(ResourceRef(Fuel, None))

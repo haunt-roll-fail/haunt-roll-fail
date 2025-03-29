@@ -80,7 +80,7 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
                 }
 
                 if (resources.images.incomplete.none)
-                    scene.render(bitmap.context, bitmap.width, bitmap.height, zoom, dX, dY)
+                    scene.render(bitmap.context, bitmap.width, bitmap.height, zoom, dX, dY, Inside)
             }
 
             if (resources.images.incomplete.any)
@@ -256,4 +256,3 @@ trait GreyMapUI extends GreyUI { self : Gaming =>
         }
     }
 }
-

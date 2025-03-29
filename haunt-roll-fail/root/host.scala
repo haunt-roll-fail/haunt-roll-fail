@@ -42,7 +42,7 @@ object Host {
             case Shuffle(list, shuffled, _) =>
                 shuffled(list.shuffle)
 
-            case ShuffleUntil(list, shuffled, condition, _) =>
+            case ShuffleUntil(list, condition, shuffled, _) =>
                 var r = list.shuffle
 
                 while (!condition(r))
@@ -53,7 +53,7 @@ object Host {
             case Random(list, chosen, _) =>
                 chosen(list.shuffle(0))
 
-            case MultiAsk(l) =>
+            case MultiAsk(l, _) =>
                 askFaction(g, l.shuffle.head)
 
             case Ask(_, List(action)) =>

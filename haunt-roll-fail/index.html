@@ -435,7 +435,7 @@
             let backgroundDX = Math.random() + Math.random() - 1;
             let backgroundDY = Math.random() + Math.random() - 1;
 
-            (function drawFrame () {
+            (function drawFrame() {
                 window.requestAnimationFrame(function () {
                     if (!document.getElementById("backgroun-clouds"))
                         return
@@ -450,7 +450,6 @@
                     document.getElementById("backgroun-clouds").style.backgroundPositionX = backgroundX + "%";
                     document.getElementById("backgroun-clouds").style.backgroundPositionY = backgroundY + "%";
                     drawFrame();
-
                 });
             }());
 

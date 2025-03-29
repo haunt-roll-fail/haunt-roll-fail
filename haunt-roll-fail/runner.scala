@@ -586,7 +586,7 @@ object Runner {
                         case WaitRemote => UIWait(c, $(faction))
                     }
 
-                case UIContinue(c @ MultiAsk(as), Nil) =>
+                case UIContinue(c @ MultiAsk(as, policy), Nil) =>
                     dirty = true
                     val asks = as./~({
                         case a @ Ask(f, actions) => Some(Ask(f, actions))
@@ -660,9 +660,27 @@ object Runner {
 
                     UIRecord("#shuffle take", c, shuffled(r))
 
+                case UIContinue(c @ ShuffleTakeUntil(list, n, condition, shuffled, _), Nil) =>
+                    dirty = true
+
+                    var r = list.shuffle.take(n)
+
+                    while (!condition(r))
+                        r = list.shuffle.take(n)
+
+                    UIRecord("#shuffle take until", c, shuffled(r))
+
                 case UIContinue(c @ Random(list, chosen, _), Nil) =>
                     dirty = true
                     UIRecord("#random", c, chosen(list.shuffle(0)))
+
+                case UIContinue(c @ Random2(l1, l2, chosen, _), Nil) =>
+                    dirty = true
+                    UIRecord("#random", c, chosen(l1.shuffle(0), l2.shuffle(0)))
+
+                case UIContinue(c @ Random3(l1, l2, l3, chosen, _), Nil) =>
+                    dirty = true
+                    UIRecord("#random", c, chosen(l1.shuffle(0), l2.shuffle(0), l3.shuffle(0)))
 
                 case UIContinue(c @ Milestone(message, then), Nil) =>
                     dirty = true
@@ -884,7 +902,7 @@ object Runner {
                     var c = game.performContinue(|(game.continue), a, true).nest
 
                     game.continue.unwrap match {
-                        case MultiAsk(l) =>
+                        case MultiAsk(l, policy) =>
                             c match {
                                 case c : Ask =>
                                     l.%(_.faction == c.faction).single.foreach { a =>
@@ -974,7 +992,7 @@ object Runner {
 
             state match {
                 case UIContinue(Log(_, _, _), Nil) if logged > 1 =>
-                    setTimeout(hrf.HRF.paramInt("speed").|(240*3-140)) { continueHandleState() }
+                    setTimeout(hrf.HRF.paramInt("speed").|(HRF.speed)) { continueHandleState() }
                     false
 
                 case UIContinue(_, Nil) =>

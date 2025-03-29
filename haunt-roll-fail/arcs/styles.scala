@@ -22,6 +22,10 @@ package object elem {
         Blue --> color("#0b4e98")
         White --> color("#cccccc")
 
+        Free --> color("#908977")
+        Empire --> color("#bc09eb")
+        Blights --> color("#2dc93b")
+
         Material --> color("#9d4d8a")
         Fuel --> color("#886b29")
         Weapon --> color("#c05728")

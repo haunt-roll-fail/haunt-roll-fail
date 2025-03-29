@@ -47,100 +47,175 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
     def starport : String = callbacks.settings.has(StarStarports).?("starport-alt").|("starport")
 
-    val court : CanvasPane = newCanvasPane("court", 2) { bitmap =>
+    val court : CanvasPane = new CanvasPaneX(newPane("court", Content), 2/2, Inside)(resources) {
+        moveSpeedUp = 3.8
+
         val n = 4 + campaign.??(1)
         val d = 12
 
-        val cards = new OrderedLayer
+        val margins = Margins(d, d, d, d)
 
-        if (game.market.any) {
-            0.until(n).foreach { i =>
-                if (i < game.market.num) {
-                    val c = game.market.$(i)
-
-                    cards.add(Sprite($(ImageRect(new RawImage(img(c.id)), Rectangle(0, 0, 744, 1039), 1.0)), $))(744*i + d*i, 1039*0)
-                }
-            }
-
-            0.until(4).foreach { i =>
-                if (i < game.market.num) {
-                    val c = game.market.$(i)
-
-                    val l = game.figures.get(Influence(c))
-
-                    val scale = 2.6
-                    val shadow = 3
-                    l.foreach { u =>
-                        val w = (l.num < 7).?(112).|(744 / l.num)
-                    }
-
-                    l.foreach { u =>
-                        val w = (l.num < 7).?(112).|(744 / l.num)
-                        cards.add(Sprite($(ImageRect(new RawImage(img("agent-background")), Rectangle(0, 0, (42+shadow+shadow)*scale, (68+shadow+shadow)*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u) - shadow*scale, 400 - shadow*scale)
-                        cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*scale, 68*scale), 1.0)), $))(744*i + d*i + 744/2 - w / 2 * l.num + w * l.indexOf(u), 400)
-                    }
-                }
-            }
+        object card {
+            val width = 744
+            val height = 1039
         }
 
-        val scene = new Scene($(cards), 744*n + d*3, 1039*1, Margins(d, d, d, d))
+        val width = card.width * n + d * n - d
+        val bleed = campaign.??(d * 5)
+        val height = card.height + campaign.??(d) + bleed
 
-        if (resources.images.incomplete.none)
-            scene.render(bitmap.context, bitmap.width, bitmap.height, 1, 0, 0)
+        def makeScene() = {
+            val cards = new OrderedLayer
 
-        if (resources.images.incomplete.any)
-            setTimeout(min(25, resources.images.incomplete.num) * 20)(court.draw())
+            if (game.market.any) {
+                0.until(n).foreach { i =>
+                    if (i < game.market.num) {
+                        val c = game.market.$(i)
 
-        resources.images.incomplete = $
+                        cards.add(Sprite($(ImageRect(new RawImage(img(c.id)), Rectangle(0, 0, card.width, card.height), 1.0)), $(Rectangle(0, 0, card.width, card.height)), $(c)))(card.width * i + d * i, card.height * 0 + bleed)
+
+                        if (c == ImperialCouncilDecided)
+                            game.decided.foreach { f =>
+                                val scale = 12.6/2
+                                cards.add(Sprite($(ImageRect(new RawImage(img(f.short + "-agent")), Rectangle(-21*scale, -21*scale, 42*scale, 68*scale), 0.6)), $))(card.width * i + d * i + card.width / 2, 400)
+                            }
+                    }
+                    else {
+                        cards.add(Sprite($(ImageRect(new RawImage(img("bc31")), Rectangle(0, 0, card.width, card.height), 0.5)), $(Rectangle(0, 0, card.width, card.height)), $()))(card.width * i + d * i, card.height * 0 + bleed)
+                        cards.add(Sprite($(ImageRect(new RawImage(img("bc30")), Rectangle(0, 0, card.width, card.height), 0.5)), $(Rectangle(0, 0, card.width, card.height)), $()))(card.width * i + d * i, card.height * -1 - d + bleed)
+                    }
+                }
+
+                0.until(5).foreach { i =>
+                    if (i < game.market.num) {
+                        val c = game.market.$(i)
+
+                        val l = game.figures.get(Influence(c))
+
+                        val scale = 2.6
+                        val shadow = 3
+
+                        l.foreach { u =>
+                            val w = (l.num < 7).?(112).|(card.width / l.num)
+                            cards.add(Sprite($(ImageRect(new RawImage(img("agent-background")), Rectangle(0, 0, (42+shadow+shadow)*scale, (68+shadow+shadow)*scale), 1.0)), $))(card.width * i + d * i + card.width / 2 - w / 2 * l.num + w * l.indexOf(u) - shadow*scale, 400 - shadow*scale + bleed)
+                            cards.add(Sprite($(ImageRect(new RawImage(img(u.faction.short + "-agent")), Rectangle(0, 0, 42*scale, 68*scale), 1.0)), $))(card.width * i + d * i + card.width / 2 - w / 2 * l.num + w * l.indexOf(u), 400 + bleed)
+                        }
+                    }
+                }
+            }
+
+            val scene = new Scene($(cards), width, height, margins)
+
+            |(scene)
+        }
+
+        def processHighlight(target : $[Any], xy : XY) {
+        }
+
+        def processTargetClick(target : $[Any], xy : XY) {
+            onClick(target)
+        }
+
+        def adjustCenterZoom() {
+            dY -= zoomBase * 2.5
+
+            zoomBase = 0
+
+            dX = 0
+            dY = dY.clamp(0, card.height + d - bleed)
+        }
+
+        dY = card.height / 2 * 0
     }
 
-    court.container.attach.parent.onclick = (e) => {
-        val offsetX = e.offsetX * dom.window.devicePixelRatio
-        val offsetY = e.offsetY * dom.window.devicePixelRatio
+    val ambitions : |[CanvasPane] = campaign.?(new CanvasPaneX(newPane("ambitions", Content), 2/2, Inside)(resources) {
+        def makeScene() = {
+            val mp = img("ambitions")
 
-        val width = court.container.attach.parent.clientWidth * dom.window.devicePixelRatio * upscale
-        val height = court.container.attach.parent.clientHeight * dom.window.devicePixelRatio * upscale
+            val ququ = 96
 
-        onClick(game.market((offsetX.~ * (4 + campaign.??(1)) /↓ width.~).clamp(0, 3)))
-    }
+            val background = new OrderedLayer
+            background.add(Sprite($(ImageRect(new RawImage(mp), Rectangle(0, -ququ, mp.width, mp.height), 1.0)), $))(0, 0)
 
-    val ambitions : |[CanvasPane] = campaign.?(newCanvasPane("ambitions", 2) { bitmap =>
-        val mp = img("ambitions")
+            val tokens = new OrderedLayer
 
-        val background = new OrderedLayer
-        background.add(Sprite($(ImageRect(new RawImage(mp), Rectangle(0, 0, mp.width, mp.height), 1.0)), $))(0, 0)
+            game.ambitionable.lift(0)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(20, 82-ququ))
+            game.ambitionable.lift(1)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154, 82-ququ))
+            game.ambitionable.lift(2)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(288, 82-ququ))
 
-        val tokens = new OrderedLayer
+            game.declared.get(Tycoon)./(l => l.indexed./{ (m, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 270-ququ)
+            })
+            game.declared.get(Tyrant)./(l => l.indexed./{ (m, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 470-ququ)
+            })
+            game.declared.get(Warlord)./(l => l.indexed./{ (m, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 668-ququ)
+            })
+            game.declared.get(Keeper)./(l => l.indexed./{ (m, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 867-ququ)
+            })
+            game.declared.get(Empath)./(l => l.indexed./{ (m, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 1067-ququ)
+            })
 
-        game.ambitionable.lift(0)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(20, 82))
-        game.ambitionable.lift(1)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154, 82))
-        game.ambitionable.lift(2)./(m => tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(288, 82))
+            background.add(Sprite($(ImageRect(new RawImage(img("resources")), Rectangle(0, 0, 431, 76), 1.0)), $))(0, 1267-ququ)
 
-        game.declared.get(Tycoon)./(l => l.indexed./{ (m, i) =>
-            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 270)
-        })
-        game.declared.get(Tyrant)./(l => l.indexed./{ (m, i) =>
-            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 470)
-        })
-        game.declared.get(Warlord)./(l => l.indexed./{ (m, i) =>
-            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 668)
-        })
-        game.declared.get(Keeper)./(l => l.indexed./{ (m, i) =>
-            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 867)
-        })
-        game.declared.get(Empath)./(l => l.indexed./{ (m, i) =>
-            tokens.add(Sprite($(ImageRect(new RawImage(img("ambition-values-" + m.high + "-" + m.low)), Rectangle(0, 0, 123, 139), 1.0)), $))(154 + 134*(2*i - l.num + 1)/2, 1067)
-        })
+            if (game.factions.forall(game.states.contains)) {
+                if (game.factions.exists(_.can(MaterialCartel)).not)
+                1.to(game.availableNum(Material)).foreach { i =>
+                    tokens.add(Sprite($(ImageRect(new RawImage(img(Material.id)), Rectangle(-35, -35, 70, 70), 1.0)), $))(217 - 75*2, 1310-ququ + i * 75)
+                }
 
-        val scene = new Scene($(background, tokens), mp.width, mp.height, Margins(0, 0, 0, 0))
+                if (game.factions.exists(_.can(FuelCartel)).not)
+                1.to(game.availableNum(Fuel)).foreach { i =>
+                    tokens.add(Sprite($(ImageRect(new RawImage(img(Fuel.id    )), Rectangle(-35, -35, 70, 70), 1.0)), $))(217 - 75*1, 1310-ququ + i * 75)
+                }
 
-        if (resources.images.incomplete.none)
-            scene.render(bitmap.context, bitmap.width, bitmap.height, 1, 0, 0)
+                1.to(game.availableNum(Weapon)).foreach { i =>
+                    tokens.add(Sprite($(ImageRect(new RawImage(img(Weapon.id  )), Rectangle(-35, -35, 70, 70), 1.0)), $))(217 + 75*0, 1310-ququ + i * 75)
+                }
 
-        if (resources.images.incomplete.any)
-            setTimeout(min(25, resources.images.incomplete.num) * 20)(ambitions.get.draw())
+                1.to(game.availableNum(Relic)).foreach { i =>
+                    tokens.add(Sprite($(ImageRect(new RawImage(img(Relic.id   )), Rectangle(-35, -35, 70, 70), 1.0)), $))(217 + 75*1, 1310-ququ + i * 75)
+                }
 
-        resources.images.incomplete = $
+                1.to(game.availableNum(Psionic)).foreach { i =>
+                    tokens.add(Sprite($(ImageRect(new RawImage(img(Psionic.id )), Rectangle(-35, -35, 70, 70), 1.0)), $))(217 + 75*2, 1310-ququ + i * 75)
+                }
+            }
+
+            background.add(Sprite($(ImageRect(new RawImage(img("edicts")), Rectangle(0, 0, 431, 76), 1.0)), $))(0, 1760-ququ)
+
+            object card {
+                val width = 431
+                val height = 602
+            }
+
+            game.edicts.indexed./ { (e, i) =>
+                tokens.add(Sprite($(ImageRect(new RawImage(img(e.id)), Rectangle(0, 0, card.width, card.height), 1.0)), $(Rectangle(0, 0, card.width, card.height)), $(e)))(0, 1850-ququ + i*610)
+            }
+
+
+            val scene = new Scene($(background, tokens), 431, 1600, Margins(0, 0, 0, 0))
+
+            |(scene)
+        }
+
+        def processHighlight(target : $[Any], xy : XY) {
+        }
+
+        def processTargetClick(target : $[Any], xy : XY) {
+            onClick(target)
+        }
+
+        def adjustCenterZoom() {
+            dY -= zoomBase * 2.5
+
+            zoomBase = 0
+
+            dX = 0
+        }
     })
 
     object regions {
@@ -297,9 +372,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     case System(2, Arrow) => (2100, 390)
                     case System(2, Crescent) => (2405, 585)
                     case System(2, Hex) => (2300, 880)
-                    case System(3, Arrow) => (2290, 1175)
-                    case System(3, Crescent) => (1955, 1315)
-                    case System(3, Hex) => (1955, 1670)
+                    case System(3, Arrow) => (2300, 1175)
+                    case System(3, Crescent) => (1965, 1315)
+                    case System(3, Hex) => (1965, 1680)
                     case System(4, Arrow) => (1445, 1645)
                     case System(4, Crescent) => (1050, 1690)
                     case System(4, Hex) => (685, 1580)
@@ -318,6 +393,13 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 pieces.addFixed(s, Figure(Free, ResourceMarker(s), 1), 0)(Sprite($(ImageRect(new RawImage(img(r.id)), rect, 1.0)), $(hit)))(x, y)
             }
         }
+
+        val shipScale = callbacks.settings.of[ShipsSizeOption].starting @@ {
+            case Some(StandardShipsSize) | None => 100
+            case Some(SmallShipsSize) => 92
+            case Some(SmallerShipsSize) => 84
+            case Some(SmallestShipsSize) => 76
+        } / 100.0
 
         systems.reverse.foreach { s =>
             var figures = game.at(s)
@@ -341,7 +423,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             import hrf.ui.sprites._
 
             (extra ++ figures ++ 1.to(game.freeSlots(s))./(i => Figure(Free, Slot, systems.indexOf(s) * 10 + i))).foreach { p =>
-                def prefix = p.faction.as[Faction]./(_.short.toLowerCase + "-").|((p.faction == Empire).?("imperial-").|(""))
+                def prefix = p.faction.as[Faction]./(_.short.toLowerCase + "-") || (p.faction == Empire).?("imperial-") || (p.faction == Free).?("free-") | ""
 
                 val target = false
 
@@ -353,7 +435,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     case Slot => $(ImageRect(img("city-empty"), 61, 61, 1.0 + 0.4 * selected.??(1)).copy(alpha = 0.4))
                     case City => $(ImageRect(img(prefix + "city" + status), 61, 61, 1.0 + 0.4 * selected.??(1)))
                     case Starport => $(ImageRect(img(prefix + starport + status), 61, 61, 1.0 + 0.4 * selected.??(1)))
-                    case Ship => $(ImageRect(img(prefix + "ship" + status), 97, 71, 1.0 + 0.4 * selected.??(1)))
+                    case Ship => $(ImageRect(img(prefix + "ship" + status), 97, 71, shipScale + 0.4 * selected.??(1)))
                     case Blight => $(ImageRect(img("blight" + status), 43, 79, 1.0 + 0.4 * selected.??(1)))
                     case Agent => $(ImageRect(img(prefix + "agent" + status), 21, 66, 1.4))
                 }
@@ -406,9 +488,9 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                     case System(2, Arrow) => (2100, 390)
                     case System(2, Crescent) => (2405, 585)
                     case System(2, Hex) => (2300, 880)
-                    case System(3, Arrow) => (2290, 1175)
-                    case System(3, Crescent) => (1955, 1315)
-                    case System(3, Hex) => (1955, 1670)
+                    case System(3, Arrow) => (2300, 1175)
+                    case System(3, Crescent) => (1965, 1315)
+                    case System(3, Hex) => (1965, 1680)
                     case System(4, Arrow) => (1445, 1645)
                     case System(4, Crescent) => (1050, 1690)
                     case System(4, Hex) => (685, 1580)
@@ -453,12 +535,12 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             })
 
             if (game.factions.forall(game.states.contains)) {
-                if (game.factions.exists(_.loyal.has(MaterialCartel)).not)
+                if (game.factions.exists(_.can(MaterialCartel)).not)
                 1.to(game.availableNum(Material)).foreach { i =>
                     ambTokens.add(Sprite($(ImageRect(new RawImage(img(Material.id)), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*2, 1390 + i * 68)
                 }
 
-                if (game.factions.exists(_.loyal.has(FuelCartel)).not)
+                if (game.factions.exists(_.can(FuelCartel)).not)
                 1.to(game.availableNum(Fuel)).foreach { i =>
                     ambTokens.add(Sprite($(ImageRect(new RawImage(img(Fuel.id    )), Rectangle(-32, -32, 64, 64), 1.0)), $))(1933 - 68*1, 1390 + i * 68)
                 }
@@ -531,23 +613,42 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         )./(_.&).join(" ").div
 
         val leader = f.leader.$./(l => l.elem.div(xstyles.smaller75)(styles.cardName).pointer.onClick.param(l)).merge
+        val subtitle0 = game.campaign.?((f.primus.?("\u0158").||(f.regent.?("\u0158")).|("\u00D8")).styled(f.regent.?(Empire).|(Free)).spn(styles.title)(styles.cardName).pointer.onClick.param(None))
+        val fate = f.fates./(l => subtitle0 ~ " " ~ l.elem.pointer.onClick.param(l) ~ (" " ~ "\u23F1".hlb ~ f.progress.hl).pointer.onClick.param(f.objective))./(_.div(xstyles.smaller75)(styles.cardName)).merge
         val lores = f.lores./(l => l.elem.div(xstyles.smaller75)(styles.cardName).pointer.onClick.param(l)).merge
+        val subtitles = (game.campaign && f.primus).?((f.primus.?("First Regent").||(f.regent.?("Regent")).|("Outlaw")).styled(f.regent.?(Empire).|(Free))(styles.title).div(xstyles.smaller75)(styles.cardName).pointer.onClick.param(None))
 
-        val loyal = f.loyal.$.of[GuildCard]./(c => ((Image(c.suit.name, styles.tokenTop) ~ c.elem ~ Image("keys-" + c.keys, styles.tokenTop)).div(xstyles.smaller75) ~ (c @@ {
+        val loyal = f.loyal.$.of[GuildCard]./(c => ((Image(c.suit.name, styles.tokenTop) ~ c.elem ~ (c.keys < 999).?(Image("keys-" + c.keys, styles.tokenTop))).div(xstyles.smaller75) ~ (c.effect @@ {
             case MaterialCartel => game.availableNum(Material).times(Image(Material.name, styles.tokenTop)).merge
             case FuelCartel => game.availableNum(Fuel).times(Image(Fuel.name, styles.tokenTop)).merge
             case _ => Empty
         })).pointer.onClick.param(c)).merge
 
-        val play = f.played.starting./ { d =>
-            (Image((game.zeroed && f == game.factions(0)).?("zeroed").|(d.suit.name + "-number-" + d.strength), styles.plaque) ~ Image((game.lead.get.suit != d.suit).?(d.suit + "-pips-pivot").|(d.suit + "-pips-" + d.pips), styles.plaque) ~ Image(d.suit + "-plaque", styles.plaque)).div(styles.plaqueContainer)
-        }.||(f.blind.starting./ { d =>
-            (Image("hidden", styles.plaque) ~ Image(game.lead.get.suit + "-pips-copy", styles.plaque) ~ Image(game.lead.get.suit + "-plaque", styles.plaque)).div(styles.plaqueContainer)
-        }).|(Empty)
+        val play =
+            f.played.starting./ { d => (
+                f.zeroed.?(Image("zeroed", styles.plaque)) ~
+                (f.lead && f.zeroed.not).?(Image(d.suit.name + "-number-" + d.strength, styles.plaque)) ~
+                f.mirror.?(Image("event-number", styles.plaque)) ~
+                f.surpass.?(Image(d.suit.name + "-number-" + d.strength, styles.plaque)) ~
+                f.pivot.?(Image(d.suit.name + "-number-" + d.strength, styles.plaque)) ~
+
+                f.lead.?(Image(d.suit + "-pips-" + d.pips, styles.plaque)) ~
+                f.surpass.?(Image(d.suit + "-pips-" + d.pips, styles.plaque)) ~
+                f.mirror.?(Image(game.lead.get.suit + "-pips-" + game.lead.get.pips, styles.plaque)) ~
+                f.pivot.?(Image(d.suit + "-pips-pivot", styles.plaque)) ~
+
+                f.mirror.not.?(Image(d.suit + "-plaque", styles.plaque)) ~
+                f.mirror.?(Image(game.lead.get.suit + "-plaque", styles.plaque))
+            ).div(styles.plaqueContainer) }.||(
+            f.blind.starting./ { d =>
+                (Image("hidden", styles.plaque) ~ Image(game.lead.get.suit + "-pips-copy", styles.plaque) ~ Image(game.lead.get.suit + "-plaque", styles.plaque)).div(styles.plaqueContainer)
+            }).|(
+                Empty
+            )
 
         val seized = game.seized.%(_ == f)./(_ => "Seized Initative".hl.div(styles.title)(xstyles.smaller50)).||((game.factions(0) == f && game.seized.none).?("Initative".hl.div(styles.title)(xstyles.smaller50))).|(Empty)
 
-        val content = ((title ~ powerHand ~ leader ~ lores ~ outrage ~ keys ~ res ~ loyal ~ trophies ~ captives).div ~ "~".txt.div(xstyles.hidden) ~ play).div(styles.statusUpper)(xlo.flexVX)(ExternalStyle("hide-scrollbar")).pointer.onClick.param(f) ~
+        val content = ((title ~ powerHand ~ leader ~ fate ~ lores ~ subtitles ~ outrage ~ keys ~ res ~ loyal ~ trophies ~ captives).div ~ "~".txt.div(xstyles.hidden) ~ play).div(styles.statusUpper)(xlo.flexVX)(ExternalStyle("hide-scrollbar")).pointer.onClick.param(f) ~
             play.div(styles.play)
 
         container.replace(content, resources, {
@@ -794,16 +895,16 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
     val kkk = 1.18
 
-    val layouts = $(Layout("base",
+    def layouts = $(Layout("base",
         $(
             BasicPane("status", 5*kkk*arity, 22*kkk, Priorities(top = 3, left = 2, maxXscale = 1.8*11111111, maxYscale = 1.8, grow = 1)),
-            BasicPane("court", (61.5/4)*kkk*(4 + campaign.??(1)), 22*kkk, Priorities(top = 3, right = 3, maxXscale = 1.0, maxYscale = 1.0, grow = 0)),
-            BasicPane("log", 32, 13+3, Priorities(right = 1)),
+            BasicPane("court", 15.375*kkk*(4 + campaign.??(1)), 22*kkk*(1 + campaign.??(1)*0.0620), Priorities(top = 3, right = 3, maxXscale = 1.0, maxYscale = 1.0, grow = 0)),
+            BasicPane("log", 32+6, 13+3, Priorities(right = 1)),
             BasicPane("map-small", 71, 50, Priorities(top = 2, left = 1, grow = -1)),
             BasicPane("action-a", 64, 36, Priorities(bottom = 1, right = 3, grow = 1)),
             BasicPane("action-b", 55, 47, Priorities(bottom = 1, right = 3, grow = 1, maxXscale = 1.2))
         ).++(
-            campaign.?(BasicPane("ambitions", 16*0.8, 44*0.8, Priorities(grow = -4)))
+            campaign.?(BasicPane("ambitions", 16, 60, Priorities(grow = -4)))
         )
        ./(p => p.copy(kX = p.kX * layoutZoom, kY = p.kY * layoutZoom))
     ))./~(l =>
@@ -815,16 +916,21 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             case p : BasicPane if p.name == "map-small" => BasicPane(p.name, p.kX * 1.2, p.kY * 1.2, p.pr)
             case p => p
         }, boost = 1.1) ::
-        l.copy(name = l.name + "-normal")
+        l.copy(name = l.name + "-normal") ::
+        $
     )./~(l =>
-        l.copy(name = l.name + "-horizontal", boost = l.boost * 1.02, panes = l.panes./{
-            case p : BasicPane if p.name == "status" => p.copy(name = "status-horizontal", kX = p.kX * arity)
-            case p => p
-        }) ::
-        l.copy(name = l.name + "-vertical", panes = l.panes./{
-            case p : BasicPane if p.name == "status" => p.copy(name = "status-vertical", kY = p.kY * arity)
-            case p => p
-        })
+        callbacks.settings.has(VerticalFactionPanes).not.$(
+            l.copy(name = l.name + "-horizontal", boost = l.boost * 1.02, panes = l.panes./{
+                case p : BasicPane if p.name == "status" => p.copy(name = "status-horizontal", kX = p.kX * arity)
+                case p => p
+            })
+        ) ++
+        callbacks.settings.has(HorizontalFactionPanes).not.$(
+            l.copy(name = l.name + "-vertical", panes = l.panes./{
+                case p : BasicPane if p.name == "status" => p.copy(name = "status-vertical", kY = p.kY * arity)
+                case p => p
+            })
+        )
     )./~(l =>
         l.copy(name = l.name + "-actionA", panes = l.panes./~{
             case p : BasicPane if p.name == "action-a" => Some(p.copy(name = "action"))
@@ -836,10 +942,10 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             case p : BasicPane if p.name == "action-b" => Some(p.copy(name = "action"))
             case p => Some(p)
         }) ::
-        Nil
+        $
     )
 
-    val layouter = Layouter(layouts,
+    def layouter = Layouter(layouts,
     _./~{
         case f if f.name == "action" => $(f, f.copy(name = "undo"), f.copy(name = "settings"))
         case f if f.name == "status-horizontal" => 1.to(arity)./(n => f.copy(name = "status-" + n, x = f.x + ((n - 1) * f.width  /~/ arity), width  = (n * f.width  /~/ arity) - ((n - 1) * f.width  /~/ arity)))
@@ -851,7 +957,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
     val settingsKey = Meta.settingsKey
 
-    val layoutKey = "v" + 2 + "." + campaign.?("campaign").|("base") + "." + "arity-" + arity
+    def layoutKey = "v" + 4 + "." + campaign.?("campaign").|("base") + "." + callbacks.settings.has(VerticalFactionPanes).??("ver.") + callbacks.settings.has(HorizontalFactionPanes).??("hor.") + "arity-" + arity
 
     def overlayScrollX(e : Elem) = overlayScroll(e)(styles.seeThroughInner).onClick
     def overlayFitX(e : Elem) = overlayFit(e)(styles.seeThroughInner).onClick
@@ -871,7 +977,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             showNotifications(game.factions)
 
         case card : DeckCard =>
-            showOverlay(overlayFitX(Image(card.imgid, styles.artwork)).onClick, onClick)
+            showOverlay(overlayFitX(Image(card.id, styles.artwork)).onClick, onClick)
 
         case card : CourtCard =>
             showOverlay(overlayFitX(Image(card.id, styles.artwork)).onClick, onClick)
@@ -885,6 +991,18 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
         case lore : Lore =>
             showOverlay(overlayFitX(Image(lore.id, styles.artwork)).onClick, onClick)
 
+        case edict : Edict =>
+            showOverlay(overlayFitX(Image(edict.id, styles.artwork)).onClick, onClick)
+
+        case objective : Objective =>
+            showOverlay(overlayFitX(Image(objective.id, styles.artwork)).onClick, onClick)
+
+        case ability : Ability =>
+            showOverlay(overlayFitX(Image(ability.id, styles.artwork)).onClick, onClick)
+
+        case law : Law =>
+            showOverlay(overlayFitX(Image(law.id, styles.artwork)).onClick, onClick)
+
         case $(f : Faction, x) =>
             onClick(x)
 
@@ -895,7 +1013,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         case "discard" =>
             showOverlay(overlayScrollX(Div("Action Cards Discard Pile") ~
-                game.discard./(c => OnClick(c, Div(Image(c.imgid, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
+                game.discard./(c => OnClick(c, Div(Image(c.id, styles.card), styles.cardX, xstyles.xx, styles.inline, styles.nomargin, xlo.pointer))).merge
             ).onClick, onClick)
 
         case "seen" =>
@@ -903,7 +1021,7 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
                 game.seen.groupBy(_._1).$.sortBy(_._1)./{ case (n, l) =>
                     Div("Round " ~ n.hh) ~
                     l./{ case (_, f, d) =>
-                        OnClick(d, Div(Image(d./(_.imgid).|("card-back"), styles.card), xstyles.choice, xstyles.xx, styles.cardI, elem.borders.get(f), styles.inline, xlo.pointer))
+                        OnClick(d, Div(Image(d./(_.id).|("card-back"), styles.card), xstyles.choice, xstyles.xx, styles.cardI, elem.borders.get(f), styles.inline, xlo.pointer))
                     }.merge
                 }.merge
             ).onClick, onClick)
@@ -988,6 +1106,8 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
 
         case Left(x) => onClick(x)
         case Right(x) => onClick(x)
+        case Some(x) => onClick(x)
+        case List(x) => onClick(x)
 
         case x =>
             println("unknown onClick: " + x)
@@ -1032,7 +1152,16 @@ class UI(val uir : ElementAttachmentPoint, arity : Int, val options : $[hrf.meta
             ) ++
             $(ZBasic(Break ~ Break ~ Break, "Notifications".spn, () => { onClick("notifications", self) }).copy(clear = false)).%(_ => self.any || game.isOver).%(_ => false) ++
             $(ZBasic(Break, tip.|(Empty).spn, () => { tip = randomTip() }, ZBasic.infoch).copy(clear = false)).%(_ => callbacks.settings.has(hrf.HideTips).not) ++
-            $(ZBasic(Break, "Settings".spn, () => { tip = randomTip() ; callbacks.editSettings { updateStatus() } }).copy(clear = false))
+            $(ZBasic(Break, "Settings".spn, () => {
+                tip = randomTip()
+                val old = callbacks.settings.of[FactionPanesOption]
+                callbacks.editSettings {
+                    if (old != callbacks.settings.of[FactionPanesOption])
+                        resize()
+                    else
+                        updateStatus()
+                }
+            }).copy(clear = false))
     }
 
     var shown : $[Notification] = $

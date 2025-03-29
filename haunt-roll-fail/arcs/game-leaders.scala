@@ -123,9 +123,9 @@ object Leaders {
         Quartermaster ,
     )
 
-    def preset1 = $(Elder, Mystic, FuelDrinker, Rebel, Demagogue)
-    def preset2 = $(Agitator, Feastbringer, Warrior, Noble, Upstart)
-    def preset3 = $(Overseer, Corsair, Anarchist, Shaper, Quartermaster)
+    def preset1 = $(Elder, Mystic, Feastbringer, Noble, Demagogue)
+    def preset2 = $(FuelDrinker, Overseer, Upstart, Shaper, Anarchist)
+    def preset3 = $(Agitator, Corsair, Quartermaster, Rebel, Warrior)
     def preset4 = $(Archivist)
 }
 
@@ -154,8 +154,8 @@ object LeadersExpansion extends Expansion {
         // SETUP
         case LeadersLoresShuffledAction(l1, l2) =>
             game.leaders = l1.take(factions.num + 1)
-            game.lores = l2.take(factions.num + 1 + options.has(DoubleLore).??(factions.num))
-            game.unusedLores = l2.drop(factions.num + 1)
+            game.lores = l2.take(factions.num + 1 + options.has(DoubleLore).??(factions.num) + options.has(TripleLore).??(factions.num) * 2)
+            game.unusedLores = l2.drop(game.lores.num)
 
             log("Leaders".hh, "and", "Lores".hh, "were shuffled")
 
@@ -191,7 +191,7 @@ object LeadersExpansion extends Expansion {
                     .withSplit($(game.leaders.num))
                     .withRule({
                         case Left(l) => f.leader.none
-                        case Right(l) => f.lores.num < 1 + options.has(DoubleLore).??(1)
+                        case Right(l) => f.lores.num < 1 + options.has(DoubleLore).??(1) + options.has(TripleLore).??(2)
                     })
                     .withThen({
                         case Left(l) => AssignLeaderAction(f, l, next)
@@ -309,7 +309,7 @@ object LeadersExpansion extends Expansion {
 
         // NOBLE
         case ConnectedAction(f, then) =>
-            val c = court.first
+            val c = game.court.first
 
             c --> market
 
