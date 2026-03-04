@@ -39,6 +39,8 @@ case class BreakGateAction(self : Faction, x : Cost, i : Int, s : |[System], ss 
 case class ReRollPassageExitAction(then : ForcedAction) extends ForcedAction
 case class PassageExitRolledAction(random : Symbol, then : ForcedAction) extends RandomAction[Symbol]
 
+case class BreakGateSlipstreamMainAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+
 case class PassageStormsMainAction(self : Faction, then : ForcedAction) extends ForcedAction
 
 
@@ -138,6 +140,24 @@ object GateWraithExpansion extends FateExpansion(GateWraith) {
             log(Passage, "exits shifted to", systems.%(_.symbol == s).intersperse(Comma))
 
             then
+
+        case BreakGateSlipstreamMainAction(f, then) =>
+            val regent = f.regent
+            val officers = regent && f.officers
+
+            val fs = f.flagship.get.system
+
+            if (fs.gate.not && game.broken.contains(fs.cluster).not) {
+                val ss = SlipstreamDrive(f).$ ++ SlipstreamDrive(f).armor.$
+                val l = MovementExpansion.movable(f, fs, officers, false)
+
+                if (l.any)
+                    BreakGateFromAction(f, NoCost, fs, ss, l, then)
+                else
+                    then
+            }
+            else
+                then
 
         case BreakGateMainAction(f, x, then) =>
             val regent = f.regent

@@ -1644,6 +1644,9 @@ object CommonExpansion extends Expansion {
 
                 if (MovementExpansion.movable(f, s, f.regent && f.officers, f.hasLore(BlightFury) || f.hasLore(BlightSociety)).but(f.flagship).any)
                     + SlipstreamDriveOtherMainAction(f, s, f.flagship.get, UseEffectAction(f, Slipstream, then)).as("Other Ships")(Slipstream).!!!
+
+                if (f.abilities.has(BreakingGates))
+                    + BreakGateSlipstreamMainAction(f, UseEffectAction(f, Slipstream, then)).as("Break Gate".styled(f))(Slipstream).!!!
             }
 
             if (f.abilities.has(JudgesChosen)) {
