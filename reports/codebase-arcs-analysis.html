@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HRF Codebase &amp; Arcs Analysis</title>
+  <style>
+    :root {
+      --ink: #191d22;
+      --muted: #63707a;
+      --paper: #f5f1e8;
+      --panel: #fffdf8;
+      --line: #d8d1c5;
+      --navy: #17324d;
+      --blue: #2d6d8f;
+      --teal: #147d74;
+      --gold: #c88922;
+      --red: #b5483b;
+      --green: #3d7955;
+      --shadow: 0 16px 40px rgb(26 39 49 / 9%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgb(45 109 143 / 10%), transparent 26rem),
+        linear-gradient(180deg, #e8e2d7 0, var(--paper) 26rem);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    a { color: var(--blue); text-underline-offset: 3px; }
+    a:hover { color: var(--red); }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 72px 0 44px;
+      color: white;
+      background:
+        linear-gradient(118deg, rgb(23 50 77 / 98%), rgb(30 79 101 / 94%)),
+        repeating-linear-gradient(45deg, transparent 0 10px, rgb(255 255 255 / 3%) 10px 11px);
+      border-bottom: 5px solid var(--gold);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: #f3c46e;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.5rem, 7vw, 5.4rem);
+      font-weight: 600;
+      letter-spacing: -.045em;
+      line-height: .95;
+    }
+
+    .lede {
+      max-width: 760px;
+      margin: 24px 0 0;
+      color: #dbe7ec;
+      font-size: clamp(1rem, 2vw, 1.24rem);
+    }
+
+    .snapshot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 22px;
+      margin-top: 28px;
+      color: #bcd0d9;
+      font: .82rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    nav {
+      position: sticky;
+      z-index: 10;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: rgb(255 253 248 / 92%);
+      backdrop-filter: blur(14px);
+    }
+
+    nav .shell {
+      display: flex;
+      gap: 24px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    nav a {
+      flex: 0 0 auto;
+      padding: 14px 0 12px;
+      color: var(--navy);
+      border-bottom: 3px solid transparent;
+      font-size: .82rem;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    nav a:hover { border-color: var(--gold); }
+
+    main { padding: 36px 0 80px; }
+
+    section {
+      scroll-margin-top: 68px;
+      margin-top: 56px;
+    }
+
+    section:first-child { margin-top: 0; }
+
+    h2 {
+      margin: 0 0 20px;
+      color: var(--navy);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      font-weight: 600;
+      letter-spacing: -.03em;
+      line-height: 1.1;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 1rem;
+      line-height: 1.3;
+    }
+
+    p { margin: 0 0 14px; }
+    .muted { color: var(--muted); }
+    .small { font-size: .84rem; }
+
+    .callout {
+      padding: 24px 26px;
+      border: 1px solid #bacbd2;
+      border-left: 5px solid var(--blue);
+      border-radius: 12px;
+      background: #eef5f7;
+      box-shadow: var(--shadow);
+    }
+
+    .callout strong { color: var(--navy); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .metric {
+      min-height: 125px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 8px 20px rgb(26 39 49 / 5%);
+    }
+
+    .metric b {
+      display: block;
+      color: var(--navy);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -.04em;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .76rem;
+      font-weight: 700;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .grid-2, .grid-3 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 8px 20px rgb(26 39 49 / 5%);
+    }
+
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+
+    ul, ol {
+      margin: 10px 0 16px;
+      padding-left: 20px;
+    }
+
+    li { margin: 6px 0; }
+
+    code {
+      padding: .12em .34em;
+      border-radius: 4px;
+      color: #12344a;
+      background: #e5eef1;
+      font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .node {
+      display: flex;
+      min-height: 140px;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px;
+      border: 1px solid #b8c8cf;
+      border-radius: 12px;
+      background: #f8fcfd;
+      text-align: center;
+    }
+
+    .node b { color: var(--navy); }
+    .node span { margin-top: 6px; color: var(--muted); font-size: .82rem; }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-size: 1.7rem;
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      font-size: .9rem;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--navy);
+      background: #ece8df;
+      font-size: .76rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    td.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .good { color: #245438; background: #dcecdf; }
+    .medium { color: #76500f; background: #f7e8be; }
+    .high { color: #7d2e27; background: #f5d9d5; }
+    .structural { color: #224c68; background: #dcebf1; }
+
+    .finding {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 16px;
+      padding: 20px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .finding:first-of-type { border-top: 0; }
+
+    .rank {
+      color: var(--navy);
+      font: 700 1.7rem Georgia, "Times New Roman", serif;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 72px;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+      font-size: .86rem;
+    }
+
+    .bar-track {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: #ded9cf;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--teal));
+    }
+
+    .source-list {
+      columns: 2;
+      column-gap: 32px;
+      font-size: .86rem;
+    }
+
+    .source-list li { break-inside: avoid; }
+
+    footer {
+      padding: 28px 0 48px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 980px) {
+      .metrics { grid-template-columns: repeat(3, 1fr); }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      header { padding-top: 52px; }
+      .metrics, .grid-2 { grid-template-columns: 1fr 1fr; }
+      .architecture { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+      .source-list { columns: 1; }
+      .finding { grid-template-columns: 52px 1fr; }
+      .table-wrap { overflow-x: auto; }
+      table { min-width: 700px; }
+    }
+
+    @media (max-width: 450px) {
+      .shell { width: min(100% - 20px, 1180px); }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { min-height: 0; }
+    }
+
+    @media print {
+      body { background: white; }
+      header { padding: 32px 0; background: var(--navy); }
+      nav { display: none; }
+      .card, .metric, .callout { box-shadow: none; }
+      section { break-inside: avoid; margin-top: 32px; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell">
+      <p class="eyebrow">Static architecture review</p>
+      <h1>HRF codebase &amp; Arcs analysis</h1>
+      <p class="lede">A general assessment of the tabletop-game platform, followed by a focused review of the Arcs implementation, its action engine, campaign composition, risks, and practical next steps.</p>
+      <div class="snapshot">
+        <span>Snapshot: d157b02</span>
+        <span>Version: 0.8.140</span>
+        <span>Reviewed: 2026-07-10</span>
+        <span>Method: source/build/history inspection</span>
+      </div>
+    </div>
+  </header>
+
+  <nav aria-label="Report sections">
+    <div class="shell">
+      <a href="#summary">Summary</a>
+      <a href="#codebase">Codebase</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#arcs">Arcs</a>
+      <a href="#findings">Findings</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#appendix">Appendix</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <section id="summary">
+      <h2>Executive summary</h2>
+      <div class="callout">
+        <p><strong>Overall:</strong> HRF is an unusually capable, domain-specific game platform. Its explicit action records, continuation algebra, replay log, generic UI, and pluggable rule handlers support many complex asynchronous board games from one Scala.js application.</p>
+        <p><strong>Arcs:</strong> The module has impressive breadth: base play, Leaders &amp; Lore, The Blighted Reach, 24 Fate handlers, bots, canvas UI, metadata, and replay serialization. Its principal weakness is confidence, not apparent feature coverage: there are no application tests or CI checks, while highly mutable state and hundreds of action handlers make regressions difficult to detect.</p>
+      </div>
+
+      <div class="metrics" aria-label="Key metrics">
+        <div class="metric"><b>91,033</b><span>application Scala lines</span></div>
+        <div class="metric"><b>21,588</b><span>Arcs Scala lines</span></div>
+        <div class="metric"><b>583</b><span>Arcs action record types</span></div>
+        <div class="metric"><b>877</b><span>Arcs action-handler cases</span></div>
+        <div class="metric"><b>34</b><span>core + Fate expansions</span></div>
+        <div class="metric"><b>0</b><span>application test files / CI workflows</span></div>
+      </div>
+      <p class="muted small">Line counts are physical lines and include whitespace/comments. “Application” means <code>haunt-roll-fail/</code>; it excludes the vendored Scala.js DOM fork and JVM server.</p>
+    </section>
+
+    <section id="codebase">
+      <h2>Codebase in general</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>1. Browser game platform</h3>
+          <p>The main Scala.js project compiles shared infrastructure and eleven game directories into one browser application. <a href="../haunt-roll-fail/hrf.scala#L64">HRF registers each game’s metadata and UI</a>; <a href="../haunt-roll-fail/common.sbt#L27">SBT adds game folders as unmanaged sources</a>.</p>
+        </article>
+        <article class="card">
+          <h3>2. Supporting server</h3>
+          <p><code>good-game/</code> is a compact Akka HTTP, Slick, and HSQLDB service. It serves the app and stores users, journals, permissions, play links, and append-only entries. It is transport/persistence, not the rules engine.</p>
+        </article>
+        <article class="card">
+          <h3>3. Local DOM fork</h3>
+          <p><code>scala-js-dom-reduced/</code> is a 32,446-line local snapshot published as <code>2.8.0-SNAPSHOT</code>. The main project depends on that local artifact, creating a deliberate but undocumented build prerequisite.</p>
+        </article>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px">
+        <article class="card">
+          <h3>What is strong</h3>
+          <ul>
+            <li><strong>Explicit behavior:</strong> player choices, forced steps, dice, shuffles, and randomness are modeled as serializable actions.</li>
+            <li><strong>Replay-first design:</strong> actions are recorded, validated, rerunnable, and usable for undo/timelines.</li>
+            <li><strong>Shared abstractions:</strong> games reuse metadata, option validation, bots, rendering primitives, hosting, logs, and serialization.</li>
+            <li><strong>Domain invariants:</strong> identity trackers reject duplicate registration, unknown locations, and invalid moves.</li>
+            <li><strong>Broad product scope:</strong> offline/online play, spectators, hidden information, bots, responsive canvases, and multiple games coexist.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>What limits maintainability</h3>
+          <ul>
+            <li><strong>Monolithic compilation:</strong> flat unmanaged source directories give weak module boundaries and compile all games together.</li>
+            <li><strong>Private language:</strong> aliases such as <code>$</code>, <code>|</code>, <code>/</code>, <code>%</code>, and <code>@@</code> make code concise but raise onboarding and review cost.</li>
+            <li><strong>Suppressed diagnostics:</strong> the build suppresses non-exhaustive match, unreachable-code, and other warnings that matter in a state machine.</li>
+            <li><strong>Minimal documentation:</strong> the README contains only three build commands; architecture, replay contracts, and release checks are implicit.</li>
+            <li><strong>No automated gate:</strong> no test source tree or GitHub Actions workflow exists.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 style="margin-top:24px">Application size by game module</h3>
+      <div class="bar-row"><span>Root</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span>33,121</span></div>
+      <div class="bar-row"><span>Arcs</span><div class="bar-track"><div class="bar-fill" style="width:65.2%"></div></div><span>21,588</span></div>
+      <div class="bar-row"><span>Vast</span><div class="bar-track"><div class="bar-fill" style="width:21%"></div></div><span>6,969</span></div>
+      <div class="bar-row"><span>DWAM</span><div class="bar-track"><div class="bar-fill" style="width:13.9%"></div></div><span>4,610</span></div>
+      <div class="bar-row"><span>DOMS</span><div class="bar-track"><div class="bar-fill" style="width:10.8%"></div></div><span>3,590</span></div>
+      <div class="bar-row"><span>Coup</span><div class="bar-track"><div class="bar-fill" style="width:7.5%"></div></div><span>2,484</span></div>
+    </section>
+
+    <section id="architecture">
+      <h2>How the platform works</h2>
+      <div class="architecture" role="img" aria-label="Metadata and UI emit actions, game and expansion handlers produce continuations, and the journal stores serialized external actions for replay">
+        <div class="node"><b>Metadata + UI</b><span>Options, factions, assets, panes, canvas targets, user choices</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="node"><b>Action engine</b><span>Actions enter game-specific handlers and yield Ask, Force, Roll, Shuffle, Log, or GameOver</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="node"><b>Journal + replay</b><span>External actions are serialized, synchronized, validated, and reapplied to reconstruct state</span></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Responsibility</th><th>Key evidence</th><th>Assessment</th></tr></thead>
+          <tbody>
+            <tr><td>Domain algebra</td><td><code>Action</code>, <code>UserAction</code>, <code>ForcedAction</code>, randomness, messages</td><td><a href="../haunt-roll-fail/base.scala#L140">base.scala</a></td><td><span class="tag good">Strong</span> explicit protocol</td></tr>
+            <tr><td>State machine</td><td>Continuations represent prompts, deterministic work, random oracles, logs, and completion</td><td><a href="../haunt-roll-fail/base.scala#L415">base.scala</a></td><td><span class="tag good">Strong</span> composable flow</td></tr>
+            <tr><td>Execution</td><td>Validate, perform, record actions, collect UI effects, expose current continuation</td><td><a href="../haunt-roll-fail/base.scala#L607">base.scala</a></td><td><span class="tag medium">Mixed</span> powerful, intricate</td></tr>
+            <tr><td>Serialization</td><td>Reflect case objects/classes by prefix, name, and constructor arity</td><td><a href="../haunt-roll-fail/serialize.scala#L24">serialize.scala</a></td><td><span class="tag high">Risk</span> schema tied to code shape</td></tr>
+            <tr><td>Presentation</td><td>HTML elements, panes, sprites, canvases, logs, responsive layout</td><td><a href="../haunt-roll-fail/ui.scala">ui.scala</a>, <a href="../haunt-roll-fail/canvas.scala">canvas.scala</a></td><td><span class="tag structural">Dense</span> reusable toolkit</td></tr>
+            <tr><td>Online host</td><td>Serve assets, authenticate, authorize, append/read journal entries</td><td><a href="../good-game/GoodGame.scala">GoodGame.scala</a></td><td><span class="tag medium">Small</span> but operationally central</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="arcs">
+      <h2>Arcs deep dive</h2>
+      <p>Arcs is the second-largest game area after Root and accounts for <strong>23.7%</strong> of application Scala lines. It is effectively a product inside the platform, with two metadata entry points: base <code>arcs</code> and campaign <code>arcs-br</code>.</p>
+
+      <div class="grid-3">
+        <article class="card">
+          <h3>Domain state</h3>
+          <p><a href="../haunt-roll-fail/arcs/game.scala#L1287"><code>Game</code></a> owns mutable setup, factions, colors, acts/chapters, ambitions, laws, boards, and four identity trackers for resources, court cards, figures, and action cards.</p>
+        </article>
+        <article class="card">
+          <h3>Rule composition</h3>
+          <p>Ten core handlers cover common flow, base rules, battle, movement, guilds, Leaders &amp; Lore, campaign, summit, and shared Fate behavior. Twenty-four Fate handlers are inserted dynamically as players acquire Fates.</p>
+        </article>
+        <article class="card">
+          <h3>Presentation + AI</h3>
+          <p>A 2,116-line canvas-heavy UI renders map, court, ambitions, figures, overlays, and choices. The default “Easy” bot assigns hand-written heuristic scores; an end-of-chapter bot can clone and simulate games.</p>
+        </article>
+      </div>
+
+      <h3 style="margin-top:24px">Rule-routing model</h3>
+      <div class="architecture" role="img" aria-label="An action is offered to ordered expansion handlers until one returns a continuation; Fate expansions are prepended at runtime">
+        <div class="node"><b>Action record</b><span>One of 583 action case classes/objects</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="node"><b>Ordered expansions</b><span>First handler returning anything except UnknownContinue wins</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="node"><b>Continuation</b><span>Prompt, force, random oracle, log, milestone, or game over</span></div>
+      </div>
+      <p class="small muted">Core expansion order is configured in <a href="../haunt-roll-fail/arcs/game.scala#L1295">Game</a>. Dynamic Fate insertion occurs in <a href="../haunt-roll-fail/arcs/game-blight.scala#L479">campaign setup</a>. First-match dispatch is implemented by <a href="../haunt-roll-fail/arcs/game.scala#L1788"><code>internalPerform</code></a>.</p>
+
+      <div class="table-wrap" style="margin-top:24px">
+        <table>
+          <thead><tr><th>Arcs area</th><th>Files / lines</th><th>Role</th><th>Observation</th></tr></thead>
+          <tbody>
+            <tr><td>Core game rules</td><td>10 expansion files</td><td>Setup, turn/chapter flow, battle, movement, guilds, campaign, summit, lore</td><td>Clear feature-oriented handlers, but large match blocks communicate through shared mutable state.</td></tr>
+            <tr><td>Fates</td><td>24 files / 6,198 lines</td><td>Each Fate defines cards, actions, setup, crises, and its expansion handler</td><td>Consistent file pattern is a strong extension seam; cross-Fate interaction still depends on handler order and shared state.</td></tr>
+            <tr><td>Game model</td><td>1,873 lines</td><td>Entities, locations, effects, faction state, trackers, helpers, cloning</td><td>Central cohesion is useful, but manual clone logic is a high-risk maintenance point.</td></tr>
+            <tr><td>UI + styles</td><td>2,284 lines</td><td>Canvas scenes, responsive panes, sprites, input mapping, styles</td><td>Presentation is highly tailored and capable; rendering, layout, and input handling are concentrated.</td></tr>
+            <tr><td>Meta + I/O</td><td>1,681 lines</td><td>Options, assets, setup validation, serializer, JVM host</td><td><code>meta.scala</code> is mostly a long asset manifest; serializer is small because it delegates to reflection.</td></tr>
+            <tr><td>Bots</td><td>785 lines</td><td>Heuristic evaluation, random/old variants, cloned end-of-chapter simulation</td><td>Good simulation hook, but heuristics and clone correctness have no automated regression checks.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px">
+        <article class="card">
+          <h3>Coverage visible in source</h3>
+          <ul>
+            <li>Base game for three or four players with five setup cards.</li>
+            <li>Leaders &amp; Lore, including multiple-lore variants.</li>
+            <li>Blighted Reach acts, empire/free/blight colors, summits, edicts, laws, crises, and intermissions.</li>
+            <li>All 24 named Fates across three acts, each with an associated <code>FateExpansion</code>.</li>
+            <li>Replay serialization, online host simulation, and multiple bot strategies.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Completeness caveat</h3>
+          <p>Source breadth is not proof of rules fidelity. One campaign path still logs <code>TODO PERFORM CRISES ON</code> in <a href="../haunt-roll-fail/arcs/game-blight.scala#L1576">game-blight.scala</a>, summit validation contains TODOs, and no automated scenarios verify setup, scoring, Fate progression, or replay compatibility.</p>
+          <p>The safest conclusion is “extensive implementation with unmeasured correctness,” not “complete.”</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="findings">
+      <h2>Key findings</h2>
+      <div class="finding">
+        <div class="rank">01</div>
+        <div><h3>No executable safety net <span class="tag high">High</span></h3><p>There are no application test files and no CI workflows. SBT host simulations exercise full games and serializer round trips, but they are manual executables without assertions, stable seeds, or pull-request gating. This is the dominant risk because every other issue becomes harder to change safely.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">02</div>
+        <div><h3>Manual state cloning can silently drift <span class="tag high">High</span></h3><p><a href="../haunt-roll-fail/arcs/game.scala#L1810"><code>Game.cloned</code></a> copies dozens of mutable fields one by one, then clones color states and trackers. Adding a field without updating the clone produces plausible but incorrect bot simulations. The risk directly affects <code>BotEOC</code>, which makes decisions from cloned games.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">03</div>
+        <div><h3>First-match action routing is order-sensitive <span class="tag high">High</span></h3><p>Every action is offered to an ordered list of expansions. Dynamic Fate handlers are prepended, and the first non-unknown result wins. Overlapping handlers are not detected, so a new case may shadow another rule based on configuration and acquisition order.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">04</div>
+        <div><h3>Replay format is coupled to class shape <span class="tag high">High</span></h3><p>The serializer reflects case classes using package prefix, class name, and parameter count. Renames, moves, parameter additions, and constructor changes can invalidate old journals. Start actions carry versions, but there is no explicit schema or migration registry. String output also lacks an escaping protocol for quotes and backslashes.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">05</div>
+        <div><h3>Large hotspots concentrate change risk <span class="tag medium">Medium</span></h3><p><code>game-common.scala</code> (2,696 lines), <code>game-blight.scala</code> (2,425), <code>ui.scala</code> (2,116), and <code>game.scala</code> (1,873) contain much of the state transition surface. Feature locality exists, but core and campaign files remain expensive to review.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">06</div>
+        <div><h3>Compiler feedback is muted <span class="tag medium">Medium</span></h3><p>The build suppresses warnings for non-exhaustive matches and unreachable code. That is hazardous in an algebraic state machine. A small example appears in <a href="../haunt-roll-fail/arcs/meta.scala#L393">faction validation</a>: the “minimum two factions” condition is unreachable after the earlier “minimum three” condition.</p></div>
+      </div>
+      <div class="finding">
+        <div class="rank">07</div>
+        <div><h3>Build and ownership boundaries are implicit <span class="tag medium">Medium</span></h3><p>The main build depends on a locally published snapshot and compiles folders through unmanaged source paths. There is no CI codification, module dependency graph, or maintainer guide. The approach is simple, but only after a contributor learns repository-specific conventions.</p></div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2>Recommended roadmap</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Priority</th><th>Action</th><th>Concrete first slice</th><th>Why first</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag high">P0</span></td><td>Establish automated confidence</td><td>Add CI for the three-stage build; add deterministic Arcs replay fixtures for one base game and one campaign chapter; run serializer round trips and bounded seeded host games.</td><td>Creates a safe foundation without redesigning production code.</td></tr>
+            <tr><td><span class="tag high">P1</span></td><td>Make cloning verifiable</td><td>Add clone-equivalence tests that serialize legal actions after original/clone transitions. Then consolidate state into cloneable aggregates or derive clones by replay where performance allows.</td><td>Protects bots from silent divergence.</td></tr>
+            <tr><td><span class="tag high">P1</span></td><td>Harden rule routing</td><td>In a diagnostic/test mode, evaluate all handlers and fail when multiple expansions claim the same action. Record the winning expansion in errors and simulation traces.</td><td>Turns order coupling into a visible contract.</td></tr>
+            <tr><td><span class="tag high">P1</span></td><td>Version replay schema</td><td>Introduce stable action identifiers, escaped strings, schema versions, and explicit migrations; preserve current parsing as a legacy reader.</td><td>Protects persisted online games from refactors.</td></tr>
+            <tr><td><span class="tag medium">P2</span></td><td>Reduce hotspots incrementally</td><td>Split campaign setup/intermission/crisis flows from <code>game-blight.scala</code>; split map/court/status renderers from <code>ui.scala</code>; generate or externalize the asset catalog.</td><td>Improves reviewability with bounded changes.</td></tr>
+            <tr><td><span class="tag medium">P2</span></td><td>Restore useful warnings</td><td>Enable non-exhaustive and unreachable-code warnings for Arcs first, fix findings, then expand scope. Keep suppressions narrow and documented.</td><td>Uses Scala’s type system as a low-cost correctness tool.</td></tr>
+            <tr><td><span class="tag structural">P3</span></td><td>Document the internal language</td><td>Add a short architecture guide for the collection DSL, action/continuation lifecycle, expansion ordering, trackers, replay, and local DOM dependency.</td><td>Reduces onboarding and review latency.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="appendix">
+      <h2>Appendix: evidence and method</h2>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Repository metrics</h3>
+          <ul>
+            <li>1,080 tracked files; 1,065 Scala files.</li>
+            <li>123,834 Scala lines repository-wide.</li>
+            <li>32,446 lines in <code>scala-js-dom-reduced</code>.</li>
+            <li>91,033 lines in the Scala.js application.</li>
+            <li>355 lines in the JVM server.</li>
+            <li>Arcs: 45 files, 21,588 lines, 583 action declarations, 877 action-handler cases.</li>
+            <li>Arcs: 10 core expansions, 24 Fate expansions, 6,198 Fate-file lines.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Review boundaries</h3>
+          <ul>
+            <li>Inspected source, SBT configuration, file/line distribution, recent revision, TODOs, and test/CI presence.</li>
+            <li>Traced action execution, continuations, serialization, tracking, UI registration, Arcs state, expansion composition, bots, and host simulation.</li>
+            <li>Did not validate rules against physical rulebooks or run exhaustive game simulations.</li>
+            <li>Risk levels express maintenance/regression exposure, not confirmed user-facing defects.</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="card" style="margin-top:16px">
+        <h3>Primary source map</h3>
+        <ul class="source-list">
+          <li><a href="../README.md">README.md</a> — build entry point</li>
+          <li><a href="../haunt-roll-fail/common.sbt">common.sbt</a> — versions, sources, warnings, dependencies</li>
+          <li><a href="../haunt-roll-fail/hrf.scala">hrf.scala</a> — browser bootstrap and game registry</li>
+          <li><a href="../haunt-roll-fail/base.scala">base.scala</a> — action and continuation engine</li>
+          <li><a href="../haunt-roll-fail/serialize.scala">serialize.scala</a> — generic reflection-based codec</li>
+          <li><a href="../haunt-roll-fail/new-new-new-tracker.scala">new-new-new-tracker.scala</a> — identity/location tracking</li>
+          <li><a href="../haunt-roll-fail/arcs/game.scala">arcs/game.scala</a> — model, state, dispatch, cloning</li>
+          <li><a href="../haunt-roll-fail/arcs/game-common.scala">arcs/game-common.scala</a> — shared Arcs flow</li>
+          <li><a href="../haunt-roll-fail/arcs/game-blight.scala">arcs/game-blight.scala</a> — campaign rules and Fate loading</li>
+          <li><a href="../haunt-roll-fail/arcs/meta.scala">arcs/meta.scala</a> — options, assets, entry points</li>
+          <li><a href="../haunt-roll-fail/arcs/ui.scala">arcs/ui.scala</a> — Arcs presentation</li>
+          <li><a href="../haunt-roll-fail/arcs/serialize.scala">arcs/serialize.scala</a> — Arcs codec extensions</li>
+          <li><a href="../haunt-roll-fail/arcs/bot-new.scala">arcs/bot-new.scala</a> — default heuristic bot</li>
+          <li><a href="../haunt-roll-fail/arcs/bot-end-of-chapter.scala">arcs/bot-end-of-chapter.scala</a> — cloned simulation bot</li>
+          <li><a href="../haunt-roll-fail/arcs/host.scala">arcs/host.scala</a> — JVM simulation configuration</li>
+          <li><a href="../good-game/GoodGame.scala">GoodGame.scala</a> — HTTP and journal persistence</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell">Generated from repository snapshot <code>d157b02</code>. This report is self-contained and print-friendly.</div>
+  </footer>
+</body>
+</html>
